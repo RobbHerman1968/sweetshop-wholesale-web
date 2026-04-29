@@ -1,0 +1,22 @@
+export type Order = {
+    id: number;
+    accountId: number;
+    orderNumber: string;
+    orderDate: Date;
+    subTotal: number;
+    shipping: number;
+    tax: number;
+    total: number;
+    promotionCode: string;
+    promotionDiscount: number;
+    ccLastFour: string;
+    ccExp: string;
+    ccType: string;
+    comment: string;
+    expectedDeliveryDate: Date;
+    shippingCode: string;
+    accountMateReturnStatus: string;
+    accountMateTransactionId: string;
+    isNewCustomerOrder: boolean;
+    accountMateOrderNumber: number;
+};

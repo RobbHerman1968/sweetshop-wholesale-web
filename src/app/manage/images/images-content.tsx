@@ -1,0 +1,458 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { AddImageDialog } from '@/components/add-image-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Label } from '@/components/ui/label';
+import { applyVercelImageNamesFromFilenameList, deleteVercelImageIfUnused, updateVercelImageName, updateVercelImageNamesBulk } from '@/lib/db-pg/actions/image';
+import { cn } from '@/lib/utils';
+
+type ImageRow = {
+    id: number;
+    name: string;
+    /** Vercel Blob (or other) HTTPS URL for the image file. */
+    publicUrl: string;
+};
+
+type ImagesContentProps = {
+    data: ImageRow[];
+    pagination: { total: number; page: number; limit: number; totalPages: number };
+    searchName: string;
+};
+
+function buildQuery(params: { page?: number; name?: string }) {
+    const q = new URLSearchParams();
+    if (params.page != null && params.page > 1) q.set('page', String(params.page));
+    if (params.name?.trim()) q.set('name', params.name.trim());
+    return q.toString() ? `?${q.toString()}` : '';
+}
+
+export function ImagesContent({ data, pagination, searchName }: ImagesContentProps) {
+    const router = useRouter();
+    const [addImageOpen, setAddImageOpen] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [imageToDelete, setImageToDelete] = useState<ImageRow | null>(null);
+    const [imageToEdit, setImageToEdit] = useState<ImageRow | null>(null);
+    const [editName, setEditName] = useState('');
+    const [savingEdit, setSavingEdit] = useState(false);
+    /** Snapshot rows so selection survives pagination and bulk edit always has full rows. */
+    const [selectedById, setSelectedById] = useState<Map<number, ImageRow>>(() => new Map());
+    const [bulkEditOpen, setBulkEditOpen] = useState(false);
+    const [bulkRows, setBulkRows] = useState<{ id: number; name: string; publicUrl: string }[]>([]);
+    const [savingBulk, setSavingBulk] = useState(false);
+    const [filenameListOpen, setFilenameListOpen] = useState(false);
+    const [filenameListText, setFilenameListText] = useState('');
+    const [filenameListApplying, setFilenameListApplying] = useState(false);
+    const [filenameListResult, setFilenameListResult] = useState<Awaited<ReturnType<typeof applyVercelImageNamesFromFilenameList>> | null>(null);
+
+    const selectedCount = selectedById.size;
+
+    function clearAllSelection() {
+        setSelectedById(new Map());
+    }
+
+    function openBulkEdit() {
+        if (selectedById.size === 0) return;
+        const onPage = new Map(data.map((img) => [img.id, img]));
+        const rows = Array.from(selectedById.values()).map((img) => {
+            const latest = onPage.get(img.id);
+            return {
+                id: img.id,
+                name: (latest?.name ?? img.name) || '',
+                publicUrl: (latest?.publicUrl ?? img.publicUrl) || '',
+            };
+        });
+        setBulkRows(rows);
+        setBulkEditOpen(true);
+    }
+
+    function setBulkRowName(id: number, name: string) {
+        setBulkRows((rows) => rows.map((r) => (r.id === id ? { ...r, name } : r)));
+    }
+
+    async function saveBulkNames() {
+        if (bulkRows.length === 0) return;
+        setSavingBulk(true);
+        await updateVercelImageNamesBulk(bulkRows.map((r) => ({ id: r.id, name: r.name })));
+        setSavingBulk(false);
+        setBulkEditOpen(false);
+        setBulkRows([]);
+        clearAllSelection();
+        router.refresh();
+    }
+
+    function openDeleteConfirm(img: ImageRow) {
+        setDeleteError(null);
+        setImageToDelete(img);
+    }
+
+    function openEditSheet(img: ImageRow) {
+        setImageToEdit(img);
+        setEditName(img.name || '');
+    }
+
+    async function saveEditName() {
+        if (!imageToEdit) return;
+        setSavingEdit(true);
+        await updateVercelImageName(imageToEdit.id, editName);
+        setSavingEdit(false);
+        setImageToEdit(null);
+        router.refresh();
+    }
+
+    async function confirmDelete() {
+        if (!imageToDelete) return;
+        setDeletingId(imageToDelete.id);
+        const result = await deleteVercelImageIfUnused(imageToDelete.id);
+        setDeletingId(null);
+        setImageToDelete(null);
+        if (result.success) {
+            router.refresh();
+        } else {
+            setDeleteError(result.error);
+        }
+    }
+
+    async function applyFilenameList() {
+        setFilenameListApplying(true);
+        setFilenameListResult(null);
+        const result = await applyVercelImageNamesFromFilenameList(filenameListText);
+        setFilenameListApplying(false);
+        setFilenameListResult(result);
+        if (result.updated.length > 0) {
+            router.refresh();
+        }
+    }
+
+    function onFilenameListOpenChange(open: boolean) {
+        setFilenameListOpen(open);
+        if (!open) {
+            setFilenameListText('');
+            setFilenameListResult(null);
+        }
+    }
+
+    const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const name = (form.elements.namedItem('name') as HTMLInputElement).value;
+        const query = buildQuery({ page: 1, name: name || undefined });
+        router.push(`/manage/images${query}`);
+    };
+
+    const { page, totalPages } = pagination;
+
+    const pageNumbers: (number | 'ellipsis')[] = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
+    } else {
+        pageNumbers.push(1);
+        if (page > 3) pageNumbers.push('ellipsis');
+        for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+            if (!pageNumbers.includes(i)) pageNumbers.push(i);
+        }
+        if (page < totalPages - 2) pageNumbers.push('ellipsis');
+        if (totalPages > 1) pageNumbers.push(totalPages);
+    }
+
+    return (
+        <div className="mx-auto max-w-7xl space-y-6">
+            <Dialog open={filenameListOpen} onOpenChange={onFilenameListOpenChange}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto border-[#c49a78] bg-[#f8eddf] sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-[#4a2518]">Match filenames to library names</DialogTitle>
+                        <DialogDescription className="text-[#6e4a34]">
+                            Paste one filename per line (full paths are fine). Only library rows with id greater than 2000 are matched or updated. Each line matches a row whose current{' '}
+                            <code className="rounded bg-[#fdf7ef] px-1 text-[11px]">imageName</code> matches if it equals the stem, the full basename, or common variants (spaces vs underscores, legacy sanitized forms; case-insensitive). That row is updated so{' '}
+                            <code className="rounded bg-[#fdf7ef] px-1 text-[11px]">imageName</code> is the exact basename (trimmed, up to 100 characters), including spaces and punctuation. Names cannot duplicate another row (case-insensitive), including id 2000 or lower.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <Label htmlFor="filename-list-paste" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                            Filenames
+                        </Label>
+                        <textarea
+                            id="filename-list-paste"
+                            value={filenameListText}
+                            onChange={(e) => {
+                                setFilenameListText(e.target.value);
+                                setFilenameListResult(null);
+                            }}
+                            rows={12}
+                            placeholder={'photo.jpg\n/Users/you/Downloads/other.png'}
+                            disabled={filenameListApplying}
+                            className={cn(
+                                'w-full resize-y rounded-md border border-[#d1b79a] bg-white px-3 py-2 font-mono text-xs text-[#4a2b1f] outline-none ring-amber-300 focus:ring',
+                                'min-h-[160px]',
+                            )}
+                        />
+                        {filenameListResult && (
+                            <div className="space-y-2 rounded-lg border border-[#c49a78] bg-[#fdf7ef] p-3 text-[11px] text-[#4a2518]">
+                                <p>
+                                    <span className="font-semibold">{filenameListResult.updated.length}</span> updated
+                                    {filenameListResult.skippedUnchanged > 0 && (
+                                        <>
+                                            , <span className="font-semibold">{filenameListResult.skippedUnchanged}</span> already correct
+                                        </>
+                                    )}
+                                    .
+                                </p>
+                                {filenameListResult.duplicateStemInPaste.length > 0 && (
+                                    <p className="text-amber-900">
+                                        Skipped conflicting lines (same name without extension but different extensions):{' '}
+                                        {filenameListResult.duplicateStemInPaste.slice(0, 8).join('; ')}
+                                        {filenameListResult.duplicateStemInPaste.length > 8 ? '…' : ''}
+                                    </p>
+                                )}
+                                {filenameListResult.conflicts.length > 0 && (
+                                    <ul className="list-inside list-disc text-red-800">
+                                        {filenameListResult.conflicts.map((c, i) => (
+                                            <li key={i}>
+                                                {c.line}: {c.message}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                {filenameListResult.unmatchedLines.length > 0 && (
+                                    <p className="text-[#6e4a34]">
+                                        No match for {filenameListResult.unmatchedLines.length} line(s). First few:{' '}
+                                        {filenameListResult.unmatchedLines.slice(0, 5).join('; ')}
+                                        {filenameListResult.unmatchedLines.length > 5 ? '…' : ''}
+                                    </p>
+                                )}
+                                {filenameListResult.ambiguousLines.length > 0 && (
+                                    <p className="text-red-800">
+                                        Multiple library rows matched the same stem for: {filenameListResult.ambiguousLines.join('; ')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => onFilenameListOpenChange(false)} disabled={filenameListApplying}>
+                            Close
+                        </Button>
+                        <Button type="button" onClick={applyFilenameList} disabled={filenameListApplying || !filenameListText.trim()}>
+                            {filenameListApplying ? 'Applying…' : 'Apply'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={imageToDelete != null} onOpenChange={(open) => !open && setImageToDelete(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete image?</DialogTitle>
+                        <DialogDescription>{imageToDelete ? `"${imageToDelete.name}" will be permanently deleted. This cannot be undone.` : ''}</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setImageToDelete(null)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" variant="primary" className="bg-red-600 hover:bg-red-700" onClick={confirmDelete} disabled={deletingId != null}>
+                            {deletingId != null ? 'Deleting…' : 'Delete'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Sheet
+                open={bulkEditOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setBulkEditOpen(false);
+                        setBulkRows([]);
+                    }
+                }}
+            >
+                <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+                    <SheetHeader>
+                        <SheetTitle>Edit {bulkRows.length} images</SheetTitle>
+                        <SheetDescription>Update display names. Each row is saved to the library the same as a single edit.</SheetDescription>
+                    </SheetHeader>
+                    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto py-4 pr-1">
+                        {bulkRows.map((row) => (
+                            <div key={row.id} className="flex gap-3 rounded-xl border border-[#c49a78] bg-[#fdf7ef] p-3">
+                                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[#c49a78] bg-white">
+                                    {row.publicUrl ? (
+                                        <img
+                                            src={row.publicUrl}
+                                            alt=""
+                                            className="h-full w-full object-cover"
+                                            referrerPolicy="no-referrer"
+                                        />
+                                    ) : (
+                                        <div className="flex h-full items-center justify-center text-[9px] text-[#6e4a34]">No file</div>
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1 space-y-1">
+                                    <Label htmlFor={`bulk-name-${row.id}`} className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#6e4a34]">
+                                        Name
+                                    </Label>
+                                    <Input
+                                        id={`bulk-name-${row.id}`}
+                                        value={row.name}
+                                        onChange={(e) => setBulkRowName(row.id, e.target.value)}
+                                        placeholder="Image name"
+                                        className="w-full text-sm"
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <SheetFooter className="border-t border-[#c49a78] pt-4">
+                        <Button type="button" variant="outline" onClick={() => setBulkEditOpen(false)} disabled={savingBulk}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={saveBulkNames} disabled={savingBulk}>
+                            {savingBulk ? 'Saving…' : 'Save all'}
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+
+            <Sheet open={imageToEdit != null} onOpenChange={(open) => !open && setImageToEdit(null)}>
+                <SheetContent side="right">
+                    <SheetHeader>
+                        <SheetTitle>Edit image</SheetTitle>
+                        <SheetDescription>Update the display name for this image.</SheetDescription>
+                    </SheetHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-image-name" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                                Name
+                            </Label>
+                            <Input id="edit-image-name" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Image name" className="w-full" />
+                        </div>
+                    </div>
+                    <SheetFooter>
+                        <Button type="button" variant="outline" onClick={() => setImageToEdit(null)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={saveEditName} disabled={savingEdit}>
+                            {savingEdit ? 'Saving…' : 'Save'}
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Images</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                    {selectedCount > 0 && (
+                        <>
+                            <span className="text-[11px] text-[#6e4a34]">{selectedCount} selected</span>
+                            <Button type="button" variant="ghost" className="h-auto px-2 text-[11px] text-[#6e4a34]" onClick={clearAllSelection}>
+                                Clear all
+                            </Button>
+                            <Button type="button" variant="sweet" className="text-[11px]" onClick={openBulkEdit}>
+                                Edit names…
+                            </Button>
+                        </>
+                    )}
+                    <Button type="button" variant="outline" className="text-[11px]" onClick={() => setFilenameListOpen(true)}>
+                        Fix names from list…
+                    </Button>
+                    <Button type="button" onClick={() => setAddImageOpen(true)}>
+                        Add images
+                    </Button>
+                </div>
+            </div>
+
+            <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
+                <label className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
+                    <Input name="name" type="search" placeholder="Search by name" defaultValue={searchName} className="w-48 min-w-0 sm:w-56" />
+                </label>
+                <Button type="submit" variant="sweet" className="shrink-0">
+                    Search
+                </Button>
+            </form>
+
+            <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
+                <p className="w-64">
+                    Showing {data.length} of {pagination.total} images
+                    {searchName && ' (filtered)'}.
+                </p>
+
+                {totalPages > 1 && (
+                    <Pagination>
+                        <PaginationContent>
+                            {pageNumbers.map((n, i) =>
+                                n === 'ellipsis' ? (
+                                    <PaginationItem key={`ellipsis-${i}`}>
+                                        <PaginationEllipsis />
+                                    </PaginationItem>
+                                ) : (
+                                    <PaginationItem key={n}>
+                                        <PaginationLink
+                                            href={`/manage/images${buildQuery({
+                                                page: n,
+                                                name: searchName || undefined,
+                                            })}`}
+                                            isActive={page === n}
+                                        >
+                                            {n}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                ),
+                            )}
+                        </PaginationContent>
+                    </Pagination>
+                )}
+            </div>
+
+            {deleteError && (
+                <Alert variant="destructive" className="bg-red-100! text-red-900!">
+                    <AlertDescription className="text-xs">{deleteError}</AlertDescription>
+                </Alert>
+            )}
+
+            {data.length === 0 ? (
+                <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No images found.</p>
+            ) : (
+                <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                    {data.map((img) => (
+                        <li key={img.id}>
+                            <article className="overflow-hidden rounded-lg border border-[#c49a78] bg-[#f8eddf]">
+                                <div className="relative aspect-square w-full bg-[#ffffff]">
+                                    {img.publicUrl ? (
+                                        <img
+                                            src={img.publicUrl}
+                                            alt=""
+                                            className="h-full w-full object-cover"
+                                            referrerPolicy="no-referrer"
+                                        />
+                                    ) : (
+                                        <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-wider text-[#6e4a34] bg-white">No file</div>
+                                    )}
+                                </div>
+                                <div className="p-3">
+                                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{img.name || '—'}</p>
+                                    <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{img.publicUrl || '—'}</p>
+                                    <div className="mt-2 flex gap-2">
+                                        <Button type="button" variant="sweet" className="flex-1 text-[11px]" onClick={() => openEditSheet(img)}>
+                                            Edit
+                                        </Button>
+                                        <Button type="button" variant="outline" className="flex-1 text-[11px] border-red-400 text-red-700 hover:bg-red-50 hover:border-red-500" onClick={() => openDeleteConfirm(img)} disabled={deletingId === img.id}>
+                                            {deletingId === img.id ? 'Deleting…' : 'Delete'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </article>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            <AddImageDialog open={addImageOpen} onOpenChange={setAddImageOpen} />
+        </div>
+    );
+}
