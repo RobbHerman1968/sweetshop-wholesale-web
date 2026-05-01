@@ -23,12 +23,59 @@
             "url": "http://localhost:3000",
             "webRoot": "${workspaceFolder}",
             "sourceMaps": true
+        },
+        {
+            // Use when the API repo is not added as a workspace folder (web-only window + sibling clone)
+            "name": "Wholesale API: server (sibling path)",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "cwd": "${workspaceFolder}/../sweetshop-wholesale-api",
+            "env": {
+                "NODE_OPTIONS": "--inspect=9230"
+            },
+            "console": "integratedTerminal",
+            "skipFiles": ["<node_internals>/**"]
         }
     ],
     "compounds": [
         {
             "name": "Sweetshop: server + client",
             "configurations": ["Next.js: server", "Next.js: client"]
+        },
+        {
+            "name": "Sweetshop: web server + API",
+            "configurations": [
+                "Next.js: server",
+                {
+                    "folder": "sweetshop-wholesale-api",
+                    "name": "Wholesale API: server"
+                }
+            ]
+        },
+        {
+            "name": "Sweetshop: web + client + API",
+            "configurations": [
+                "Next.js: server",
+                "Next.js: client",
+                {
+                    "folder": "sweetshop-wholesale-api",
+                    "name": "Wholesale API: server"
+                }
+            ]
+        },
+        {
+            "name": "Sweetshop: web + API (sibling path)",
+            "configurations": ["Next.js: server", "Wholesale API: server (sibling path)"]
+        },
+        {
+            "name": "Sweetshop: web + client + API (sibling path)",
+            "configurations": [
+                "Next.js: server",
+                "Next.js: client",
+                "Wholesale API: server (sibling path)"
+            ]
         }
     ]
 }

@@ -149,8 +149,8 @@ export async function uploadImageToVercelBlob(formData: FormData): Promise<Uploa
         await insertVercelImage(nameForDb, blob.url);
         return { success: true, url: blob.url };
     } catch (err) {
-        const message = err instanceof Error ? err.message : 'Upload failed.';
-        return { success: false, error: message };
+        console.error('[uploadImageToVercelBlob]', err);
+        return { success: false, error: 'Upload failed.' };
     }
 }
 

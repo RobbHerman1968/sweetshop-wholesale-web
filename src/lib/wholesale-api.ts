@@ -2,6 +2,7 @@
 export function getWholesaleApiBaseUrl(): string {
     const raw = process.env.WHOLESALE_API_URL?.trim();
     if (raw) return raw.replace(/\/$/, '');
+    // return 'https://sweetshopwholesale.online';
     return 'http://localhost:3001';
 }
 

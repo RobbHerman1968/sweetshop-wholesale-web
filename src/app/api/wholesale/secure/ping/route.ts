@@ -13,14 +13,7 @@ export async function GET() {
         const body = await res.json().catch(() => ({ error: 'Invalid JSON from wholesale API' }));
         return NextResponse.json(body, { status: res.status });
     } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        return NextResponse.json(
-            {
-                error: 'Failed to reach wholesale API',
-                url,
-                detail: message,
-            },
-            { status: 502 },
-        );
+        console.error('[wholesale/secure/ping]', err);
+        return NextResponse.json({ error: 'Failed to reach wholesale API' }, { status: 502 });
     }
 }
