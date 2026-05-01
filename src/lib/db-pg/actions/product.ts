@@ -2,10 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db-pg';
-import { product, productGroupProduct, productImage, vercelImage } from '@/lib/drizzle/schema';
-import { count, ilike, eq, and, inArray, asc, sql } from 'drizzle-orm';
+import { product, productGroup, productGroupProduct, productImage, vercelImage } from '@/lib/drizzle/schema';
+import { count, ilike, eq, and, or, inArray, asc, sql } from 'drizzle-orm';
 import { Product } from '../entities/product-entity';
 import { productMapper } from '../mappers/product-mapper';
+import { SHOP_PRODUCT_FACETS } from '@/lib/shop-product-facets';
 
 export async function getProductCount(name: string, itemNumber: string) {
     let returnCount;
@@ -65,24 +66,92 @@ export async function getAllProductsOld() {
     return out;
 }
 
-export async function getPaginatedProductsFromDB({ page = 1, limit = 10, name, itemNumber, isActive }: { page?: number; limit?: number; name?: string; itemNumber?: string; isActive?: boolean }) {
-    console.log('getPaginatedProductsFromDB', { page, limit, name, itemNumber, isActive });
+export async function getProductGroupsWithActiveProducts() {
+    const rows = await db
+        .selectDistinct({
+            id: productGroup.id,
+            name: productGroup.name,
+        })
+        .from(productGroup)
+        .innerJoin(productGroupProduct, eq(productGroupProduct.productGroupId, productGroup.id))
+        .innerJoin(product, eq(product.id, productGroupProduct.productId))
+        .where(eq(product.isActive, true))
+        .orderBy(asc(productGroup.name));
 
+    return rows;
+}
+
+export async function getPaginatedProductsFromDB({
+    page = 1,
+    limit = 10,
+    name,
+    itemNumber,
+    search,
+    productGroupIds,
+    shopFacetIds,
+    isActive,
+}: {
+    page?: number;
+    limit?: number;
+    name?: string;
+    itemNumber?: string;
+    /** Matches product name OR item number (shop search box). Ignores `name` / `itemNumber` when set. */
+    search?: string;
+    /** Product must appear in `productGroupProduct` for one of these ids (typically from `accountGroup` for the selected account). */
+    productGroupIds?: number[];
+    /** Shop keyword facets: AND across selected facets; within each facet, OR across its search terms (name / description ILIKE). */
+    shopFacetIds?: string[];
+    isActive?: boolean;
+}) {
     const offset = (page - 1) * limit;
+
+    const trimmedSearch = search?.trim();
+    const groupIds = productGroupIds?.filter((id) => Number.isFinite(id) && id > 0) ?? [];
+    const facetIdSet = new Set((shopFacetIds ?? []).filter(Boolean));
 
     const whereClause = (fields: typeof product._.columns) => {
         const conditions = [];
 
-        if (name) {
-            conditions.push(ilike(fields.name, `%${name}%`));
-        }
+        if (trimmedSearch) {
+            const term = `%${trimmedSearch}%`;
+            conditions.push(or(ilike(fields.name, term), ilike(fields.itemNumber, term)));
+        } else {
+            if (name) {
+                conditions.push(ilike(fields.name, `%${name}%`));
+            }
 
-        if (itemNumber) {
-            conditions.push(ilike(fields.itemNumber, `%${itemNumber}%`));
+            if (itemNumber) {
+                conditions.push(ilike(fields.itemNumber, `%${itemNumber}%`));
+            }
         }
 
         if (typeof isActive === 'boolean') {
             conditions.push(eq(fields.isActive, isActive));
+        }
+
+        if (productGroupIds !== undefined) {
+            if (groupIds.length === 0) {
+                conditions.push(sql`false`);
+            } else {
+                conditions.push(
+                    inArray(
+                        fields.id,
+                        db
+                            .select({ pid: productGroupProduct.productId })
+                            .from(productGroupProduct)
+                            .where(inArray(productGroupProduct.productGroupId, groupIds)),
+                    ),
+                );
+            }
+        }
+
+        for (const facet of SHOP_PRODUCT_FACETS) {
+            if (!facetIdSet.has(facet.id)) continue;
+            const termClauses = facet.searchTerms.map((term) => {
+                const t = `%${term}%`;
+                return or(ilike(fields.name, t), ilike(fields.description, t));
+            });
+            conditions.push(termClauses.length === 1 ? termClauses[0] : or(...termClauses));
         }
 
         if (conditions.length === 0) return undefined;
@@ -171,6 +240,41 @@ export async function getPaginatedProductsFromDB({ page = 1, limit = 10, name, i
         console.error('Error fetching paginated products:', error);
         throw new Error('Failed to fetch products');
     }
+}
+
+/** Per facet: true if some active product matches `search` plus this facet AND-ed with `selectedFacetIds`. Selected ids stay true so users can always uncheck. */
+export async function getShopFacetAvailability(opts: {
+    search?: string;
+    selectedFacetIds: string[];
+    /** When set (e.g. public shop), counts only include products in these groups. */
+    productGroupIds?: number[];
+}) {
+    const selected = new Set(opts.selectedFacetIds);
+    const search = opts.search?.trim();
+    const groupIds = opts.productGroupIds?.filter((id) => Number.isFinite(id) && id > 0);
+    const base = {
+        page: 1,
+        limit: 1,
+        search: search || undefined,
+        isActive: true,
+        productGroupIds: groupIds?.length ? groupIds : undefined,
+    } as const;
+
+    const entries = await Promise.all(
+        SHOP_PRODUCT_FACETS.map(async (facet) => {
+            if (selected.has(facet.id)) {
+                return [facet.id, true] as const;
+            }
+            const combined = [...opts.selectedFacetIds, facet.id];
+            const result = await getPaginatedProductsFromDB({
+                ...base,
+                shopFacetIds: combined.length > 0 ? combined : undefined,
+            });
+            return [facet.id, result.pagination.total > 0] as const;
+        }),
+    );
+
+    return Object.fromEntries(entries) as Record<string, boolean>;
 }
 
 export async function getProductsBySearch(name: string | undefined, itemNumber: string | undefined) {

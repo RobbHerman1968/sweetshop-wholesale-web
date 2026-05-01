@@ -2,11 +2,14 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useState } from 'react';
 import { ShoppingCart } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { BrandBar } from '@/components/brand-bar';
 import { UserAccountMenu } from '@/components/user-account-menu';
+import { WholesaleAccountSwitcher } from '@/components/wholesale-account-switcher';
+import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -61,8 +64,21 @@ function CartNavButton({ variant, className }: CartNavButtonProps) {
 
 export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const pathname = usePathname();
+    const router = useRouter();
     const { status } = useSession();
     const isLoggedIn = status === 'authenticated';
+
+    const onShopNavClick = useCallback(
+        (e: React.MouseEvent<HTMLAnchorElement>) => {
+            markPendingShopQueryStrip();
+            if (pathname === '/shop' && typeof window !== 'undefined' && window.location.search) {
+                e.preventDefault();
+                router.replace('/shop', { scroll: false });
+            }
+        },
+        [pathname, router],
+    );
 
     return (
         <header>
@@ -91,7 +107,7 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                             <Link href="/locations" className={headerNavLinkClass}>
                                 Locations
                             </Link>
-                            <Link href="/shop" className={headerNavLinkClass}>
+                            <Link href="/shop" className={headerNavLinkClass} onClick={onShopNavClick}>
                                 Shop
                             </Link>
                             <Link href="/about" className={headerNavLinkClass}>
@@ -110,6 +126,7 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                             {isLoggedIn ? (
                                 <>
                                     <CartNavButton variant="ghost" />
+                                    <WholesaleAccountSwitcher />
                                     <UserAccountMenu />
                                 </>
                             ) : (
@@ -146,7 +163,10 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                             <Link
                                 href="/shop"
                                 className={cn(headerNavLinkClass, 'w-fit py-2')}
-                                onClick={() => setIsMenuOpen(false)}
+                                onClick={(e) => {
+                                    setIsMenuOpen(false);
+                                    onShopNavClick(e);
+                                }}
                             >
                                 Shop
                             </Link>
@@ -186,7 +206,10 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                             {isLoggedIn ? (
                                 <>
                                     <CartNavButton variant="outline" className="flex-1" />
-                                    <UserAccountMenu triggerClassName="border-[#c4a88a]" />
+                                    <div className="flex min-w-0 shrink items-center gap-2">
+                                        <WholesaleAccountSwitcher />
+                                        <UserAccountMenu triggerClassName="border-[#c4a88a]" />
+                                    </div>
                                 </>
                             ) : (
                                 <Button type="button" variant="primary" className="w-full" onClick={onLoginClick}>
