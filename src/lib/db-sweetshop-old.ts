@@ -50,6 +50,94 @@ export async function getOrdersFromSweetshopOld(maxOrderId: number): Promise<any
     }
 }
 
+export async function getOrderExpectedDeliveryDatesFromSweetshopOld(): Promise<any[]> {
+    try {
+        const batchSize = 10000;
+        const allRows: any[] = [];
+        let maxId = 0;
+
+        while (true) {
+            const query = `SELECT TOP ${batchSize} Id, ExpectedDeliveryDate FROM [Order] WHERE Id > ${maxId} AND ExpectedDeliveryDate IS NOT NULL ORDER BY Id`;
+            const batch = await fetchData(query);
+            if (!batch.length) {
+                break;
+            }
+
+            allRows.push(...batch);
+            maxId = batch[batch.length - 1].Id;
+
+            if (batch.length < batchSize) {
+                break;
+            }
+        }
+
+        return allRows;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
+export async function getAccountsFromSweetshopOld(): Promise<any[]> {
+    try {
+        const batchSize = 10000;
+        const allRows: any[] = [];
+        let maxId = 0;
+
+        while (true) {
+            const query = `SELECT TOP ${batchSize} * FROM [Account] WHERE Id > ${maxId} ORDER BY Id`;
+            const batch = await fetchData(query);
+            if (!batch.length) {
+                break;
+            }
+
+            allRows.push(...batch);
+            const lastRow = batch[batch.length - 1];
+            maxId = Number(lastRow.Id ?? lastRow.id ?? maxId);
+            console.log(`User sync: fetched ${allRows.length} legacy Account rows so far (last Id ${maxId})`);
+
+            if (batch.length < batchSize) {
+                break;
+            }
+        }
+
+        return allRows;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
+export async function getAccountOldFromSweetshopOld(): Promise<any[]> {
+    try {
+        const batchSize = 10000;
+        const allRows: any[] = [];
+        let maxId = 0;
+
+        while (true) {
+            const query = `SELECT TOP ${batchSize} * FROM [AccountOld] WHERE Id > ${maxId} ORDER BY Id`;
+            const batch = await fetchData(query);
+            if (!batch.length) {
+                break;
+            }
+
+            allRows.push(...batch);
+            const lastRow = batch[batch.length - 1];
+            maxId = Number(lastRow.Id ?? lastRow.id ?? maxId);
+            console.log(`Account sync: fetched ${allRows.length} legacy AccountOld rows so far (last Id ${maxId})`);
+
+            if (batch.length < batchSize) {
+                break;
+            }
+        }
+
+        return allRows;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
 export async function getOrderItemsFromSweetshopOld(maxOrderItemId: number): Promise<any[]> {
     if (!maxOrderItemId) {
         maxOrderItemId = 0;

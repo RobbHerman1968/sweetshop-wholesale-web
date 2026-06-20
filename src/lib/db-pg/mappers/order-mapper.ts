@@ -7,7 +7,7 @@ import { Order } from '../entities/order-entity';
 export async function orderMapper(data: any): Promise<Order> {
     const order: Order = {} as Order;
     order.id = data.id;
-    order.accountId = data.accountId;
+    order.userId = data.userId;
     order.orderNumber = data.orderNumber;
     order.orderDate = moment(data.orderDate).utc().toDate();
     order.subTotal = data.subTotal;

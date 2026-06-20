@@ -1,18 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { user, account, productGroup, accountGroup, product, productGroupProduct, productImage, vercelImage, cart, cartItem } from "./schema";
-
-export const accountRelations = relations(account, ({one, many}) => ({
-	user: one(user, {
-		fields: [account.userId],
-		references: [user.id]
-	}),
-	accountGroups: many(accountGroup),
-	carts: many(cart),
-}));
-
-export const userRelations = relations(user, ({many}) => ({
-	accounts: many(account),
-}));
+import { productGroup, accountGroup, account, product, productGroupProduct, productImage, vercelImage, cart, cartItem, category, menuItem, page } from "./schema";
 
 export const accountGroupRelations = relations(accountGroup, ({one}) => ({
 	productGroup: one(productGroup, {
@@ -28,6 +15,11 @@ export const accountGroupRelations = relations(accountGroup, ({one}) => ({
 export const productGroupRelations = relations(productGroup, ({many}) => ({
 	accountGroups: many(accountGroup),
 	productGroupProducts: many(productGroupProduct),
+}));
+
+export const accountRelations = relations(account, ({many}) => ({
+	accountGroups: many(accountGroup),
+	carts: many(cart),
 }));
 
 export const productGroupProductRelations = relations(productGroupProduct, ({one}) => ({
@@ -79,4 +71,23 @@ export const cartItemRelations = relations(cartItem, ({one}) => ({
 		fields: [cartItem.cartId],
 		references: [cart.id]
 	}),
+}));
+
+export const menuItemRelations = relations(menuItem, ({one}) => ({
+	category: one(category, {
+		fields: [menuItem.categoryId],
+		references: [category.id]
+	}),
+	page: one(page, {
+		fields: [menuItem.pageId],
+		references: [page.id]
+	}),
+}));
+
+export const categoryRelations = relations(category, ({many}) => ({
+	menuItems: many(menuItem),
+}));
+
+export const pageRelations = relations(page, ({many}) => ({
+	menuItems: many(menuItem),
 }));

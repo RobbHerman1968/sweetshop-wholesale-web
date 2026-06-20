@@ -1,22 +1,25 @@
 import { Suspense } from 'react';
 import { getPaginatedImagesFromDB } from '@/lib/db-pg/actions/image';
+import { parseImageLibraryFilter } from '@/lib/image-library-filter';
 import { ImagesContent } from './images-content';
 
-const PER_PAGE = 50;
+const PER_PAGE = 100;
 
 type Props = {
-    searchParams: Promise<{ page?: string; name?: string }>;
+    searchParams: Promise<{ page?: string; name?: string; type?: string }>;
 };
 
 export default async function ManageImagesPage({ searchParams }: Props) {
     const params = await searchParams;
     const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1);
     const name = params.name?.trim() ?? '';
+    const imageType = parseImageLibraryFilter(params.type);
 
     const result = await getPaginatedImagesFromDB({
         page,
         limit: PER_PAGE,
         name: name || undefined,
+        type: imageType,
     });
 
     return (
@@ -29,6 +32,7 @@ export default async function ManageImagesPage({ searchParams }: Props) {
                 }))}
                 pagination={result.pagination}
                 searchName={name}
+                imageType={imageType}
             />
         </Suspense>
     );

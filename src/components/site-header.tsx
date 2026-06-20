@@ -4,9 +4,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
-import { ShoppingCart } from 'lucide-react';
+import { Menu, ShoppingCart, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { BrandBar } from '@/components/brand-bar';
+import type { BrandBarNavCategory } from '@/assets/brand-bar-nav';
 import { UserAccountMenu } from '@/components/user-account-menu';
 import { WholesaleAccountSwitcher } from '@/components/wholesale-account-switcher';
 import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
@@ -21,18 +22,47 @@ const headerNavLinkClass =
 
 type SiteHeaderProps = {
     onLoginClick: () => void;
+    brandBarCategories: BrandBarNavCategory[];
 };
 
 type CartNavButtonProps = {
     variant: 'ghost' | 'outline';
     className?: string;
+    /** Icon + count badge only; for narrow headers (e.g. mobile). */
+    compact?: boolean;
 };
 
-function CartNavButton({ variant, className }: CartNavButtonProps) {
+function CartNavButton({ variant, className, compact }: CartNavButtonProps) {
     const count = TEMPORARY_CART_ITEM_COUNT;
     const countDisplay = count > 99 ? '99+' : String(count);
     const itemsLine = count === 1 ? '1 item' : `${countDisplay} items`;
     const aria = `Shopping cart, ${itemsLine}`;
+
+    if (compact) {
+        return (
+            <button
+                type="button"
+                aria-label={aria}
+                className={cn(
+                    'relative inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors',
+                    variant === 'ghost' && 'text-[#1a1512] hover:bg-[#f3e0cf]',
+                    variant === 'outline' &&
+                        'border border-[#c49a78] bg-white/70 hover:bg-[#f3e0cf]',
+                    className,
+                )}
+            >
+                <ShoppingCart className="size-[1.35rem] shrink-0 text-[#2a221e]" strokeWidth={1.35} aria-hidden />
+                {count > 0 ? (
+                    <span
+                        className="absolute -right-1 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#b45309] px-1 text-[10px] font-bold tabular-nums leading-none text-white"
+                        aria-hidden
+                    >
+                        {countDisplay}
+                    </span>
+                ) : null}
+            </button>
+        );
+    }
 
     return (
         <button
@@ -62,7 +92,7 @@ function CartNavButton({ variant, className }: CartNavButtonProps) {
     );
 }
 
-export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
+export function SiteHeader({ onLoginClick, brandBarCategories }: SiteHeaderProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
@@ -94,9 +124,9 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                                 <Image
                                     src="/logo.png"
                                     alt="Sweet Shop USA wholesale, home"
-                                    width={36}
-                                    height={36}
-                                    className="h-7 w-7 sm:h-9 sm:w-9 object-contain"
+                                    width={40}
+                                    height={40}
+                                    className="h-10 w-10 sm:h-9 sm:w-9 object-contain"
                                     priority
                                 />
                             </Link>
@@ -126,8 +156,8 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                             {isLoggedIn ? (
                                 <>
                                     <CartNavButton variant="ghost" />
-                                    <WholesaleAccountSwitcher />
-                                    <UserAccountMenu />
+                                    <WholesaleAccountSwitcher onAccountSelected={() => setIsMenuOpen(false)} />
+                                    <UserAccountMenu onNavigate={() => setIsMenuOpen(false)} />
                                 </>
                             ) : (
                                 <Button
@@ -141,16 +171,29 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                             )}
                         </div>
 
-                        {/* Mobile menu toggle */}
-                        <button
-                            type="button"
-                            className="inline-flex items-center justify-center rounded-md border border-[#d4c4b0] bg-white/60 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5c4032] md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f6ebdd]"
-                            aria-expanded={isMenuOpen}
-                            aria-controls="site-header-mobile-nav"
-                            onClick={() => setIsMenuOpen((prev) => !prev)}
-                        >
-                            Menu
-                        </button>
+                        {/* Mobile: cart + account in header; wholesale switcher stays in menu */}
+                        <div className="flex shrink-0 items-center gap-1.5 md:hidden">
+                            {isLoggedIn ? (
+                                <>
+                                    <CartNavButton variant="ghost" compact />
+                                    <UserAccountMenu onNavigate={() => setIsMenuOpen(false)} />
+                                </>
+                            ) : null}
+                            <button
+                                type="button"
+                                className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-[#d4c4b0] bg-white/60 text-[#5c4032] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f6ebdd]"
+                                aria-expanded={isMenuOpen}
+                                aria-controls="site-header-mobile-nav"
+                                aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+                                onClick={() => setIsMenuOpen((prev) => !prev)}
+                            >
+                                {isMenuOpen ? (
+                                    <X className="size-6" strokeWidth={1.75} aria-hidden />
+                                ) : (
+                                    <Menu className="size-6" strokeWidth={1.75} aria-hidden />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Mobile nav + actions */}
@@ -159,7 +202,19 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                         hidden={!isMenuOpen}
                         className="flex flex-col gap-2 rounded-lg border border-[#d4c4b0] bg-[#f6ebdd] px-3 py-3 text-[11px] uppercase tracking-[0.18em] text-[#5c4032] md:hidden"
                     >
+                        {isLoggedIn ? (
+                            <div className="min-w-0 border-b border-[#d4c4b0] pb-3 [&>button]:max-w-none [&>button]:w-full [&>div]:max-w-none [&>div]:w-full">
+                                <WholesaleAccountSwitcher onAccountSelected={() => setIsMenuOpen(false)} />
+                            </div>
+                        ) : null}
                         <nav className="flex flex-col gap-1" aria-label="Company">
+                            <Link
+                                href="/locations"
+                                className={cn(headerNavLinkClass, 'w-fit py-2')}
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                Locations
+                            </Link>
                             <Link
                                 href="/shop"
                                 className={cn(headerNavLinkClass, 'w-fit py-2')}
@@ -177,16 +232,6 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                             >
                                 About Us
                             </Link>
-                            <Button variant="ghost" className="justify-start px-0 py-1 text-[11px]" type="button">
-                                Sugarfree
-                            </Button>
-                            <Link
-                                href="/locations"
-                                className={cn(headerNavLinkClass, 'w-fit py-2')}
-                                onClick={() => setIsMenuOpen(false)}
-                            >
-                                Locations
-                            </Link>
                             <Link
                                 href="/apply"
                                 className={cn(headerNavLinkClass, 'w-fit py-2')}
@@ -202,27 +247,27 @@ export function SiteHeader({ onLoginClick }: SiteHeaderProps) {
                                 Contact Us
                             </Link>
                         </nav>
-                        <div className="mt-2 flex gap-2">
-                            {isLoggedIn ? (
-                                <>
-                                    <CartNavButton variant="outline" className="flex-1" />
-                                    <div className="flex min-w-0 shrink items-center gap-2">
-                                        <WholesaleAccountSwitcher />
-                                        <UserAccountMenu triggerClassName="border-[#c4a88a]" />
-                                    </div>
-                                </>
-                            ) : (
-                                <Button type="button" variant="primary" className="w-full" onClick={onLoginClick}>
+                        {!isLoggedIn ? (
+                            <div className="mt-3">
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    className="w-full"
+                                    onClick={() => {
+                                        setIsMenuOpen(false);
+                                        onLoginClick();
+                                    }}
+                                >
                                     Login
                                 </Button>
-                            )}
-                        </div>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
             </div>
 
             <div className="border-t border-[#d4c4b0] bg-white pb-2 pt-2 sm:pb-3 sm:pt-3">
-                <BrandBar />
+                <BrandBar categories={brandBarCategories} />
             </div>
         </header>
     );

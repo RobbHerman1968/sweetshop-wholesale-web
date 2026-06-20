@@ -7,6 +7,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db-pg';
 import { user } from '@/lib/drizzle/schema';
 import { loginSchema } from '@/lib/validations/auth';
+import { parseUserId } from '@/lib/user-id';
+import { syncUserAccountFromAccountMate } from '@/lib/db-pg/actions/account';
 
 export { loginSchema } from '@/lib/validations/auth';
 
@@ -42,8 +44,16 @@ const authOptions = {
                     return null;
                 }
 
+                if (found.accountMateId?.trim()) {
+                    try {
+                        await syncUserAccountFromAccountMate(found.id);
+                    } catch (err) {
+                        console.error('[sign-in account sync]', err);
+                    }
+                }
+
                 return {
-                    id: found.id,
+                    id: String(found.id),
                     email: found.userName,
                     name: [found.firstName, found.lastName].filter(Boolean).join(' ') || found.userName,
                     isAdmin: found.isAdmin,
@@ -57,7 +67,10 @@ const authOptions = {
     callbacks: {
         async jwt({ token, user }: { token: JWT; user?: { id: string; email?: string | null; name?: string | null; isAdmin?: boolean } }) {
             if (user) {
-                token.id = user.id;
+                const userId = parseUserId(user.id);
+                if (userId != null) {
+                    token.id = userId;
+                }
                 token.email = user.email ?? undefined;
                 token.name = user.name ?? undefined;
                 token.isAdmin = user.isAdmin;
@@ -66,7 +79,7 @@ const authOptions = {
         },
         async session({ session, token }: { session: Session; token: JWT }) {
             if (token && session.user) {
-                session.user.id = token.id ?? '';
+                session.user.id = parseUserId(token.id) ?? 0;
                 session.user.email = token.email ?? undefined;
                 session.user.name = token.name ?? undefined;
                 session.user.isAdmin = token.isAdmin;

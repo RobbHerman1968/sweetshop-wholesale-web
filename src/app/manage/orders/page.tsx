@@ -21,22 +21,11 @@ export default async function ManageOrdersPage({ searchParams }: Props) {
         dateTo,
     });
 
-    const data = result.data as Array<{
-        id: number;
-        orderNumber: number | null;
-        orderDate: string | null;
-        accountId: number;
-        accountMateOrderNumber: number | null;
-        total: string;
-        shippingCode: string | null;
-        isNewCustomerOrder: number;
-    }>;
-
     return (
         <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#7c5b44]">Loading orders…</div>}>
             <OrdersContent
                 key={`${dateFrom ?? ''}-${dateTo ?? ''}`}
-                data={data}
+                data={result.data}
                 pagination={result.pagination}
                 dateFrom={dateFrom}
                 dateTo={dateTo}

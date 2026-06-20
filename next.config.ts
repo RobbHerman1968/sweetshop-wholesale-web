@@ -10,9 +10,10 @@ const nextConfig: NextConfig = {
             },
             {
                 protocol: 'https',
-                hostname: '*.public.blob.vercel-storage.com',
+                hostname: '**.public.blob.vercel-storage.com',
             },
         ],
+        imageSizes: [64, 96, 128, 192, 256, 384, 512],
     },
 
     experimental: {

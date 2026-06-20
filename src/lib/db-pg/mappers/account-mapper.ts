@@ -6,7 +6,6 @@ import { Account, AccountGroup } from '../entities/account-entity';
 export async function accountMapper(data: any) {
     const account: Account = {} as Account;
     account.id = data.id;
-    account.userId = data.userId;
     account.accountMateId = data.accountMateId ?? '';
     account.isSkipTax = data.isSkipTax;
     account.isSkipShipping = data.isSkipShipping;

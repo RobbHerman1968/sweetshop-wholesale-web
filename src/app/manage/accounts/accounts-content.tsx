@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 type AccountRow = {
     id: number;
@@ -56,6 +58,8 @@ export function AccountsContent({ data, pagination, searchName, searchAccountMat
         if (page < totalPages - 2) pageNumbers.push('ellipsis');
         if (totalPages > 1) pageNumbers.push(totalPages);
     }
+
+    const listHref = `/manage/accounts${buildQuery({ page, name: searchName || undefined, accountMateId: searchAccountMateId || undefined })}`;
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -121,6 +125,14 @@ export function AccountsContent({ data, pagination, searchName, searchAccountMat
                                 <p className="mt-1 truncate text-[11px] text-[#6e4a34]">{[acc.contactFirstName, acc.contactLastName].filter(Boolean).join(' ') || '—'}</p>
                                 {acc.contactEmail && <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{acc.contactEmail}</p>}
                                 {acc.contactPhone && <p className="mt-0.5 text-[11px] text-[#6e4a34]">{acc.contactPhone}</p>}
+                                <div className="mt-3">
+                                    <Link
+                                        href={`/manage/accounts/${acc.id}?returnTo=${encodeURIComponent(listHref)}`}
+                                        className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
+                                    >
+                                        Edit
+                                    </Link>
+                                </div>
                             </article>
                         </li>
                     ))}

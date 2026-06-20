@@ -1,20 +1,219 @@
 'use server';
 
 import { db } from '@/lib/db-pg';
-import { account, accountGroup } from '@/lib/drizzle/schema';
-import { and, asc, eq, ilike, isNotNull, sql } from 'drizzle-orm';
+import { getAccountOldFromSweetshopOld } from '@/lib/db-sweetshop-old';
+import { account, accountGroup, user } from '@/lib/drizzle/schema';
+import { and, asc, eq, ilike, isNotNull, or, sql } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 import { Account, AccountGroup } from '../entities/account-entity';
 import { accountGroupMapper, accountMapper } from '../mappers/account-mapper';
+import { mapAccountMateRowToAccountFields } from '@/lib/account-mate-account-map';
+import { fetchWholesaleAccount } from '@/lib/wholesale-api';
 
-export async function getUserAccounts(userId: string) {
-    const accounts = await db.query.user.findMany({
-        where: eq(account.userId, userId),
-    });
+export type ManageAccount = {
+    id: number;
+    accountMateId: string | null;
+    isSkipTax: boolean;
+    isSkipShipping: boolean;
+    isFreeGroundShipping: boolean;
+    terms: string | null;
+    isTerms: boolean;
+    name: string | null;
+    contactFirstName: string | null;
+    contactLastName: string | null;
+    contactPhone: string | null;
+    contactAddress1: string | null;
+    contactAddress2: string | null;
+    contactCity: string | null;
+    contactState: string | null;
+    contactZipCode: string | null;
+    contactEmail: string | null;
+};
+
+function trimFormValue(value: FormDataEntryValue | null): string | null {
+    if (value == null) {
+        return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed || null;
+}
+
+function readCheckbox(formData: FormData, name: string): boolean {
+    const value = formData.get(name);
+    return value === 'on' || value === 'true';
+}
+
+export async function getAccountByIdForManage(accountId: number): Promise<ManageAccount | null> {
+    if (!Number.isFinite(accountId) || accountId <= 0) {
+        return null;
+    }
+
+    const [row] = await db
+        .select({
+            id: account.id,
+            accountMateId: account.accountMateId,
+            isSkipTax: account.isSkipTax,
+            isSkipShipping: account.isSkipShipping,
+            isFreeGroundShipping: account.isFreeGroundShipping,
+            terms: account.terms,
+            isTerms: account.isTerms,
+            name: account.name,
+            contactFirstName: account.contactFirstName,
+            contactLastName: account.contactLastName,
+            contactPhone: account.contactPhone,
+            contactAddress1: account.contactAddress1,
+            contactAddress2: account.contactAddress2,
+            contactCity: account.contactCity,
+            contactState: account.contactState,
+            contactZipCode: account.contactZipCode,
+            contactEmail: account.contactEmail,
+        })
+        .from(account)
+        .where(eq(account.id, accountId))
+        .limit(1);
+
+    return row ?? null;
+}
+
+export async function updateAccountFromForm(formData: FormData) {
+    const id = Number(formData.get('id'));
+    if (!id) {
+        return;
+    }
+
+    const existing = await getAccountByIdForManage(id);
+    if (!existing) {
+        return;
+    }
+
+    await db
+        .update(account)
+        .set({
+            accountMateId: trimFormValue(formData.get('accountMateId')),
+            isSkipTax: readCheckbox(formData, 'isSkipTax'),
+            isSkipShipping: readCheckbox(formData, 'isSkipShipping'),
+            isFreeGroundShipping: readCheckbox(formData, 'isFreeGroundShipping'),
+            terms: trimFormValue(formData.get('terms')),
+            isTerms: readCheckbox(formData, 'isTerms'),
+            name: trimFormValue(formData.get('name')),
+            contactFirstName: trimFormValue(formData.get('contactFirstName')),
+            contactLastName: trimFormValue(formData.get('contactLastName')),
+            contactPhone: trimFormValue(formData.get('contactPhone')),
+            contactAddress1: trimFormValue(formData.get('contactAddress1')),
+            contactAddress2: trimFormValue(formData.get('contactAddress2')),
+            contactCity: trimFormValue(formData.get('contactCity')),
+            contactState: trimFormValue(formData.get('contactState')),
+            contactZipCode: trimFormValue(formData.get('contactZipCode')),
+            contactEmail: trimFormValue(formData.get('contactEmail'))?.toLowerCase() ?? null,
+        })
+        .where(eq(account.id, id));
+
+    revalidatePath('/manage/accounts');
+    revalidatePath(`/manage/accounts/${id}`);
+}
+
+export async function reloadAccountFromAccountMate(accountId: number, accountMateId: string) {
+    if (!Number.isFinite(accountId) || accountId <= 0) {
+        return { ok: false as const, error: 'Invalid account' };
+    }
+
+    const existing = await getAccountByIdForManage(accountId);
+    if (!existing) {
+        return { ok: false as const, error: 'Account not found' };
+    }
+
+    const trimmedAccountMateId = accountMateId.trim();
+    if (!trimmedAccountMateId) {
+        return { ok: false as const, error: 'AccountMate ID is required' };
+    }
+
+    try {
+        const { account: accountMateRow } = await fetchWholesaleAccount(trimmedAccountMateId);
+        if (!accountMateRow) {
+            return { ok: false as const, error: 'No AccountMate account found' };
+        }
+
+        const mapped = mapAccountMateRowToAccountFields(accountMateRow);
+
+        await db
+            .update(account)
+            .set({
+                accountMateId: trimmedAccountMateId,
+                name: mapped.name,
+                contactFirstName: mapped.contactFirstName,
+                contactLastName: mapped.contactLastName,
+                contactPhone: mapped.contactPhone,
+                contactAddress1: mapped.contactAddress1,
+                contactAddress2: mapped.contactAddress2,
+                contactCity: mapped.contactCity,
+                contactState: mapped.contactState,
+                contactZipCode: mapped.contactZipCode,
+                terms: mapped.terms,
+                isTerms: mapped.isTerms,
+            })
+            .where(eq(account.id, accountId));
+
+        revalidatePath('/manage/accounts');
+        revalidatePath(`/manage/accounts/${accountId}`);
+
+        console.log('[reload account]', {
+            accountId,
+            accountMateId: trimmedAccountMateId,
+            mapped,
+            accountMateRow,
+        });
+
+        return { ok: true as const, accountId, accountMateId: trimmedAccountMateId, accountMateRow, mapped };
+    } catch (err) {
+        console.error('[reload account]', err);
+        return {
+            ok: false as const,
+            error: err instanceof Error ? err.message : 'Failed to reload account',
+        };
+    }
+}
+
+/** Syncs linked wholesale account(s) from AccountMate when the user has an accountMateId. */
+export async function syncUserAccountFromAccountMate(userId: number): Promise<void> {
+    const keys = await getUserAccountLinkKeys(userId);
+    if (!keys?.accountMateId) {
+        return;
+    }
+
+    const linkedAccounts = await getUserAccounts(userId);
+    const accountIds = new Set<number>(linkedAccounts.map((linkedAccount) => linkedAccount.id));
+
+    if (accountIds.size === 0) {
+        const [row] = await db
+            .select({ id: account.id })
+            .from(account)
+            .where(eq(account.accountMateId, keys.accountMateId))
+            .limit(1);
+        if (row) {
+            accountIds.add(row.id);
+        }
+    }
+
+    for (const accountId of accountIds) {
+        const result = await reloadAccountFromAccountMate(accountId, keys.accountMateId);
+        if (!result.ok) {
+            console.error('[sign-in account sync]', { userId, accountId, error: result.error });
+            continue;
+        }
+        console.log('[sign-in account sync]', { userId, accountId, mapped: result.mapped });
+    }
+}
+
+export async function getUserAccounts(userId: number) {
+    const keys = await getUserAccountLinkKeys(userId);
+    if (!keys) return [];
+
+    const accounts = await db.select().from(account).where(accountLinkedToUserCondition(keys));
 
     const out: Account[] = [];
-    accounts?.map(async (r) => {
+    for (const r of accounts) {
         out.push(await accountMapper(r));
-    });
+    }
     return out;
 }
 
@@ -153,8 +352,38 @@ export async function getAccountGroupsByAccountId(accountId: number) {
     return out;
 }
 
-function normalizeShopUserId(userId: string): string {
-    return userId.trim();
+function normalizeShopUserId(userId: number): number {
+    return userId;
+}
+
+async function getUserAccountLinkKeys(userId: number): Promise<{ email: string; idAsText: string; accountMateId: string | null } | null> {
+    const uid = normalizeShopUserId(userId);
+    if (!uid) return null;
+
+    const [row] = await db
+        .select({ userName: user.userName, accountMateId: user.accountMateId })
+        .from(user)
+        .where(eq(user.id, uid))
+        .limit(1);
+    if (!row) return null;
+
+    const email = row.userName.trim().toLowerCase();
+    if (!email) return null;
+
+    const accountMateId = row.accountMateId?.trim() || null;
+    return { email, idAsText: String(uid), accountMateId };
+}
+
+function accountLinkedToUserCondition(keys: { email: string; idAsText: string; accountMateId: string | null }) {
+    const conditions = [
+        sql`lower(trim(coalesce(${account.contactEmail}, ''))) = ${keys.email}`,
+        eq(account.accountMateId, keys.idAsText),
+        sql`lower(trim(coalesce(${account.accountMateId}, ''))) = ${keys.email}`,
+    ];
+    if (keys.accountMateId) {
+        conditions.push(eq(account.accountMateId, keys.accountMateId));
+    }
+    return or(...conditions);
 }
 
 /** DB/driver may return INTEGER columns as number, string, or bigint — normalize for catalog filtering. */
@@ -177,38 +406,37 @@ function collectDistinctProductGroupIds(rows: { productGroupId: unknown }[]): nu
 }
 
 /**
- * Wholesale shop catalog scope (matches your schema):
- * `user` → `account` (via account.userId) → `accountGroup` (rows per account with productGroupId) →
- * products are those whose id appears in `productGroupProduct` for those product group ids.
+ * Wholesale shop catalog scope:
+ * `user` → `account` (via contactEmail / accountMateId) → `accountGroup` → product groups.
  */
 
 /** Distinct product group ids linked to any account belonging to this user. */
-export async function getShopProductGroupIdsForUser(userId: string): Promise<number[]> {
-    const uid = normalizeShopUserId(userId);
-    if (!uid) return [];
+export async function getShopProductGroupIdsForUser(userId: number): Promise<number[]> {
+    const keys = await getUserAccountLinkKeys(userId);
+    if (!keys) return [];
 
     const rows = await db
         .selectDistinct({ productGroupId: accountGroup.productGroupId })
         .from(accountGroup)
         .innerJoin(account, eq(accountGroup.accountId, account.id))
-        .where(and(eq(account.userId, uid), isNotNull(accountGroup.accountId)));
+        .where(and(accountLinkedToUserCondition(keys), isNotNull(accountGroup.accountId)));
 
     return collectDistinctProductGroupIds(rows);
 }
 
-export async function verifyUserOwnsAccount(userId: string, accountId: number): Promise<boolean> {
-    const uid = normalizeShopUserId(userId);
-    if (!uid) return false;
+export async function verifyUserOwnsAccount(userId: number, accountId: number): Promise<boolean> {
+    const keys = await getUserAccountLinkKeys(userId);
+    if (!keys) return false;
 
     const row = await db.query.account.findFirst({
-        where: and(eq(account.userId, uid), eq(account.id, accountId)),
+        where: and(accountLinkedToUserCondition(keys), eq(account.id, accountId)),
         columns: { id: true },
     });
     return Boolean(row);
 }
 
 /** Product groups linked to a specific account (after verifying the account belongs to the user). */
-export async function getShopProductGroupIdsForUserAccount(userId: string, accountId: number): Promise<number[]> {
+export async function getShopProductGroupIdsForUserAccount(userId: number, accountId: number): Promise<number[]> {
     const ok = await verifyUserOwnsAccount(userId, accountId);
     if (!ok) return [];
 
@@ -224,8 +452,209 @@ export async function getShopProductGroupIdsForUserAccount(userId: string, accou
  * Resolves product group ids for the shop grid for the selected wholesale account.
  * Prefers groups from that account’s `accountGroup` row(s); if none, unions groups from all of the user’s accounts.
  */
-export async function resolveShopCatalogProductGroupIds(userId: string, selectedAccountId: number): Promise<number[]> {
+export async function resolveShopCatalogProductGroupIds(userId: number, selectedAccountId: number): Promise<number[]> {
     const scoped = await getShopProductGroupIdsForUserAccount(userId, selectedAccountId);
     if (scoped.length > 0) return scoped;
     return getShopProductGroupIdsForUser(userId);
+}
+
+function trimOrNull(value: unknown): string | null {
+    if (value == null) {
+        return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed || null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyAccountId(row: any): number | null {
+    const id = Number(row.Id ?? row.id ?? row.AccountId ?? row.accountId);
+    return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function sqlTextValue(value: string | null | undefined): string {
+    if (value == null) {
+        return 'NULL';
+    }
+    return `'${value.replace(/'/g, "''")}'`;
+}
+
+function sqlBoolValue(value: boolean): string {
+    return value ? 'true' : 'false';
+}
+
+async function bulkUpdateAccountsFromLegacy(
+    updates: Array<{ id: number; fields: ReturnType<typeof mapLegacyAccountFields> }>,
+) {
+    if (updates.length === 0) {
+        return;
+    }
+
+    const caseText = (pick: (fields: ReturnType<typeof mapLegacyAccountFields>) => string | null) =>
+        updates.map(({ id, fields }) => `WHEN ${id} THEN ${sqlTextValue(pick(fields))}`).join(' ');
+    const caseBool = (pick: (fields: ReturnType<typeof mapLegacyAccountFields>) => boolean) =>
+        updates.map(({ id, fields }) => `WHEN ${id} THEN ${sqlBoolValue(pick(fields))}`).join(' ');
+    const idList = updates.map(({ id }) => id).join(', ');
+
+    await db.execute(
+        sql.raw(`
+            UPDATE account
+            SET
+                "accountMateId" = CASE id ${caseText((fields) => fields.accountMateId)} END,
+                "isSkipTax" = CASE id ${caseBool((fields) => fields.isSkipTax)} END,
+                "isSkipShipping" = CASE id ${caseBool((fields) => fields.isSkipShipping)} END,
+                "isFreeGroundShipping" = CASE id ${caseBool((fields) => fields.isFreeGroundShipping)} END,
+                terms = CASE id ${caseText((fields) => fields.terms)} END,
+                "isTerms" = CASE id ${caseBool((fields) => fields.isTerms)} END,
+                name = CASE id ${caseText((fields) => fields.name)} END,
+                "contactFirstName" = CASE id ${caseText((fields) => fields.contactFirstName)} END,
+                "contactLastName" = CASE id ${caseText((fields) => fields.contactLastName)} END,
+                "contactPhone" = CASE id ${caseText((fields) => fields.contactPhone)} END,
+                "contactAddress1" = CASE id ${caseText((fields) => fields.contactAddress1)} END,
+                "contactAddress2" = CASE id ${caseText((fields) => fields.contactAddress2)} END,
+                "contactCity" = CASE id ${caseText((fields) => fields.contactCity)} END,
+                "contactState" = CASE id ${caseText((fields) => fields.contactState)} END,
+                "contactZipCode" = CASE id ${caseText((fields) => fields.contactZipCode)} END,
+                "contactEmail" = CASE id ${caseText((fields) => fields.contactEmail)} END
+            WHERE id IN (${idList})
+        `),
+    );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyOldAccountId(row: any): string | null {
+    const raw = row.OldAccountId ?? row.oldAccountId;
+    if (raw == null) {
+        return null;
+    }
+    const trimmed = String(raw).trim();
+    return trimmed || null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyUsername(row: any): string | null {
+    return trimOrNull(row.UserName ?? row.userName);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function resolveLegacyAccountMateId(row: any): string | null {
+    return readLegacyOldAccountId(row) ?? readLegacyUsername(row);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapLegacyAccountFields(row: any) {
+    return {
+        accountMateId: resolveLegacyAccountMateId(row),
+        isSkipTax: Boolean(row.IsSkipTax ?? row.isSkipTax),
+        isSkipShipping: Boolean(row.IsSkipShipping ?? row.isSkipShipping),
+        isFreeGroundShipping: Boolean(row.IsFreeGround ?? row.IsFreeGroundShipping ?? row.isFreeGroundShipping),
+        terms: trimOrNull(row.Terms ?? row.terms),
+        isTerms: Boolean(row.IsTerms ?? row.isTerms),
+        name: trimOrNull(row.Name ?? row.CompanyName ?? row.name),
+        contactFirstName: trimOrNull(row.ContactFirstName ?? row.FirstName ?? row.contactFirstName),
+        contactLastName: trimOrNull(row.ContactLastName ?? row.LastName ?? row.contactLastName),
+        contactPhone: trimOrNull(row.Phone ?? row.ContactPhone ?? row.contactPhone),
+        contactAddress1: trimOrNull(row.Address1 ?? row.ContactAddress1 ?? row.contactAddress1),
+        contactAddress2: trimOrNull(row.Address2 ?? row.ContactAddress2 ?? row.contactAddress2),
+        contactCity: trimOrNull(row.City ?? row.ContactCity ?? row.contactCity),
+        contactState: trimOrNull(row.State ?? row.ContactState ?? row.contactState),
+        contactZipCode: trimOrNull(row.ZipCode ?? row.ContactZipCode ?? row.Zip ?? row.contactZipCode),
+        contactEmail: trimOrNull(row.EmailAddress ?? row.ContactEmail ?? row.contactEmail)?.toLowerCase() ?? null,
+    };
+}
+
+export type AccountSyncResult = {
+    fetched: number;
+    inserted: number;
+    updated: number;
+    skipped: number;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncLegacyAccountRowsToAccount(rows: any[]): Promise<AccountSyncResult> {
+    const existingAccounts = await db.select({ id: account.id }).from(account);
+    const existingAccountIds = new Set(existingAccounts.map((row) => row.id));
+
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+    let processed = 0;
+    const pendingUpdates: Array<{ id: number; fields: ReturnType<typeof mapLegacyAccountFields> }> = [];
+    const updateChunkSize = 100;
+
+    function logProgress() {
+        console.log(
+            `Account sync: processed ${processed}/${rows.length} (${updated} updated, ${inserted} inserted, ${skipped} skipped)`,
+        );
+    }
+
+    async function flushUpdates() {
+        if (pendingUpdates.length === 0) {
+            return;
+        }
+        const batchSize = pendingUpdates.length;
+        await bulkUpdateAccountsFromLegacy(pendingUpdates);
+        updated += batchSize;
+        pendingUpdates.length = 0;
+        console.log(
+            `Account sync: updated ${batchSize} accounts (${updated} updated, ${inserted} inserted, ${skipped} skipped, ${processed}/${rows.length} processed)`,
+        );
+    }
+
+    console.log(`Account sync: starting ${rows.length} legacy AccountOld rows`);
+
+    for (const row of rows) {
+        processed += 1;
+        const id = readLegacyAccountId(row);
+        if (id == null) {
+            skipped += 1;
+            if (processed % 100 === 0) logProgress();
+            continue;
+        }
+
+        const fields = mapLegacyAccountFields(row);
+
+        if (existingAccountIds.has(id)) {
+            pendingUpdates.push({ id, fields });
+            if (pendingUpdates.length >= updateChunkSize) {
+                await flushUpdates();
+            } else if (processed % 100 === 0) {
+                logProgress();
+            }
+            continue;
+        }
+
+        await flushUpdates();
+        await db.insert(account).values({
+            id,
+            ...fields,
+        });
+        existingAccountIds.add(id);
+        inserted += 1;
+
+        if (processed % 100 === 0) logProgress();
+    }
+
+    await flushUpdates();
+
+    console.log(
+        `Account sync: complete (${updated} updated, ${inserted} inserted, ${skipped} skipped, ${rows.length} fetched)`,
+    );
+
+    return {
+        fetched: rows.length,
+        inserted,
+        updated,
+        skipped,
+    };
+}
+
+export async function syncAccountsFromLegacy(): Promise<AccountSyncResult> {
+    try {
+        const rows = await getAccountOldFromSweetshopOld();
+        return syncLegacyAccountRowsToAccount(rows);
+    } catch (error) {
+        console.error('Error syncing accounts from legacy AccountOld:', error);
+        throw error instanceof Error ? error : new Error('Failed to sync accounts from legacy AccountOld');
+    }
 }

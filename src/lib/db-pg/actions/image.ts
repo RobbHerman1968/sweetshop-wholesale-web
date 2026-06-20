@@ -1,21 +1,50 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { put } from '@vercel/blob';
 import { db } from '@/lib/db-pg';
-import { asc, eq, ilike, sql } from 'drizzle-orm';
-import { productImage, productImageNew, vercelImage, xrefImage } from '@/lib/drizzle/schema';
+import { asc, and, eq, ilike, or, sql } from 'drizzle-orm';
+import { product, productImage, productImageNew, vercelImage, xrefImage } from '@/lib/drizzle/schema';
 import { VercelImage } from '@/lib/db-pg/server';
 
 import { xrefImageMapper } from '../mappers/image-mapper';
 import { XrefImage } from '../entities/xrefImage-entity';
 import { vercelImageMapper } from '../mappers/image-mapper';
+import type { ImageLibraryFilter } from '@/lib/image-library-filter';
 
-export async function getPaginatedImagesFromDB({ page = 1, limit = 100, name }: { page?: number; limit?: number; name?: string }) {
+export async function getPaginatedImagesFromDB({
+    page = 1,
+    limit = 100,
+    name,
+    type = 'all',
+}: {
+    page?: number;
+    limit?: number;
+    name?: string;
+    type?: ImageLibraryFilter;
+}) {
     const offset = (page - 1) * limit;
-    const whereClause = name ? ilike(vercelImage.imageName, `%${name}%`) : undefined;
+
+    const conditions = [];
+    if (name) {
+        conditions.push(ilike(vercelImage.imageName, `%${name}%`));
+    }
+    if (type === 'product') {
+        conditions.push(eq(vercelImage.isProductImage, true));
+    } else if (type === 'other') {
+        conditions.push(eq(vercelImage.isProductImage, false));
+    }
+
+    const whereClause = conditions.length === 0 ? undefined : conditions.length === 1 ? conditions[0] : and(...conditions);
 
     const data = await db
-        .select({ id: vercelImage.id, name: vercelImage.name, imageName: vercelImage.imageName, path: vercelImage.path })
+        .select({
+            id: vercelImage.id,
+            name: vercelImage.name,
+            imageName: vercelImage.imageName,
+            path: vercelImage.path,
+            isProductImage: vercelImage.isProductImage,
+        })
         .from(vercelImage)
         .where(whereClause)
         .orderBy(asc(vercelImage.id))
@@ -38,6 +67,31 @@ export async function getPaginatedImagesFromDB({ page = 1, limit = 100, name }: 
     };
 }
 
+export type ImagePickerItem = {
+    id: number;
+    name: string;
+    publicUrl: string;
+};
+
+/** Search the image library for the HTML editor picker (name filter, newest first by id). */
+export async function searchImagesForPicker(query: string, limit = 48): Promise<ImagePickerItem[]> {
+    const trimmed = query.trim();
+    const result = await getPaginatedImagesFromDB({
+        page: 1,
+        limit,
+        name: trimmed || undefined,
+        type: 'all',
+    });
+
+    return result.data
+        .map((img) => ({
+            id: img.id,
+            name: img.name ?? img.imageName ?? '',
+            publicUrl: typeof img.path === 'string' ? img.path.trim() : '',
+        }))
+        .filter((img) => img.publicUrl.length > 0);
+}
+
 export async function getImages(limit: number, offset: number, name: string) {
     const nameFilter = '%' + name + '%';
 
@@ -56,10 +110,48 @@ export async function getImages(limit: number, offset: number, name: string) {
     return out;
 }
 
-export async function insertVercelImage(name: string, path: string) {
-    await db.insert(vercelImage).values({
-        imageName: name.slice(0, 100),
-        path: path,
+export async function insertVercelImage(name: string, path: string, isProductImage = false): Promise<number> {
+    const [row] = await db
+        .insert(vercelImage)
+        .values({
+            imageName: name.slice(0, VERCEL_IMAGE_NAME_MAX),
+            path: path,
+            isProductImage,
+        })
+        .returning({ id: vercelImage.id });
+
+    return row.id;
+}
+
+export type ProductImageUploadPick = {
+    id: number;
+    name: string | null;
+    itemNumber: string | null;
+};
+
+export async function searchProductsForImageUpload(query: string): Promise<ProductImageUploadPick[]> {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return [];
+
+    const term = `%${trimmed}%`;
+    return db
+        .select({
+            id: product.id,
+            name: product.name,
+            itemNumber: product.itemNumber,
+        })
+        .from(product)
+        .where(or(ilike(product.name, term), ilike(product.itemNumber, term)))
+        .orderBy(asc(product.name))
+        .limit(20);
+}
+
+async function linkVercelImageToProduct(productId: number, vercelImageId: number) {
+    await db.delete(productImage).where(eq(productImage.productId, productId));
+
+    await db.insert(productImage).values({
+        productId,
+        vercelImageId,
     });
 }
 
@@ -74,6 +166,36 @@ function sanitizeBlobName(name: string): string {
 function exactImageNameForDb(raw: string): string {
     const t = (raw ?? '').trim();
     return t.slice(0, VERCEL_IMAGE_NAME_MAX) || 'image';
+}
+
+function splitImageNameAndExtension(name: string): { stem: string; ext: string } {
+    const lastDot = name.lastIndexOf('.');
+    if (lastDot <= 0) {
+        return { stem: name, ext: '' };
+    }
+    return { stem: name.slice(0, lastDot), ext: name.slice(lastDot) };
+}
+
+async function resolveUniqueImageNameForDb(baseName: string): Promise<string> {
+    const normalized = exactImageNameForDb(baseName);
+    if (!(await vercelImageNameTaken(normalized))) {
+        return normalized;
+    }
+
+    const { stem, ext } = splitImageNameAndExtension(normalized);
+
+    for (let n = 2; n <= 999; n++) {
+        const suffix = `-${n}`;
+        const maxStemLen = VERCEL_IMAGE_NAME_MAX - ext.length - suffix.length;
+        const candidate = exactImageNameForDb(`${stem.slice(0, Math.max(1, maxStemLen))}${suffix}${ext}`);
+        if (!(await vercelImageNameTaken(candidate))) {
+            return candidate;
+        }
+    }
+
+    const suffix = `-${Date.now()}`;
+    const maxStemLen = VERCEL_IMAGE_NAME_MAX - ext.length - suffix.length;
+    return exactImageNameForDb(`${stem.slice(0, Math.max(1, maxStemLen))}${suffix}${ext}`);
 }
 
 /**
@@ -125,6 +247,20 @@ async function vercelImageNameTaken(imageName: string): Promise<boolean> {
 export type UploadImageResult = { success: true; url: string } | { success: false; error: string };
 
 export async function uploadImageToVercelBlob(formData: FormData): Promise<UploadImageResult> {
+    const isProductImage = formData.get('isProductImage') === 'true';
+    const productId = Number(formData.get('productId'));
+
+    if (isProductImage) {
+        if (!Number.isFinite(productId) || productId <= 0) {
+            return { success: false, error: 'Select a product before uploading.' };
+        }
+
+        const [productRow] = await db.select({ id: product.id }).from(product).where(eq(product.id, productId)).limit(1);
+        if (!productRow) {
+            return { success: false, error: 'Product not found.' };
+        }
+    }
+
     const file = formData.get('file') as File | null;
     if (!file || !(file instanceof File) || file.size === 0) {
         return { success: false, error: 'Please select an image file.' };
@@ -135,18 +271,21 @@ export async function uploadImageToVercelBlob(formData: FormData): Promise<Uploa
     }
     const customName = (formData.get('name') as string)?.trim();
     const baseName = customName || file.name || 'image';
-    const nameForDb = exactImageNameForDb(baseName);
-    if (await vercelImageNameTaken(nameForDb)) {
-        return {
-            success: false,
-            error: `The library already has an image with this name ("${nameForDb}"). Rename it or pick a different file before uploading.`,
-        };
-    }
-    const pathname = `images/${Date.now()}-${sanitizeBlobName(file.name || 'image')}`;
+    const nameForDb = await resolveUniqueImageNameForDb(baseName);
+    const blobFolder = isProductImage ? 'product' : 'hero';
+    const pathname = `${blobFolder}/${Date.now()}-${sanitizeBlobName(file.name || 'image')}`;
 
     try {
         const blob = await put(pathname, file, { access: 'public' });
-        await insertVercelImage(nameForDb, blob.url);
+        const vercelImageId = await insertVercelImage(nameForDb, blob.url, isProductImage);
+        if (isProductImage) {
+            await linkVercelImageToProduct(productId, vercelImageId);
+        }
+        revalidatePath('/manage/images');
+        if (isProductImage) {
+            revalidatePath('/manage/products');
+            revalidatePath('/shop');
+        }
         return { success: true, url: blob.url };
     } catch (err) {
         console.error('[uploadImageToVercelBlob]', err);

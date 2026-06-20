@@ -1,6 +1,6 @@
 export type Order = {
     id: number;
-    accountId: number;
+    userId: number;
     orderNumber: string;
     orderDate: Date;
     subTotal: number;

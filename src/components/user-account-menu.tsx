@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 
 export type UserAccountMenuProps = {
     triggerClassName?: string;
+    /** e.g. collapse mobile header menu when navigating or signing out */
+    onNavigate?: () => void;
 };
 
 const accountMenuRowBase =
@@ -36,7 +38,7 @@ function initialsFromUser(name: string | null | undefined, email: string | null 
     return '?';
 }
 
-export function UserAccountMenu({ triggerClassName }: UserAccountMenuProps) {
+export function UserAccountMenu({ triggerClassName, onNavigate }: UserAccountMenuProps) {
     const pathname = usePathname();
     const { data: session } = useSession();
     const isAdmin = session?.user?.isAdmin ?? false;
@@ -68,7 +70,7 @@ export function UserAccountMenu({ triggerClassName }: UserAccountMenuProps) {
             <PopoverContent
                 align="end"
                 sideOffset={8}
-                className="w-[min(17rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-[#e6e1db] bg-white p-1.5 shadow-[0_12px_48px_-12px_rgba(24,18,12,0.22)]"
+                className="w-56 overflow-hidden rounded-lg border border-[#e6e1db] bg-white p-1.5 shadow-[0_12px_48px_-12px_rgba(24,18,12,0.22)]"
             >
                 <div className="rounded-lg border border-[#d2c9bf] bg-[#e4dcd3] px-2.5 py-2">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6b6560]">Signed in as</p>
@@ -83,6 +85,7 @@ export function UserAccountMenu({ triggerClassName }: UserAccountMenuProps) {
                                 accountMenuRowBase,
                                 'text-[#5c2c18] hover:bg-[#faf4ed] focus-visible:bg-[#faf4ed]',
                             )}
+                            onClick={() => onNavigate?.()}
                         >
                             <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[#e8cfc4] bg-[#fde8e0] text-[#7a2818]">
                                 {isInManageArea ? (
@@ -100,6 +103,7 @@ export function UserAccountMenu({ triggerClassName }: UserAccountMenuProps) {
                             accountMenuRowBase,
                             'text-[#2c1810] hover:bg-[#f4f1ed] focus-visible:bg-[#f4f1ed]',
                         )}
+                        onClick={() => onNavigate?.()}
                     >
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#f0ebe6] text-[#5c524c]">
                             <User className="size-4" strokeWidth={1.75} aria-hidden />
@@ -113,7 +117,10 @@ export function UserAccountMenu({ triggerClassName }: UserAccountMenuProps) {
                             accountMenuRowBase,
                             'cursor-pointer text-[#6b303c] hover:bg-[#faf4f5] focus-visible:bg-[#faf4f5]',
                         )}
-                        onClick={() => void signOut()}
+                        onClick={() => {
+                            onNavigate?.();
+                            void signOut();
+                        }}
                     >
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#f5ecee] text-[#7a3d48]">
                             <LogOut className="size-4" strokeWidth={1.75} aria-hidden />

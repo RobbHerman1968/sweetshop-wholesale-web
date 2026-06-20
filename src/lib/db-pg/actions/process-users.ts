@@ -1,98 +1,173 @@
-'use server'
+'use server';
 
-// import { PrismaClient } from '@prisma/client'
-// import { db } from "@/lib/db";
-// import { accountTable, userTable } from "@/lib/drizzle/schema";
-// import { generateIdFromEntropySize } from 'lucia';
-// import { hash } from "@node-rs/argon2";
+import * as argon2 from 'argon2';
+import { eq, sql } from 'drizzle-orm';
 
-// const prisma = new PrismaClient()
+import { db } from '@/lib/db-pg';
+import { getAccountsFromSweetshopOld } from '@/lib/db-sweetshop-old';
+import { user } from '@/lib/drizzle/schema';
 
+export type UserSyncResult = {
+    fetched: number;
+    inserted: number;
+    updated: number;
+    skipped: number;
+};
+
+function trimOrNull(value: unknown): string | null {
+    if (value == null) {
+        return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed || null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyLoginAccountId(row: any): number | null {
+    const id = Number(row.Id ?? row.id);
+    return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyLoginEmail(row: any): string | null {
+    return trimOrNull(row.EmailAddress ?? row.emailAddress ?? row.userName)?.toLowerCase() ?? null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyLoginPassword(row: any): string | null {
+    return trimOrNull(row.Password ?? row.password);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyAccountMateId(row: any): string | null {
+    return trimOrNull(row.AccountMateId ?? row.accountMateId);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncLegacyLoginAccountsToUsers(rows: any[]): Promise<UserSyncResult> {
+    const existingUsers = await db
+        .select({
+            id: user.id,
+            userName: user.userName,
+            accountMateId: user.accountMateId,
+        })
+        .from(user);
+
+    const userIdByEmail = new Map(existingUsers.map((row) => [row.userName.trim().toLowerCase(), row.id]));
+    const userIdByLegacyId = new Map(existingUsers.map((row) => [row.id, row.id]));
+
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    console.log(`User sync: starting ${rows.length} legacy Account rows`);
+
+    for (const row of rows) {
+        const legacyAccountId = readLegacyLoginAccountId(row);
+        const email = readLegacyLoginEmail(row);
+        const password = readLegacyLoginPassword(row);
+        const accountMateId = readLegacyAccountMateId(row);
+
+        if (legacyAccountId == null || !email) {
+            skipped += 1;
+            continue;
+        }
+
+        const existingUserId = userIdByEmail.get(email) ?? userIdByLegacyId.get(legacyAccountId);
+
+        if (existingUserId != null) {
+            const existing = existingUsers.find((u) => u.id === existingUserId);
+            const nextAccountMateId = accountMateId ?? existing?.accountMateId ?? null;
+            if (nextAccountMateId && existing?.accountMateId !== nextAccountMateId) {
+                await db.update(user).set({ accountMateId: nextAccountMateId }).where(eq(user.id, existingUserId));
+                if (existing) {
+                    existing.accountMateId = nextAccountMateId;
+                }
+                updated += 1;
+            } else {
+                skipped += 1;
+            }
+            continue;
+        }
+
+        if (!password) {
+            skipped += 1;
+            continue;
+        }
+
+        const passwordHash = await argon2.hash(password);
+
+        await db.insert(user).values({
+            id: legacyAccountId,
+            userName: email,
+            passwordHash,
+            isAdmin: false,
+            isActive: true,
+            accountMateId,
+        });
+
+        existingUsers.push({ id: legacyAccountId, userName: email, accountMateId });
+        userIdByEmail.set(email, legacyAccountId);
+        userIdByLegacyId.set(legacyAccountId, legacyAccountId);
+        inserted += 1;
+    }
+
+    console.log(
+        `User sync: complete (${updated} updated, ${inserted} inserted, ${skipped} skipped, ${rows.length} fetched)`,
+    );
+
+    return {
+        fetched: rows.length,
+        inserted,
+        updated,
+        skipped,
+    };
+}
+
+export async function syncUsersFromLegacy(): Promise<UserSyncResult> {
+    try {
+        const rows = await getAccountsFromSweetshopOld();
+        return syncLegacyLoginAccountsToUsers(rows);
+    } catch (error) {
+        console.error('Error syncing users from legacy Account:', error);
+        throw error instanceof Error ? error : new Error('Failed to sync users from legacy Account');
+    }
+}
+
+/** @deprecated Use syncUsersFromLegacy instead. */
 export async function processUsers() {
-    console.log('In Process')
-    // const oldAccounts = await prisma.account.findMany();
-    // const newAccounts = await db.query.accountTable.findMany();
-    // let users = await db.query.userTable.findMany();
-
-    // console.log(oldAccounts.length);
-    // console.log(newAccounts.length);
-
-    // for (const oldAccount of oldAccounts) {
-
-    //     console.log('Old Account', oldAccount);
-
-    //     const newAccount = newAccounts.find(a => a.id === oldAccount.Id);
-    //     const user = users.find(u => u.username === oldAccount.EmailAddress?.toLowerCase());
-
-    //     console.log('New Account', newAccount)
-    //     console.log('User', user)
-
-    //     if (!user && !newAccount) {
-    //         if (!newAccount && oldAccount.EmailAddress && oldAccount.Password) {
-    //             const userId = generateIdFromEntropySize(10);
-    //             const passwordHash = await hash(oldAccount.Password, {
-    //                 memoryCost: 19456,
-    //                 timeCost: 2,
-    //                 outputLen: 32,
-    //                 parallelism: 1
-    //             });
-
-    //             const user = await db.insert(userTable).values({
-    //                 id: userId,
-    //                 username: oldAccount.EmailAddress?.toLowerCase()!,
-    //                 passwordHash: passwordHash,
-    //                 isAdmin: false,
-    //                 isActive: true,
-    //             });
-
-    //             const account = await db.insert(accountTable).values({
-    //                 id: oldAccount.Id,
-    //                 userId: userId,
-    //                 accountMateId: oldAccount.AccountMateId,
-    //                 isTerms: oldAccount.IsTerms,
-    //                 isSkipTax: oldAccount.IsSkipTax,
-    //                 isSkipShipping: oldAccount.IsSkipShipping,
-    //                 isFreeGroundShipping: oldAccount.IsFreeGround,
-    //                 terms: oldAccount.Terms
-    //             });
-
-    //             users = await db.query.userTable.findMany();
-    //         }
-    //     }
-
-    //     if (user && !newAccount) {
-    //         const account = await db.insert(accountTable).values({
-    //             id: oldAccount.Id,
-    //             userId: user.id,
-    //             accountMateId: oldAccount.AccountMateId,
-    //             isTerms: oldAccount.IsTerms,
-    //             isSkipTax: oldAccount.IsSkipTax,
-    //             isSkipShipping: oldAccount.IsSkipShipping,
-    //             isFreeGroundShipping: oldAccount.IsFreeGround,
-    //             terms: oldAccount.Terms
-    //         });
-    //     }
-
-    // }
+    return syncUsersFromLegacy();
 }
 
-export async function createDefaultUser() {
-    // const userId = generateIdFromEntropySize(10);
-    // const passwordHash = await hash('just4ruth', {
-    //     memoryCost: 19456,
-    //     timeCost: 2,
-    //     outputLen: 32,
-    //     parallelism: 1
-    // });
+export async function createDefaultUser(): Promise<{ ok: true; action: 'inserted' | 'updated'; id: number }> {
+    const userName = 'rob.herman@toolsbydesign';
+    const passwordHash = await argon2.hash('just4ruth');
 
-    // console.log(userId, passwordHash);
+    const [existing] = await db.select({ id: user.id }).from(user).where(eq(user.userName, userName)).limit(1);
 
-    // const user = await db.insert(userTable).values({
-    //     id: userId,
-    //     username: 'rob.herman@toolsbydesign.com',
-    //     passwordHash: passwordHash,
-    //     isAdmin: true,
-    //     isActive: true,
-    // });
+    if (existing) {
+        await db
+            .update(user)
+            .set({
+                passwordHash,
+                isAdmin: true,
+                isActive: true,
+            })
+            .where(eq(user.id, existing.id));
+
+        return { ok: true, action: 'updated', id: existing.id };
+    }
+
+    const [{ maxId }] = await db.select({ maxId: sql<number>`coalesce(max(${user.id}), 0)` }).from(user);
+    const nextId = Number(maxId) + 1;
+
+    await db.insert(user).values({
+        id: nextId,
+        userName,
+        passwordHash,
+        isAdmin: true,
+        isActive: true,
+    });
+
+    return { ok: true, action: 'inserted', id: nextId };
 }
-

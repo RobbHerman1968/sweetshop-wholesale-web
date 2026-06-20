@@ -1,12 +1,12 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { uploadImageToVercelBlob } from '@/lib/db-pg/actions/image';
+import { searchProductsForImageUpload, uploadImageToVercelBlob, type ProductImageUploadPick } from '@/lib/db-pg/actions/image';
 import { cn } from '@/lib/utils';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
@@ -21,18 +21,43 @@ type QueuedImage = {
 type AddImageDialogProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    isProductImage: boolean;
 };
+
+function dialogCopy(isProductImage: boolean) {
+    if (isProductImage) {
+        return {
+            title: 'Add product images',
+            description:
+                'Choose a product, then upload images. Each file is saved to the library, flagged as a product image, and linked to that product.',
+        };
+    }
+
+    return {
+        title: 'Add other images',
+        description: 'Upload hero and other non-product images. Each file is saved to the library under the hero folder.',
+    };
+}
 
 function defaultDisplayName(file: File): string {
     /** Exact file name for library `imageName` (server trims and caps at 100 chars). */
     return (file.name || 'image').trim() || 'image';
 }
 
-function isAllowedImage(file: File): boolean {
-    return ALLOWED_TYPES.includes(file.type as (typeof ALLOWED_TYPES)[number]) && file.size > 0;
+function extensionLooksLikeImage(fileName: string): boolean {
+    const ext = fileName.toLowerCase().match(/\.(jpe?g|png|gif|webp)$/)?.[1];
+    return ext != null;
 }
 
-export function AddImageDialog({ open, onOpenChange }: AddImageDialogProps) {
+function isAllowedImage(file: File): boolean {
+    if (file.size <= 0) return false;
+    if (ALLOWED_TYPES.includes(file.type as (typeof ALLOWED_TYPES)[number])) return true;
+    // Some browsers/OSes leave type empty for valid image files.
+    return !file.type && extensionLooksLikeImage(file.name || '');
+}
+
+export function AddImageDialog({ open, onOpenChange, isProductImage }: AddImageDialogProps) {
+    const copy = dialogCopy(isProductImage);
     const router = useRouter();
     const inputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -41,6 +66,10 @@ export function AddImageDialog({ open, onOpenChange }: AddImageDialogProps) {
     const [uploadTotal, setUploadTotal] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [queue, setQueue] = useState<QueuedImage[]>([]);
+    const [productQuery, setProductQuery] = useState('');
+    const [productResults, setProductResults] = useState<ProductImageUploadPick[]>([]);
+    const [selectedProduct, setSelectedProduct] = useState<ProductImageUploadPick | null>(null);
+    const [searchingProducts, setSearchingProducts] = useState(false);
 
     const revokePreviews = useCallback((items: QueuedImage[]) => {
         for (const q of items) URL.revokeObjectURL(q.previewUrl);
@@ -54,6 +83,10 @@ export function AddImageDialog({ open, onOpenChange }: AddImageDialogProps) {
         setError(null);
         setUploadIndex(0);
         setUploadTotal(0);
+        setProductQuery('');
+        setProductResults([]);
+        setSelectedProduct(null);
+        setSearchingProducts(false);
         if (inputRef.current) inputRef.current.value = '';
     };
 
@@ -141,8 +174,33 @@ export function AddImageDialog({ open, onOpenChange }: AddImageDialogProps) {
         setQueue((prev) => prev.map((q) => (q.key === key ? { ...q, name } : q)));
     };
 
+    useEffect(() => {
+        if (!open || !isProductImage) return;
+        const trimmed = productQuery.trim();
+        if (trimmed.length < 2) {
+            setProductResults([]);
+            setSearchingProducts(false);
+            return;
+        }
+
+        setSearchingProducts(true);
+        const timer = window.setTimeout(async () => {
+            const results = await searchProductsForImageUpload(trimmed);
+            setProductResults(results);
+            setSearchingProducts(false);
+        }, 300);
+
+        return () => window.clearTimeout(timer);
+    }, [open, isProductImage, productQuery]);
+
+    const needsProductSelection = isProductImage && selectedProduct == null;
+
     const handleUploadAll = async () => {
         if (queue.length === 0) return;
+        if (isProductImage && !selectedProduct) {
+            setError('Select a product before uploading.');
+            return;
+        }
         setError(null);
         setIsUploading(true);
         setUploadTotal(queue.length);
@@ -154,6 +212,10 @@ export function AddImageDialog({ open, onOpenChange }: AddImageDialogProps) {
             setUploadIndex(i);
             const formData = new FormData();
             formData.set('file', item.file);
+            formData.set('isProductImage', isProductImage ? 'true' : 'false');
+            if (isProductImage && selectedProduct) {
+                formData.set('productId', String(selectedProduct.id));
+            }
             if (item.name.trim()) formData.set('name', item.name.trim());
             const result = await uploadImageToVercelBlob(formData);
             if (!result.success) {
@@ -188,13 +250,79 @@ export function AddImageDialog({ open, onOpenChange }: AddImageDialogProps) {
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="max-h-[90vh] overflow-hidden border-[#c49a78] bg-[#f8eddf] text-[#3f1d12]">
                 <DialogHeader>
-                    <DialogTitle className="text-[#4a2518]">Add images</DialogTitle>
-                    <DialogDescription className="text-[#6e4a34]">
-                        Drag and drop multiple images, or browse. Each file is uploaded to Vercel Blob and saved to the library like a single upload.
-                    </DialogDescription>
+                    <DialogTitle className="text-[#4a2518]">{copy.title}</DialogTitle>
+                    <DialogDescription className="text-[#6e4a34]">{copy.description}</DialogDescription>
                 </DialogHeader>
 
                 <div className="flex min-h-0 flex-col space-y-4">
+                    {isProductImage ? (
+                        <div className="space-y-2 rounded-xl border border-[#c49a78] bg-[#fdf7ef] p-3">
+                            <Label htmlFor="product-image-search" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                                Product
+                            </Label>
+                            {selectedProduct ? (
+                                <div className="flex items-start justify-between gap-2 rounded-lg border border-[#c49a78] bg-white/80 px-3 py-2">
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-medium text-[#4a2518]">{selectedProduct.name || 'Untitled product'}</p>
+                                        <p className="truncate text-[11px] text-[#6e4a34]">
+                                            {selectedProduct.itemNumber ? `#${selectedProduct.itemNumber}` : 'No item number'} · ID {selectedProduct.id}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="h-8 shrink-0 px-2 text-[11px] text-[#6e4a34]"
+                                        onClick={() => {
+                                            setSelectedProduct(null);
+                                            setProductQuery('');
+                                            setProductResults([]);
+                                        }}
+                                        disabled={isUploading}
+                                    >
+                                        Change
+                                    </Button>
+                                </div>
+                            ) : (
+                                <>
+                                    <Input
+                                        id="product-image-search"
+                                        value={productQuery}
+                                        onChange={(e) => setProductQuery(e.target.value)}
+                                        placeholder="Search by product name or item number"
+                                        disabled={isUploading}
+                                        className="border-[#c49a78] text-sm text-[#3f1d12]"
+                                    />
+                                    {searchingProducts && <p className="text-[11px] text-[#6e4a34]">Searching products…</p>}
+                                    {!searchingProducts && productQuery.trim().length >= 2 && productResults.length === 0 && (
+                                        <p className="text-[11px] text-[#6e4a34]">No products found.</p>
+                                    )}
+                                    {productResults.length > 0 && (
+                                        <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-[#c49a78] bg-white/80 p-1">
+                                            {productResults.map((product) => (
+                                                <li key={product.id}>
+                                                    <button
+                                                        type="button"
+                                                        className="w-full rounded-md px-2 py-2 text-left hover:bg-[#f3e0cf]"
+                                                        onClick={() => {
+                                                            setSelectedProduct(product);
+                                                            setProductQuery('');
+                                                            setProductResults([]);
+                                                            setError(null);
+                                                        }}
+                                                    >
+                                                        <p className="truncate text-sm font-medium text-[#4a2518]">{product.name || 'Untitled product'}</p>
+                                                        <p className="truncate text-[11px] text-[#6e4a34]">
+                                                            {product.itemNumber ? `#${product.itemNumber}` : 'No item number'} · ID {product.id}
+                                                        </p>
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    ) : null}
                     <div
                         role="button"
                         tabIndex={0}
@@ -274,6 +402,9 @@ export function AddImageDialog({ open, onOpenChange }: AddImageDialogProps) {
                                     </li>
                                 ))}
                             </ul>
+                            {needsProductSelection ? (
+                                <p className="text-[11px] font-medium text-[#8b4513]">Select a product above before uploading.</p>
+                            ) : null}
                             <Button type="button" onClick={handleUploadAll} disabled={isUploading} className="w-full sm:w-auto sm:self-end">
                                 {isUploading
                                     ? `Uploading ${uploadIndex} / ${uploadTotal}…`

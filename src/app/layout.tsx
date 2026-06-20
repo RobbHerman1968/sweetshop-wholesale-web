@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { getServerSession } from 'next-auth';
 import './globals.css';
+import { authOptions } from '@/auth';
 import { AuthSessionProvider } from '@/components/providers/session-provider';
 import { SITE_MAIN_ID } from '@/lib/site-main';
 
@@ -19,18 +21,22 @@ export const metadata: Metadata = {
     description: 'Sweet Shop USA Wholesale',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const session = await getServerSession(authOptions);
+
     return (
         <html lang="en">
             <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-                <a href={`#${SITE_MAIN_ID}`} className="skip-to-main">
-                    Skip to main content
-                </a>
-                <AuthSessionProvider>{children}</AuthSessionProvider>
+                <AuthSessionProvider session={session}>
+                    <a href={`#${SITE_MAIN_ID}`} className="skip-to-main">
+                        Skip to main content
+                    </a>
+                    {children}
+                </AuthSessionProvider>
             </body>
         </html>
     );

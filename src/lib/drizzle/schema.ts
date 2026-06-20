@@ -19,21 +19,8 @@ export const product = pgTable("product", {
 	isWholesale: integer().default(0).notNull(),
 });
 
-export const user = pgTable("user", {
-	id: text().primaryKey().notNull(),
-	userName: text().notNull(),
-	passwordHash: text().notNull(),
-	isActive: boolean().default(false).notNull(),
-	isAdmin: boolean().default(false).notNull(),
-	firstName: text(),
-	lastName: text(),
-}, (table) => [
-	unique("user_username_unique").on(table.userName),
-]);
-
 export const account = pgTable("account", {
 	id: serial().primaryKey().notNull(),
-	userId: text().notNull(),
 	accountMateId: text(),
 	isSkipTax: boolean().default(false).notNull(),
 	isSkipShipping: boolean().default(false).notNull(),
@@ -50,12 +37,19 @@ export const account = pgTable("account", {
 	contactState: text(),
 	contactZipCode: text(),
 	contactEmail: text(),
+});
+
+export const user = pgTable("user", {
+	id: integer().primaryKey().notNull(),
+	userName: text().notNull(),
+	passwordHash: text().notNull(),
+	isActive: boolean().default(false).notNull(),
+	isAdmin: boolean().default(false).notNull(),
+	firstName: text(),
+	lastName: text(),
+	accountMateId: text(),
 }, (table) => [
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "account_userId_user_id_fk"
-		}),
+	unique("user_username_unique").on(table.userName),
 ]);
 
 export const accountGroup = pgTable("accountGroup", {
@@ -117,7 +111,7 @@ export const productImage = pgTable("productImage", {
 
 export const order = pgTable("order", {
 	id: serial().primaryKey().notNull(),
-	accountId: integer().notNull(),
+	userId: integer().notNull(),
 	orderNumber: integer(),
 	orderDate: timestamp({ withTimezone: true, mode: 'string' }),
 	subTotal: numeric({ precision: 10, scale:  2 }).notNull(),
@@ -173,6 +167,29 @@ export const cartItem = pgTable("cartItem", {
 		}),
 ]);
 
+export const menuItem = pgTable("menuItem", {
+	id: serial().primaryKey().notNull(),
+	menuId: integer().notNull(),
+	parentMenuItemId: integer().notNull(),
+	categoryId: integer(),
+	name: text().notNull(),
+	isActive: boolean().default(false).notNull(),
+	displayOrder: integer().default(0).notNull(),
+	pageId: integer(),
+	externalUrl: text(),
+}, (table) => [
+	foreignKey({
+			columns: [table.categoryId],
+			foreignColumns: [category.id],
+			name: "FK_MenuItem_Category"
+		}),
+	foreignKey({
+			columns: [table.pageId],
+			foreignColumns: [page.id],
+			name: "FK_MenuItem_Page"
+		}),
+]);
+
 export const orderAddress = pgTable("orderAddress", {
 	id: serial().primaryKey().notNull(),
 	orderId: integer().notNull(),
@@ -206,6 +223,18 @@ export const orderItem = pgTable("orderItem", {
 	timeStamp: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
 });
 
+export const menu = pgTable("menu", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+});
+
+export const category = pgTable("category", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	navName: text().notNull(),
+	isActive: boolean().notNull(),
+});
+
 export const stateShippingTaxRate = pgTable("stateShippingTaxRate", {
 	id: serial().primaryKey().notNull(),
 	stateAbbr: text().notNull(),
@@ -213,10 +242,20 @@ export const stateShippingTaxRate = pgTable("stateShippingTaxRate", {
 	taxRate: numeric({ precision: 10, scale:  4 }).default('0').notNull(),
 });
 
-export const xrefImage = pgTable("xrefImage", {
+export const productCategory = pgTable("productCategory", {
 	id: serial().primaryKey().notNull(),
 	productId: integer().notNull(),
-	imageName: varchar({ length: 100 }).notNull(),
+	categoryId: integer().notNull(),
+	displayOrder: integer().notNull(),
+});
+
+export const page = pgTable("page", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	navName: text().notNull(),
+	content: text().notNull(),
+	imageUrl: text(),
+	isActive: boolean().default(false),
 });
 
 export const vercelImage = pgTable("vercelImage", {
@@ -224,6 +263,13 @@ export const vercelImage = pgTable("vercelImage", {
 	imageName: varchar({ length: 100 }).notNull(),
 	path: text().notNull(),
 	name: text(),
+	isProductImage: boolean().default(false).notNull(),
+});
+
+export const xrefImage = pgTable("xrefImage", {
+	id: serial().primaryKey().notNull(),
+	productId: integer().notNull(),
+	imageName: varchar({ length: 100 }).notNull(),
 });
 
 export const productImageNew = pgTable("productImageNew", {

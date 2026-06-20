@@ -13,6 +13,7 @@ export async function userMapper(data: any) {
     user.passwordHash = data.passwordHash;
     user.isActive = data.isActive;
     user.isAdmin = data.isAdmin;
+    user.accountMateId = data.accountMateId ?? null;
     user.accounts = [];
 
     if (data.accounts) {

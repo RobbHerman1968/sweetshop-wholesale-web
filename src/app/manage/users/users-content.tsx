@@ -1,12 +1,14 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 type UserRow = {
-    id: string;
+    id: number;
     userName: string;
     firstName: string | null;
     lastName: string | null;
@@ -55,6 +57,8 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
         if (page < totalPages - 2) pageNumbers.push('ellipsis');
         if (totalPages > 1) pageNumbers.push(totalPages);
     }
+
+    const listHref = `/manage/users${buildQuery({ page, userName: searchUserName || undefined, lastName: searchLastName || undefined })}`;
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -120,6 +124,14 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                                 <div className="mt-1 flex gap-1.5">
                                     {u.isAdmin && <span className="rounded bg-[#4a2518] px-1.5 py-0.5 text-[10px] uppercase text-[#fdf7ef]">Admin</span>}
                                     {!u.isActive && <span className="rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>}
+                                </div>
+                                <div className="mt-3">
+                                    <Link
+                                        href={`/manage/users/${u.id}?returnTo=${encodeURIComponent(listHref)}`}
+                                        className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
+                                    >
+                                        Edit
+                                    </Link>
                                 </div>
                             </article>
                         </li>

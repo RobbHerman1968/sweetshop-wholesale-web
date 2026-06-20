@@ -11,12 +11,18 @@ import {
     setWholesaleSelectedAccount,
     type WholesaleAccountSwitcherOption,
 } from '@/lib/wholesale-account-switcher-actions';
+import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
 import { cn } from '@/lib/utils';
 
 const triggerButtonClass =
-    'inline-flex max-w-[min(14rem,calc(100vw-8rem))] shrink items-center gap-1 rounded-md border border-[#c4a88a] bg-white/70 px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5c4032] shadow-sm transition-colors hover:bg-[#f3e0cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f6ebdd]';
+    'inline-flex w-56 shrink-0 items-center justify-between gap-2 rounded-md border border-[#c4a88a] bg-white/70 px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5c4032] shadow-sm transition-colors hover:bg-[#f3e0cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f6ebdd]';
 
-export function WholesaleAccountSwitcher() {
+export type WholesaleAccountSwitcherProps = {
+    /** e.g. collapse mobile header menu after choosing an account */
+    onAccountSelected?: () => void;
+};
+
+export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccountSwitcherProps) {
     const router = useRouter();
     const { status } = useSession();
     const [accounts, setAccounts] = useState<WholesaleAccountSwitcherOption[]>([]);
@@ -63,25 +69,35 @@ export function WholesaleAccountSwitcher() {
         const { ok } = await setWholesaleSelectedAccount(accountId);
         if (!ok) return;
 
-        const dbg = await getWholesaleAccountCatalogDebug(accountId);
-        if (dbg.ok) {
-            console.log('[Wholesale account change]', {
-                accountId: dbg.accountId,
-                accountGroupLinks: dbg.accountGroupLinks,
-                productGroupIds: dbg.productGroupIds,
-                activeProductTotal: dbg.activeProductTotal,
-                activeProductsSample: dbg.activeProductsSample,
-                ...(dbg.activeProductsShown < dbg.activeProductTotal
-                    ? {
-                          note: `Sample shows ${dbg.activeProductsShown} of ${dbg.activeProductTotal} active products (first 50 by name).`,
-                      }
-                    : {}),
-            });
-        }
-
         setSelectedAccountId(accountId);
         setOpen(false);
-        router.refresh();
+        onAccountSelected?.();
+        markPendingShopQueryStrip();
+
+        // Navigate immediately; debug fetch must not block routing (slow DB → no transition).
+        void getWholesaleAccountCatalogDebug(accountId)
+            .then((dbg) => {
+                if (!dbg.ok) return;
+                console.log('[Wholesale account change]', {
+                    accountId: dbg.accountId,
+                    accountGroupLinks: dbg.accountGroupLinks,
+                    productGroupIds: dbg.productGroupIds,
+                    activeProductTotal: dbg.activeProductTotal,
+                    activeProductsSample: dbg.activeProductsSample,
+                    ...(dbg.activeProductsShown < dbg.activeProductTotal
+                        ? {
+                              note: `Sample shows ${dbg.activeProductsShown} of ${dbg.activeProductTotal} active products (first 50 by name).`,
+                          }
+                        : {}),
+                });
+            })
+            .catch(() => {
+                /* ignore */
+            });
+
+        // Client `router.push` after a server action is unreliable here; full navigation
+        // applies the Set-Cookie from the action and always loads the shop.
+        window.location.assign('/shop');
     };
 
     if (status !== 'authenticated' || (!loading && accounts.length === 0)) {
@@ -96,7 +112,7 @@ export function WholesaleAccountSwitcher() {
                 title={only.displayName}
                 aria-label={`Account: ${only.displayName}`}
             >
-                <span className="min-w-0 truncate">{only.displayName}</span>
+                <span className="min-w-0 flex-1 truncate">{only.displayName}</span>
             </div>
         );
     }
@@ -117,14 +133,14 @@ export function WholesaleAccountSwitcher() {
                     disabled={loading}
                     className={cn(triggerButtonClass, loading && 'opacity-70')}
                 >
-                    <span className="min-w-0 truncate">{triggerLabel}</span>
+                    <span className="min-w-0 flex-1 truncate">{triggerLabel}</span>
                     <ChevronDown className="size-3.5 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
                 </button>
             </PopoverTrigger>
             <PopoverContent
                 align="end"
                 sideOffset={8}
-                className="w-[min(17rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-[#e6e1db] bg-white p-1 shadow-[0_12px_48px_-12px_rgba(24,18,12,0.22)]"
+                className="w-56 overflow-hidden rounded-lg border border-[#e6e1db] bg-white p-1 shadow-[0_12px_48px_-12px_rgba(24,18,12,0.22)]"
             >
                 <p className="border-b border-[#ebe6e1] px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6b6560]">
                     Wholesale account
