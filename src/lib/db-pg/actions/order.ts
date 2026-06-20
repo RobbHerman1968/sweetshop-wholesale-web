@@ -1,11 +1,226 @@
 'use server';
 
 import { db } from '@/lib/db-pg';
-import { and, desc, gte, lte, sql } from 'drizzle-orm';
+import { getOrderExpectedDeliveryDatesFromSweetshopOld } from '@/lib/db-sweetshop-old';
+import { and, asc, desc, eq, gte, isNotNull, lte, sql } from 'drizzle-orm';
 import { orderMapper } from '../mappers/order-mapper';
 import { Order } from '../entities/order-entity';
-import { order, orderAddress, orderItem } from '@/lib/drizzle/schema';
+import { order, orderAddress, orderItem, user } from '@/lib/drizzle/schema';
 import moment from 'moment-timezone';
+
+export type OrderDailyStat = {
+    date: string;
+    orderCount: number;
+    revenue: number;
+    avgOrderValue: number;
+};
+
+export type OrderMonthlyStat = {
+    year: number;
+    month: number;
+    monthLabel: string;
+    orderCount: number;
+    revenue: number;
+};
+
+export type OrderYtdComparison = {
+    year: number;
+    orderCount: number;
+    revenue: number;
+    avgOrderValue: number;
+    throughLabel: string;
+};
+
+export type OrderDashboardStats = {
+    recentDaily: OrderDailyStat[];
+    ytdDaily: OrderDailyStat[];
+    monthlyByYear: OrderMonthlyStat[];
+    availableYears: number[];
+    ytdComparison: OrderYtdComparison[];
+};
+
+const CHICAGO = 'America/Chicago';
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const chicagoDay = sql`("order"."orderDate" AT TIME ZONE 'America/Chicago')::date`;
+const chicagoYear = sql`extract(year from ${chicagoDay})::int`;
+const chicagoMonth = sql`extract(month from ${chicagoDay})::int`;
+
+function normalizeDate(value: string | Date): string {
+    return String(value).slice(0, 10);
+}
+
+function fillDailyGaps(rows: Array<{ date: string; orderCount: number; revenue: number }>, days: number): OrderDailyStat[] {
+    const byDate = new Map(rows.map((row) => [row.date, row]));
+    const start = moment.tz(CHICAGO).subtract(days - 1, 'days').startOf('day');
+    const filled: OrderDailyStat[] = [];
+
+    for (let i = 0; i < days; i++) {
+        const date = start.clone().add(i, 'days').format('YYYY-MM-DD');
+        const existing = byDate.get(date);
+        const orderCount = existing?.orderCount ?? 0;
+        const revenue = existing?.revenue ?? 0;
+        filled.push({
+            date,
+            orderCount,
+            revenue,
+            avgOrderValue: orderCount > 0 ? revenue / orderCount : 0,
+        });
+    }
+
+    return filled;
+}
+
+function fillDailyRange(rows: Array<{ date: string; orderCount: number; revenue: number }>, startDate: string, endDate: string): OrderDailyStat[] {
+    const byDate = new Map(rows.map((row) => [row.date, row]));
+    const start = moment.tz(startDate, CHICAGO).startOf('day');
+    const end = moment.tz(endDate, CHICAGO).startOf('day');
+    const filled: OrderDailyStat[] = [];
+
+    for (let cursor = start.clone(); cursor.isSameOrBefore(end, 'day'); cursor.add(1, 'day')) {
+        const date = cursor.format('YYYY-MM-DD');
+        const existing = byDate.get(date);
+        const orderCount = existing?.orderCount ?? 0;
+        const revenue = existing?.revenue ?? 0;
+        filled.push({
+            date,
+            orderCount,
+            revenue,
+            avgOrderValue: orderCount > 0 ? revenue / orderCount : 0,
+        });
+    }
+
+    return filled;
+}
+
+async function fetchDailyAggregates(startUtc: string, endUtc: string) {
+    return db
+        .select({
+            date: sql<string>`${chicagoDay}`,
+            orderCount: sql<number>`count(*)::int`,
+            revenue: sql<number>`coalesce(sum("order"."total"::numeric), 0)::float`,
+        })
+        .from(order)
+        .where(and(isNotNull(order.orderDate), gte(order.orderDate, startUtc), lte(order.orderDate, endUtc)))
+        .groupBy(chicagoDay)
+        .orderBy(chicagoDay);
+}
+
+function ytdEndForYear(year: number, reference: moment.Moment): moment.Moment {
+    if (year < reference.year()) {
+        return moment
+            .tz(CHICAGO)
+            .year(year)
+            .month(reference.month())
+            .date(reference.date())
+            .endOf('day');
+    }
+
+    if (year === reference.year()) {
+        return reference.clone().endOf('day');
+    }
+
+    return moment.tz(CHICAGO).year(year).endOf('year');
+}
+
+export async function getOrderDailyStats(days = 90): Promise<OrderDailyStat[]> {
+    const safeDays = Math.min(Math.max(days, 1), 365);
+    const startDate = moment.tz(CHICAGO).subtract(safeDays - 1, 'days').startOf('day').utc().format();
+    const endDate = moment.tz(CHICAGO).endOf('day').utc().format();
+    const rows = await fetchDailyAggregates(startDate, endDate);
+
+    return fillDailyGaps(
+        rows.map((row) => ({
+            date: normalizeDate(row.date),
+            orderCount: Number(row.orderCount),
+            revenue: Number(row.revenue),
+        })),
+        safeDays,
+    );
+}
+
+export async function getOrderDashboardStats(): Promise<OrderDashboardStats> {
+    const now = moment.tz(CHICAGO);
+    const currentYear = now.year();
+    const yearStart = now.clone().startOf('year');
+    const recentStart = now.clone().subtract(89, 'days').startOf('day');
+
+    const [recentRows, ytdRows, monthlyRows, yearBounds] = await Promise.all([
+        fetchDailyAggregates(recentStart.utc().format(), now.clone().endOf('day').utc().format()),
+        fetchDailyAggregates(yearStart.utc().format(), now.clone().endOf('day').utc().format()),
+        db
+            .select({
+                year: sql<number>`${chicagoYear}`,
+                month: sql<number>`${chicagoMonth}`,
+                orderCount: sql<number>`count(*)::int`,
+                revenue: sql<number>`coalesce(sum("order"."total"::numeric), 0)::float`,
+            })
+            .from(order)
+            .where(isNotNull(order.orderDate))
+            .groupBy(chicagoYear, chicagoMonth)
+            .orderBy(chicagoYear, chicagoMonth),
+        db
+            .select({
+                minYear: sql<number>`coalesce(min(${chicagoYear}), ${currentYear})::int`,
+                maxYear: sql<number>`coalesce(max(${chicagoYear}), ${currentYear})::int`,
+            })
+            .from(order)
+            .where(isNotNull(order.orderDate)),
+    ]);
+
+    const minYear = Number(yearBounds[0]?.minYear ?? currentYear);
+    const maxYear = Number(yearBounds[0]?.maxYear ?? currentYear);
+    const availableYears = Array.from({ length: maxYear - minYear + 1 }, (_, index) => maxYear - index);
+
+    const monthlyByYear: OrderMonthlyStat[] = monthlyRows.map((row) => ({
+        year: Number(row.year),
+        month: Number(row.month),
+        monthLabel: MONTH_LABELS[Number(row.month) - 1] ?? String(row.month),
+        orderCount: Number(row.orderCount),
+        revenue: Number(row.revenue),
+    }));
+
+    const ytdComparisonRows = await Promise.all(
+        availableYears.map(async (year) => {
+            const start = moment.tz(CHICAGO).year(year).startOf('year');
+            const end = ytdEndForYear(year, now);
+            const rows = await fetchDailyAggregates(start.utc().format(), end.utc().format());
+            const orderCount = rows.reduce((sum, row) => sum + Number(row.orderCount), 0);
+            const revenue = rows.reduce((sum, row) => sum + Number(row.revenue), 0);
+
+            return {
+                year,
+                orderCount,
+                revenue,
+                avgOrderValue: orderCount > 0 ? revenue / orderCount : 0,
+                throughLabel: year === currentYear ? `Through ${now.format('MMM D')}` : `Through ${end.format('MMM D, YYYY')}`,
+            };
+        }),
+    );
+    const ytdComparison = ytdComparisonRows;
+
+    return {
+        recentDaily: fillDailyGaps(
+            recentRows.map((row) => ({
+                date: normalizeDate(row.date),
+                orderCount: Number(row.orderCount),
+                revenue: Number(row.revenue),
+            })),
+            90,
+        ),
+        ytdDaily: fillDailyRange(
+            ytdRows.map((row) => ({
+                date: normalizeDate(row.date),
+                orderCount: Number(row.orderCount),
+                revenue: Number(row.revenue),
+            })),
+            yearStart.format('YYYY-MM-DD'),
+            now.format('YYYY-MM-DD'),
+        ),
+        monthlyByYear,
+        availableYears,
+        ytdComparison,
+    };
+}
 
 export async function getOrders() {
     const orders = await db.query.order.findMany({ orderBy: [desc(order.orderDate), desc(order.id)] });
@@ -15,6 +230,72 @@ export async function getOrders() {
     });
     return out;
 }
+
+export type ManageOrderUserSummary = {
+    id: number;
+    userName: string;
+    firstName: string | null;
+    lastName: string | null;
+    accountMateId: string | null;
+};
+
+export type ManageOrderDetail = {
+    order: typeof order.$inferSelect;
+    items: (typeof orderItem.$inferSelect)[];
+    addresses: (typeof orderAddress.$inferSelect)[];
+    user: ManageOrderUserSummary | null;
+};
+
+export async function getOrderByIdForManage(orderId: number): Promise<ManageOrderDetail | null> {
+    const row = await db.query.order.findFirst({
+        where: eq(order.id, orderId),
+    });
+
+    if (!row) {
+        return null;
+    }
+
+    const [items, addresses, userRows] = await Promise.all([
+        db.query.orderItem.findMany({
+            where: eq(orderItem.orderId, orderId),
+            orderBy: [asc(orderItem.id)],
+        }),
+        db.query.orderAddress.findMany({
+            where: eq(orderAddress.orderId, orderId),
+            orderBy: [asc(orderAddress.id)],
+        }),
+        db
+            .select({
+                id: user.id,
+                userName: user.userName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                accountMateId: user.accountMateId,
+            })
+            .from(user)
+            .where(eq(user.id, row.userId))
+            .limit(1),
+    ]);
+
+    return {
+        order: row,
+        items,
+        addresses,
+        user: userRows[0] ?? null,
+    };
+}
+
+export type ManageOrderListRow = {
+    id: number;
+    orderNumber: number | null;
+    orderDate: string | null;
+    userId: number;
+    accountMateOrderNumber: number | null;
+    total: string;
+    shippingCode: string | null;
+    isNewCustomerOrder: number;
+    customerName: string | null;
+};
 
 export async function getPaginatedOrdersFromDB({ page = 1, limit = 50, dateFrom, dateTo }: { page?: number; limit?: number; dateFrom?: string; dateTo?: string }) {
     const offset = (page - 1) * limit;
@@ -28,12 +309,25 @@ export async function getPaginatedOrdersFromDB({ page = 1, limit = 50, dateFrom,
     }
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const data = await db.query.order.findMany({
-        where: whereClause,
-        orderBy: [desc(order.orderDate), desc(order.id)],
-        limit,
-        offset,
-    });
+    const baseQuery = db
+        .select({
+            id: order.id,
+            orderNumber: order.orderNumber,
+            orderDate: order.orderDate,
+            userId: order.userId,
+            accountMateOrderNumber: order.accountMateOrderNumber,
+            total: order.total,
+            shippingCode: order.shippingCode,
+            isNewCustomerOrder: order.isNewCustomerOrder,
+            customerName: sql<string | null>`coalesce(nullif(trim(concat(${user.firstName}, ' ', ${user.lastName})), ''), nullif(trim(${user.userName}), ''))`,
+        })
+        .from(order)
+        .leftJoin(user, eq(order.userId, user.id))
+        .orderBy(desc(order.orderDate), desc(order.id))
+        .limit(limit)
+        .offset(offset);
+
+    const data = whereClause ? await baseQuery.where(whereClause) : await baseQuery;
 
     const countQuery = db.select({ count: sql<number>`count(*)` }).from(order);
     const countResult = whereClause ? await countQuery.where(whereClause) : await countQuery;
@@ -99,13 +393,121 @@ function oldDriverDateToUtcDate(d: Date): Date {
     return new Date('1970-01-01');
 }
 
+function oldDriverDateOnlyToUtcIso(d: Date | null | undefined): string | null {
+    if (!d || Number.isNaN(new Date(d).getTime())) {
+        return null;
+    }
+
+    const parsed = new Date(d);
+    // Expected delivery is a calendar date — preserve the day in Central time.
+    return moment
+        .tz([parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()], 'America/Chicago')
+        .startOf('day')
+        .utc()
+        .toISOString();
+}
+
+function mapOldOrderExpectedDeliveryDate(expectedDelivery: Date | null | undefined, orderDate: Date | null | undefined): string {
+    return oldDriverDateOnlyToUtcIso(expectedDelivery) ?? oldDriverDateToUtcDate(orderDate ?? new Date('1970-01-01')).toISOString();
+}
+
+function mapOldExpectedDeliveryOnly(expectedDelivery: Date | null | undefined): string | null {
+    return oldDriverDateOnlyToUtcIso(expectedDelivery);
+}
+
+const OLD_ORDER_EXPECTED_DELIVERY_KEYS = ['ExpectedDeliveryDate', 'expectedDeliveryDate'] as const;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readOldOrderExpectedDelivery(row: any): Date | null | undefined {
+    if (!row || typeof row !== 'object') {
+        return null;
+    }
+
+    for (const key of OLD_ORDER_EXPECTED_DELIVERY_KEYS) {
+        const value = row[key];
+        if (value != null) {
+            return value as Date;
+        }
+    }
+
+    return null;
+}
+
+export type ExpectedDeliverySyncResult = {
+    fetched: number;
+    updated: number;
+    skipped: number;
+};
+
+async function bulkUpdateExpectedDeliveryDates(updates: Array<{ id: number; expectedDeliveryDate: string }>) {
+    if (updates.length === 0) {
+        return;
+    }
+
+    const caseClauses = updates
+        .map(({ id, expectedDeliveryDate }) => `WHEN ${Number(id)} THEN '${expectedDeliveryDate.replace(/'/g, "''")}'::timestamptz`)
+        .join(' ');
+    const idList = updates.map(({ id }) => Number(id)).join(', ');
+
+    await db.execute(
+        sql.raw(`
+            UPDATE "order"
+            SET "expectedDeliveryDate" = CASE id ${caseClauses} END
+            WHERE id IN (${idList})
+        `),
+    );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function updateExpectedDeliveryDatesFromOldOrders(rows: any[]): Promise<ExpectedDeliverySyncResult> {
+    let updated = 0;
+    let skipped = 0;
+    const chunkSize = 100;
+
+    for (let i = 0; i < rows.length; i += chunkSize) {
+        const chunk = rows.slice(i, i + chunkSize);
+        const updates: Array<{ id: number; expectedDeliveryDate: string }> = [];
+
+        for (const row of chunk) {
+            const expectedDeliveryDate = mapOldExpectedDeliveryOnly(readOldOrderExpectedDelivery(row));
+            if (!expectedDeliveryDate) {
+                skipped += 1;
+                continue;
+            }
+            updates.push({ id: row.Id, expectedDeliveryDate });
+        }
+
+        if (updates.length > 0) {
+            await bulkUpdateExpectedDeliveryDates(updates);
+            updated += updates.length;
+        }
+    }
+
+    return {
+        fetched: rows.length,
+        updated,
+        skipped,
+    };
+}
+
+export async function syncExpectedDeliveryDatesFromOldOrders(): Promise<ExpectedDeliverySyncResult> {
+    const rows = await getOrderExpectedDeliveryDatesFromSweetshopOld();
+    return updateExpectedDeliveryDatesFromOldOrders(rows);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/** @deprecated Use syncExpectedDeliveryDatesFromOldOrders instead. */
+export async function repairImportedOrderExpectedDeliveryDates(rows: any[]) {
+    const result = await updateExpectedDeliveryDatesFromOldOrders(rows);
+    return result.updated > 0;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function processOldOrders(orders: any[]) {
     try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const rows: any[] = orders.map((o: any) => {
             const orderDateIso = oldDriverDateToUtcDate(o.OrderDate).toISOString();
-            const expectedDelivery = oldDriverDateToUtcDate(o.expectedDelivery).toISOString();
             const promotionCodeRaw = o.PromotionCode != null ? String(o.PromotionCode).trim() : '';
             const promotionCode = promotionCodeRaw !== '' && !Number.isNaN(Number(promotionCodeRaw)) ? promotionCodeRaw : null;
             const promotionDiscountRaw = o.PromotionDiscount != null ? String(o.PromotionDiscount).trim() : '';
@@ -113,7 +515,7 @@ export async function processOldOrders(orders: any[]) {
             const accountMateOrderNum = o.AccountMateOrderNumber != null ? Number(o.AccountMateOrderNumber) : NaN;
             return {
                 id: o.Id,
-                accountId: o.AccountId,
+                userId: o.AccountId,
                 orderNumber: Number(o.OrderNumber) || null,
                 orderDate: orderDateIso,
                 subTotal: o.SubTotal?.toString() ?? '0',
@@ -126,7 +528,7 @@ export async function processOldOrders(orders: any[]) {
                 ccExp: o.CreditCardExpiration ?? null,
                 ccType: o.CreditCardType ?? null,
                 comment: o.Comment ?? null,
-                expectedDeliveryDate: expectedDelivery ?? expectedDelivery ?? '1970-01-01T00:00:00.000Z',
+                expectedDeliveryDate: mapOldOrderExpectedDeliveryDate(readOldOrderExpectedDelivery(o), o.OrderDate),
                 shippingCode: (o.ShippingCode != null ? String(o.ShippingCode).trim() : '') || '',
                 accountMateReturnStatus: o.AccountMateReturnStatus ? o.AccountMateReturnStatus.trim() || null : null,
                 accountMateTransactionId: o.AccountMateTransactionId ?? null,

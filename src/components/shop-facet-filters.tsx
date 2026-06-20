@@ -12,9 +12,11 @@ type Props = {
     visibleFacetIds: string[];
     /** From server: false = no products if this facet were checked with current selection (grey out). */
     facetAvailability: Record<string, boolean>;
+    /** Base shop path for filter URL updates (default `/shop`). */
+    shopPath?: string;
 };
 
-export function ShopFacetFilters({ search, facetIds, visibleFacetIds, facetAvailability }: Props) {
+export function ShopFacetFilters({ search, facetIds, visibleFacetIds, facetAvailability, shopPath = '/shop' }: Props) {
     const router = useRouter();
     const formRef = useRef<HTMLFormElement>(null);
 
@@ -28,8 +30,13 @@ export function ShopFacetFilters({ search, facetIds, visibleFacetIds, facetAvail
         if (s) params.set('search', s);
         for (const id of facets) params.append('facet', id);
         const qs = params.toString();
-        router.replace(qs ? `/shop?${qs}` : '/shop', { scroll: false });
-    }, [search, router]);
+        const next = qs ? `${shopPath}?${qs}` : shopPath;
+        if (typeof window !== 'undefined') {
+            const cur = `${window.location.pathname}${window.location.search}`;
+            if (cur === next) return;
+        }
+        router.replace(next, { scroll: false });
+    }, [search, router, shopPath]);
 
     const visibleSet = new Set(visibleFacetIds);
     const facetsToShow = SHOP_PRODUCT_FACETS.filter((f) => visibleSet.has(f.id));

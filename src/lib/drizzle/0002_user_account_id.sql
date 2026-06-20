@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "accountId" integer DEFAULT 0 NOT NULL;

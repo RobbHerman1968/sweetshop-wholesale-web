@@ -6,6 +6,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EditProductSheet } from './edit-product-sheet';
+import { RemoteImage } from '@/components/remote-image';
 import { cn } from '@/lib/utils';
 
 type ProductRow = {
@@ -124,7 +125,17 @@ export function ProductsContent({ data, pagination, searchName, searchItemNumber
                             return (
                                 <li key={p.id}>
                                     <article className={cn('rounded-2xl border-2 border-[#a67c5b] bg-[#faf0e6] shadow-md overflow-hidden transition-all hover:shadow-lg hover:border-[#8b6342]')}>
-                                        <div className="aspect-square w-full bg-[#ffffff]">{firstImage ? <img src={firstImage} alt="" className="h-full w-full object-cover brightness-110" /> : <div className="flex h-full items-center justify-center text-[11px] font-medium uppercase tracking-wider text-[#6e4a34]">No image</div>}</div>
+                                        <div className="relative aspect-square w-full bg-[#ffffff]">
+                                            {firstImage ? (
+                                                <RemoteImage
+                                                    src={firstImage}
+                                                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 256px"
+                                                    className="brightness-110"
+                                                />
+                                            ) : (
+                                                <div className="flex h-full items-center justify-center text-[11px] font-medium uppercase tracking-wider text-[#6e4a34]">No image</div>
+                                            )}
+                                        </div>
                                         <div className="p-3">
                                             <p className="truncate text-[12px] font-bold uppercase tracking-[0.1em] text-[#4a2518]">{p.name || '—'}</p>
                                             <p className="mt-0.5 text-[11px] font-medium text-[#5b3a2a]">{p.itemNumber ? `#${p.itemNumber}` : '—'}</p>

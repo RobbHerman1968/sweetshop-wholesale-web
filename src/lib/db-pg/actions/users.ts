@@ -1,11 +1,32 @@
 'use server';
 
+import * as argon2 from 'argon2';
+import { getUserAccounts } from '@/lib/db-pg/actions/account';
 import { userResetMapper, userMapper } from '../mappers/user-mapper';
 import { User } from '../entities/user-entity';
 import { db } from '@/lib/db-pg';
 import { user } from '@/lib/drizzle/schema';
-import { and, asc, eq, ilike, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, ne, sql } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 import moment from 'moment';
+
+export type ManageUser = {
+    id: number;
+    userName: string;
+    firstName: string | null;
+    lastName: string | null;
+    accountMateId: string | null;
+    isActive: boolean;
+    isAdmin: boolean;
+};
+
+function trimOrNull(value: FormDataEntryValue | null): string | null {
+    if (value == null) {
+        return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed || null;
+}
 
 export async function getUserByUserName(userName: string) {
     const returnUser = await db.query.user.findFirst({
@@ -14,21 +35,103 @@ export async function getUserByUserName(userName: string) {
     return await userMapper(returnUser);
 }
 
-export async function getUserByUID(uid: string) {
+export async function getUserByUID(uid: number) {
     const returnUser = await db.query.user.findFirst({
         where: eq(user.id, uid),
     });
     return await userMapper(returnUser);
 }
 
-export async function getUserWithAccountsById(userId: string) {
+export async function getUserByIdForManage(userId: number): Promise<ManageUser | null> {
+    if (!Number.isFinite(userId) || userId <= 0) {
+        return null;
+    }
+
+    const [row] = await db
+        .select({
+            id: user.id,
+            userName: user.userName,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            accountMateId: user.accountMateId,
+            isActive: user.isActive,
+            isAdmin: user.isAdmin,
+        })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+
+    return row ?? null;
+}
+
+export async function updateUserFromForm(formData: FormData) {
+    const id = Number(formData.get('id'));
+    if (!id) {
+        return;
+    }
+
+    const existing = await getUserByIdForManage(id);
+    if (!existing) {
+        return;
+    }
+
+    const userName = trimOrNull(formData.get('userName'))?.toLowerCase() ?? existing.userName;
+    const firstName = trimOrNull(formData.get('firstName'));
+    const lastName = trimOrNull(formData.get('lastName'));
+    const accountMateId = trimOrNull(formData.get('accountMateId'));
+    const isAdmin = formData.get('isAdmin') === 'on' || formData.get('isAdmin') === 'true';
+    const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true';
+    const newPassword = trimOrNull(formData.get('newPassword'));
+
+    if (userName !== existing.userName) {
+        const [conflict] = await db
+            .select({ id: user.id })
+            .from(user)
+            .where(and(eq(user.userName, userName), ne(user.id, id)))
+            .limit(1);
+        if (conflict) {
+            return;
+        }
+    }
+
+    const update: {
+        userName: string;
+        firstName: string | null;
+        lastName: string | null;
+        accountMateId: string | null;
+        isAdmin: boolean;
+        isActive: boolean;
+        passwordHash?: string;
+    } = {
+        userName,
+        firstName,
+        lastName,
+        accountMateId,
+        isAdmin,
+        isActive,
+    };
+
+    if (newPassword) {
+        update.passwordHash = await argon2.hash(newPassword);
+    }
+
+    await db.update(user).set(update).where(eq(user.id, id));
+
+    revalidatePath('/manage/users');
+    revalidatePath(`/manage/users/${id}`);
+}
+
+export async function getUserWithAccountsById(userId: number) {
     const returnUser = await db.query.user.findFirst({
         where: eq(user.id, userId),
-        with: {
-            accounts: true,
-        },
     });
-    return await userMapper(returnUser);
+    if (!returnUser) {
+        return await userMapper(returnUser);
+    }
+
+    const mapped = await userMapper(returnUser);
+    mapped.accounts = await getUserAccounts(userId);
+    return mapped;
 }
 
 export async function getPaginatedUsersFromDB({ page = 1, limit = 50, userName, lastName }: { page?: number; limit?: number; userName?: string; lastName?: string }) {
@@ -122,23 +225,23 @@ export async function getUsersBySearch(emailAddress: string | undefined, lastNam
     return out;
 }
 
-export async function createUser(id: string, userName: string, passwordHash: string, isAdmin: boolean, isActive: boolean) {
+export async function createUser(id: number, userName: string, passwordHash: string, isAdmin: boolean, isActive: boolean) {
     return await db.insert(user).values({ id: id, userName: userName, passwordHash: passwordHash, isAdmin: isAdmin, isActive: isActive });
 }
 
-export async function updateUserNameAccount(id: string, firstName: string, lastName: string) {
+export async function updateUserNameAccount(id: number, firstName: string, lastName: string) {
     return await db.update(user).set({ firstName: firstName, lastName: lastName }).where(eq(user.id, id));
 }
 
-export async function updateUserEmailAccount(id: string, userName: string) {
+export async function updateUserEmailAccount(id: number, userName: string) {
     return await db.update(user).set({ userName: userName }).where(eq(user.id, id));
 }
 
-export async function updateUserPasswordAccount(id: string, passwordHash: string) {
+export async function updateUserPasswordAccount(id: number, passwordHash: string) {
     return await db.update(user).set({ passwordHash: passwordHash }).where(eq(user.id, id));
 }
 
-export async function updateUserAccountFromAdmin(id: string, userName: string, firstName: string, lastName: string, isAdmin: boolean, isActive: boolean) {
+export async function updateUserAccountFromAdmin(id: number, userName: string, firstName: string, lastName: string, isAdmin: boolean, isActive: boolean) {
     return await db
         .update(user)
         .set({

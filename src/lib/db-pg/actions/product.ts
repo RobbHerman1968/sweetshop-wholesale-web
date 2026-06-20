@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db-pg';
-import { product, productGroup, productGroupProduct, productImage, vercelImage } from '@/lib/drizzle/schema';
-import { count, ilike, eq, and, or, inArray, asc, sql } from 'drizzle-orm';
+import { product, productGroup, productGroupProduct, productImage, productCategory, vercelImage } from '@/lib/drizzle/schema';
+import { count, ilike, eq, and, or, inArray, asc, sql, max } from 'drizzle-orm';
 import { Product } from '../entities/product-entity';
 import { productMapper } from '../mappers/product-mapper';
 import { SHOP_PRODUCT_FACETS } from '@/lib/shop-product-facets';
@@ -89,6 +89,8 @@ export async function getPaginatedProductsFromDB({
     search,
     productGroupIds,
     shopFacetIds,
+    categoryId,
+    categoryIds,
     isActive,
 }: {
     page?: number;
@@ -101,12 +103,17 @@ export async function getPaginatedProductsFromDB({
     productGroupIds?: number[];
     /** Shop keyword facets: AND across selected facets; within each facet, OR across its search terms (name / description ILIKE). */
     shopFacetIds?: string[];
+    /** Product must appear in `productCategory` for this category id. */
+    categoryId?: number;
+    /** Product must appear in `productCategory` for one of these category ids. */
+    categoryIds?: number[];
     isActive?: boolean;
 }) {
     const offset = (page - 1) * limit;
 
     const trimmedSearch = search?.trim();
     const groupIds = productGroupIds?.filter((id) => Number.isFinite(id) && id > 0) ?? [];
+    const menuCategoryIds = categoryIds?.filter((id) => Number.isFinite(id) && id > 0) ?? [];
     const facetIdSet = new Set((shopFacetIds ?? []).filter(Boolean));
 
     const whereClause = (fields: typeof product._.columns) => {
@@ -145,6 +152,32 @@ export async function getPaginatedProductsFromDB({
             }
         }
 
+        if (categoryId != null && categoryId > 0) {
+            conditions.push(
+                inArray(
+                    fields.id,
+                    db
+                        .select({ pid: productCategory.productId })
+                        .from(productCategory)
+                        .where(eq(productCategory.categoryId, categoryId)),
+                ),
+            );
+        } else if (categoryIds !== undefined) {
+            if (menuCategoryIds.length === 0) {
+                conditions.push(sql`false`);
+            } else {
+                conditions.push(
+                    inArray(
+                        fields.id,
+                        db
+                            .select({ pid: productCategory.productId })
+                            .from(productCategory)
+                            .where(inArray(productCategory.categoryId, menuCategoryIds)),
+                    ),
+                );
+            }
+        }
+
         for (const facet of SHOP_PRODUCT_FACETS) {
             if (!facetIdSet.has(facet.id)) continue;
             const termClauses = facet.searchTerms.map((term) => {
@@ -174,10 +207,11 @@ export async function getPaginatedProductsFromDB({
             offset,
         });
 
-        const [{ count }] = await db
+        const countRows = await db
             .select({ count: sql<number>`count(*)` })
             .from(product)
             .where(whereClause(product));
+        const count = Number(countRows[0]?.count ?? 0);
 
         return {
             data,
@@ -248,6 +282,8 @@ export async function getShopFacetAvailability(opts: {
     selectedFacetIds: string[];
     /** When set (e.g. public shop), counts only include products in these groups. */
     productGroupIds?: number[];
+    categoryId?: number;
+    categoryIds?: number[];
 }) {
     const selected = new Set(opts.selectedFacetIds);
     const search = opts.search?.trim();
@@ -258,6 +294,8 @@ export async function getShopFacetAvailability(opts: {
         search: search || undefined,
         isActive: true,
         productGroupIds: groupIds?.length ? groupIds : undefined,
+        categoryId: opts.categoryId,
+        categoryIds: opts.categoryIds,
     } as const;
 
     const entries = await Promise.all(
@@ -381,15 +419,82 @@ export async function getProductsByProductGroups(productGroupIds: number[]) {
     return out;
 }
 
+export async function getProductCategoryIds(productId: number): Promise<number[]> {
+    if (!Number.isFinite(productId) || productId <= 0) return [];
+
+    const rows = await db
+        .select({ categoryId: productCategory.categoryId })
+        .from(productCategory)
+        .where(eq(productCategory.productId, productId))
+        .orderBy(asc(productCategory.displayOrder), asc(productCategory.id));
+
+    return rows.map((row) => row.categoryId);
+}
+
+async function setProductCategories(productId: number, categoryIds: number[]) {
+    const validIds = [...new Set(categoryIds.filter((id) => Number.isFinite(id) && id > 0))];
+
+    await db.delete(productCategory).where(eq(productCategory.productId, productId));
+
+    if (validIds.length === 0) return;
+
+    for (const categoryId of validIds) {
+        const [{ maxOrder }] = await db
+            .select({ maxOrder: max(productCategory.displayOrder) })
+            .from(productCategory)
+            .where(eq(productCategory.categoryId, categoryId));
+
+        await db.insert(productCategory).values({
+            productId,
+            categoryId,
+            displayOrder: Number(maxOrder ?? -1) + 1,
+        });
+    }
+}
+
 export async function getProductById(id: number) {
     const data = await db.query.product.findFirst({
         where: eq(product.id, id),
         with: {
-            productImages: true,
+            productImages: {
+                with: {
+                    vercelImage: true,
+                },
+                orderBy: asc(productImage.id),
+            },
         },
     });
 
     return productMapper(data);
+}
+
+export async function removeProductImageById(productImageId: number) {
+    if (!Number.isFinite(productImageId) || productImageId <= 0) return;
+
+    await db.delete(productImage).where(eq(productImage.id, productImageId));
+
+    revalidatePath('/manage/products');
+    revalidatePath('/shop');
+}
+
+export async function setProductPrimaryImage(productId: number, vercelImageId: number) {
+    if (!Number.isFinite(productId) || productId <= 0 || !Number.isFinite(vercelImageId) || vercelImageId <= 0) return;
+
+    const [existing] = await db
+        .select({ id: productImage.id })
+        .from(productImage)
+        .where(eq(productImage.productId, productId))
+        .orderBy(asc(productImage.id))
+        .limit(1);
+
+    if (existing) {
+        await db.update(productImage).set({ vercelImageId }).where(eq(productImage.id, existing.id));
+    } else {
+        await db.insert(productImage).values({ productId, vercelImageId });
+    }
+
+    revalidatePath('/manage/products');
+    revalidatePath('/shop');
 }
 
 export async function updateProductById(data: Product) {
@@ -418,6 +523,13 @@ function getFormRichText(formData: FormData, key: string, fallback: string | und
     return typeof raw === 'string' ? raw : (fallback ?? '');
 }
 
+function getFormNumber(formData: FormData, key: string, fallback: number): number {
+    const raw = formData.get(key);
+    if (raw === null || raw === '') return fallback;
+    const parsed = Number(raw);
+    return Number.isNaN(parsed) ? fallback : parsed;
+}
+
 export async function updateProductFromForm(formData: FormData) {
     const id = Number(formData.get('id'));
     if (!id) return;
@@ -425,8 +537,10 @@ export async function updateProductFromForm(formData: FormData) {
     if (!existing) return;
     const name = (formData.get('name') as string)?.trim() ?? existing.name ?? '';
     const itemNumber = (formData.get('itemNumber') as string)?.trim() ?? existing.itemNumber ?? '';
-    const priceRaw = formData.get('price');
-    const price = priceRaw !== null && priceRaw !== '' ? Number(priceRaw) : existing.price;
+    const price = getFormNumber(formData, 'price', existing.price);
+    const pieces = (formData.get('pieces') as string)?.trim() || '1';
+    const weightInOunces = getFormNumber(formData, 'weightInOunces', existing.weightInOunces);
+    const shippingBoxFactor = getFormNumber(formData, 'shippingBoxFactor', existing.shippingBoxFactor);
     const description = getFormRichText(formData, 'description', existing.description);
     const download = getFormRichText(formData, 'download', existing.download);
     const ingredients = getFormRichText(formData, 'ingredients', existing.ingredients);
@@ -436,7 +550,10 @@ export async function updateProductFromForm(formData: FormData) {
         ...existing,
         name,
         itemNumber,
-        price: Number.isNaN(price) ? existing.price : price,
+        price,
+        pieces,
+        weightInOunces,
+        shippingBoxFactor,
         description,
         download,
         ingredients,
@@ -444,7 +561,15 @@ export async function updateProductFromForm(formData: FormData) {
         isActive,
     };
     await updateProductById(updated);
+
+    const categoryIds = formData
+        .getAll('categoryIds')
+        .map((value) => Number(value))
+        .filter((id) => Number.isFinite(id) && id > 0);
+    await setProductCategories(id, categoryIds);
+
     revalidatePath('/manage/products');
+    revalidatePath('/shop');
 }
 
 export async function createProduct(data: Product) {
@@ -480,6 +605,7 @@ export async function addProductImage(productId: number, _path: string) {
 
 export async function deleteProductById(id: number) {
     await db.delete(productImage).where(eq(productImage.productId, id));
+    await db.delete(productCategory).where(eq(productCategory.productId, id));
     await db.delete(productGroupProduct).where(eq(productGroupProduct.productId, id));
     await db.delete(product).where(eq(product.id, id));
 }

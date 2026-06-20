@@ -1,6 +1,5 @@
 export type Account = {
     id: number;
-    userId: string;
     accountMateId: string;
     isSkipTax: boolean;
     isSkipShipping: boolean;

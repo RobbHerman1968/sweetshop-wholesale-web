@@ -11,7 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { applyVercelImageNamesFromFilenameList, deleteVercelImageIfUnused, updateVercelImageName, updateVercelImageNamesBulk } from '@/lib/db-pg/actions/image';
+import type { ImageLibraryFilter } from '@/lib/image-library-filter';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RemoteImage } from '@/components/remote-image';
 
 type ImageRow = {
     id: number;
@@ -24,18 +27,88 @@ type ImagesContentProps = {
     data: ImageRow[];
     pagination: { total: number; page: number; limit: number; totalPages: number };
     searchName: string;
+    imageType: ImageLibraryFilter;
 };
 
-function buildQuery(params: { page?: number; name?: string }) {
+function buildQuery(params: { page?: number; name?: string; type?: ImageLibraryFilter }) {
     const q = new URLSearchParams();
     if (params.page != null && params.page > 1) q.set('page', String(params.page));
     if (params.name?.trim()) q.set('name', params.name.trim());
+    if (params.type && params.type !== 'all') q.set('type', params.type);
     return q.toString() ? `?${q.toString()}` : '';
 }
 
-export function ImagesContent({ data, pagination, searchName }: ImagesContentProps) {
+const IMAGE_TYPE_LABELS: Record<ImageLibraryFilter, string> = {
+    all: 'All images',
+    product: 'Product images',
+    other: 'Other images',
+};
+
+function buildPageNumbers(page: number, totalPages: number): (number | 'ellipsis')[] {
+    const pageNumbers: (number | 'ellipsis')[] = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
+        return pageNumbers;
+    }
+    pageNumbers.push(1);
+    if (page > 3) pageNumbers.push('ellipsis');
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+        if (!pageNumbers.includes(i)) pageNumbers.push(i);
+    }
+    if (page < totalPages - 2) pageNumbers.push('ellipsis');
+    if (totalPages > 1) pageNumbers.push(totalPages);
+    return pageNumbers;
+}
+
+function ImagesPaginationNav({
+    page,
+    totalPages,
+    searchName,
+    imageType,
+    className,
+}: {
+    page: number;
+    totalPages: number;
+    searchName: string;
+    imageType: ImageLibraryFilter;
+    className?: string;
+}) {
+    if (totalPages <= 1) return null;
+
+    const pageNumbers = buildPageNumbers(page, totalPages);
+
+    return (
+        <Pagination className={className}>
+            <PaginationContent>
+                {pageNumbers.map((n, i) =>
+                    n === 'ellipsis' ? (
+                        <PaginationItem key={`ellipsis-${i}`}>
+                            <PaginationEllipsis />
+                        </PaginationItem>
+                    ) : (
+                        <PaginationItem key={n}>
+                            <PaginationLink
+                                href={`/manage/images${buildQuery({
+                                    page: n,
+                                    name: searchName || undefined,
+                                    type: imageType,
+                                })}`}
+                                isActive={page === n}
+                            >
+                                {n}
+                            </PaginationLink>
+                        </PaginationItem>
+                    ),
+                )}
+            </PaginationContent>
+        </Pagination>
+    );
+}
+
+export function ImagesContent({ data, pagination, searchName, imageType }: ImagesContentProps) {
     const router = useRouter();
-    const [addImageOpen, setAddImageOpen] = useState(false);
+    const [addProductImageOpen, setAddProductImageOpen] = useState(false);
+    const [addOtherImageOpen, setAddOtherImageOpen] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [imageToDelete, setImageToDelete] = useState<ImageRow | null>(null);
@@ -143,24 +216,16 @@ export function ImagesContent({ data, pagination, searchName }: ImagesContentPro
         e.preventDefault();
         const form = e.currentTarget;
         const name = (form.elements.namedItem('name') as HTMLInputElement).value;
-        const query = buildQuery({ page: 1, name: name || undefined });
+        const query = buildQuery({ page: 1, name: name || undefined, type: imageType });
         router.push(`/manage/images${query}`);
     };
 
-    const { page, totalPages } = pagination;
-
-    const pageNumbers: (number | 'ellipsis')[] = [];
-    if (totalPages <= 7) {
-        for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
-    } else {
-        pageNumbers.push(1);
-        if (page > 3) pageNumbers.push('ellipsis');
-        for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
-            if (!pageNumbers.includes(i)) pageNumbers.push(i);
-        }
-        if (page < totalPages - 2) pageNumbers.push('ellipsis');
-        if (totalPages > 1) pageNumbers.push(totalPages);
+    function handleImageTypeChange(nextType: ImageLibraryFilter) {
+        const query = buildQuery({ page: 1, name: searchName || undefined, type: nextType });
+        router.push(`/manage/images${query}`);
     }
+
+    const { page, totalPages } = pagination;
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -280,14 +345,9 @@ export function ImagesContent({ data, pagination, searchName }: ImagesContentPro
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto py-4 pr-1">
                         {bulkRows.map((row) => (
                             <div key={row.id} className="flex gap-3 rounded-xl border border-[#c49a78] bg-[#fdf7ef] p-3">
-                                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[#c49a78] bg-white">
+                                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[#c49a78] bg-white">
                                     {row.publicUrl ? (
-                                        <img
-                                            src={row.publicUrl}
-                                            alt=""
-                                            className="h-full w-full object-cover"
-                                            referrerPolicy="no-referrer"
-                                        />
+                                        <RemoteImage src={row.publicUrl} sizes="56px" fill />
                                     ) : (
                                         <div className="flex h-full items-center justify-center text-[9px] text-[#6e4a34]">No file</div>
                                     )}
@@ -360,13 +420,29 @@ export function ImagesContent({ data, pagination, searchName }: ImagesContentPro
                     <Button type="button" variant="outline" className="text-[11px]" onClick={() => setFilenameListOpen(true)}>
                         Fix names from list…
                     </Button>
-                    <Button type="button" onClick={() => setAddImageOpen(true)}>
-                        Add images
+                    <Button type="button" variant="outline" onClick={() => setAddOtherImageOpen(true)}>
+                        Add other images
+                    </Button>
+                    <Button type="button" onClick={() => setAddProductImageOpen(true)}>
+                        Add product images
                     </Button>
                 </div>
             </div>
 
             <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
+                <label className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Type</span>
+                    <Select value={imageType} onValueChange={(value) => handleImageTypeChange(value as ImageLibraryFilter)}>
+                        <SelectTrigger className="w-44 min-w-0 border-[#d1b79a] bg-white text-sm font-normal normal-case shadow-none">
+                            <SelectValue placeholder="All images" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">{IMAGE_TYPE_LABELS.all}</SelectItem>
+                            <SelectItem value="product">{IMAGE_TYPE_LABELS.product}</SelectItem>
+                            <SelectItem value="other">{IMAGE_TYPE_LABELS.other}</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </label>
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
                     <Input name="name" type="search" placeholder="Search by name" defaultValue={searchName} className="w-48 min-w-0 sm:w-56" />
@@ -378,35 +454,10 @@ export function ImagesContent({ data, pagination, searchName }: ImagesContentPro
 
             <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
                 <p className="w-64">
-                    Showing {data.length} of {pagination.total} images
-                    {searchName && ' (filtered)'}.
+                    Showing {data.length} of {pagination.total} {IMAGE_TYPE_LABELS[imageType].toLowerCase()}
+                    {searchName && ' matching search'}.
                 </p>
-
-                {totalPages > 1 && (
-                    <Pagination>
-                        <PaginationContent>
-                            {pageNumbers.map((n, i) =>
-                                n === 'ellipsis' ? (
-                                    <PaginationItem key={`ellipsis-${i}`}>
-                                        <PaginationEllipsis />
-                                    </PaginationItem>
-                                ) : (
-                                    <PaginationItem key={n}>
-                                        <PaginationLink
-                                            href={`/manage/images${buildQuery({
-                                                page: n,
-                                                name: searchName || undefined,
-                                            })}`}
-                                            isActive={page === n}
-                                        >
-                                            {n}
-                                        </PaginationLink>
-                                    </PaginationItem>
-                                ),
-                            )}
-                        </PaginationContent>
-                    </Pagination>
-                )}
+                <ImagesPaginationNav page={page} totalPages={totalPages} searchName={searchName} imageType={imageType} />
             </div>
 
             {deleteError && (
@@ -424,12 +475,7 @@ export function ImagesContent({ data, pagination, searchName }: ImagesContentPro
                             <article className="overflow-hidden rounded-lg border border-[#c49a78] bg-[#f8eddf]">
                                 <div className="relative aspect-square w-full bg-[#ffffff]">
                                     {img.publicUrl ? (
-                                        <img
-                                            src={img.publicUrl}
-                                            alt=""
-                                            className="h-full w-full object-cover"
-                                            referrerPolicy="no-referrer"
-                                        />
+                                        <RemoteImage src={img.publicUrl} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 256px" />
                                     ) : (
                                         <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-wider text-[#6e4a34] bg-white">No file</div>
                                     )}
@@ -452,7 +498,16 @@ export function ImagesContent({ data, pagination, searchName }: ImagesContentPro
                 </ul>
             )}
 
-            <AddImageDialog open={addImageOpen} onOpenChange={setAddImageOpen} />
+            <ImagesPaginationNav
+                page={page}
+                totalPages={totalPages}
+                searchName={searchName}
+                imageType={imageType}
+                className="justify-center sm:justify-end"
+            />
+
+            <AddImageDialog open={addProductImageOpen} onOpenChange={setAddProductImageOpen} isProductImage />
+            <AddImageDialog open={addOtherImageOpen} onOpenChange={setAddOtherImageOpen} isProductImage={false} />
         </div>
     );
 }

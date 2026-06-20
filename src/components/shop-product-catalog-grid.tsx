@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { X } from 'lucide-react';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RemoteImage } from '@/components/remote-image';
 import { cn } from '@/lib/utils';
 
 export type ShopCatalogProduct = {
@@ -125,7 +126,7 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                                 tabIndex={0}
                                 aria-haspopup="dialog"
                                 aria-label={`View details: ${label}`}
-                                className="flex h-full origin-center cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#b89572] bg-[#fdf7ef] shadow-sm outline-none transform-[translateZ(0)] transition-[transform_2000ms_ease-in-out,box-shadow_900ms_ease-out] hover:scale-[1.02] hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
+                                className="flex h-full origin-center cursor-pointer flex-col overflow-hidden rounded-lg border border-[#b89572] bg-[#fdf7ef] shadow-sm outline-none transform-[translateZ(0)] transition-[transform_2000ms_ease-in-out,box-shadow_900ms_ease-out] hover:scale-[1.02] hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
                                 onClick={(e) => handleCardActivate(p, e)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
@@ -134,10 +135,13 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                                     }
                                 }}
                             >
-                                <div className="aspect-square w-full bg-white pointer-events-none">
+                                <div className="relative aspect-square w-full bg-white pointer-events-none">
                                     {firstImage ? (
-                                        // eslint-disable-next-line @next/next/no-img-element -- remote blob URLs; matches manage products grid
-                                        <img src={firstImage} alt="" className="h-full w-full object-cover" />
+                                        <RemoteImage
+                                            src={firstImage}
+                                            sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 280px"
+                                            className="brightness-110"
+                                        />
                                     ) : (
                                         <div className="flex h-full items-center justify-center text-[11px] font-medium uppercase tracking-wider text-[#8b6b4a]">
                                             No image
@@ -171,10 +175,10 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                 <DialogContent
                     hideCloseButton
                     className={cn(
-                        'flex max-h-[min(calc(min(90vh,720px)+100px),80vh)] w-full max-w-lg flex-col overflow-hidden border-[#b89572] bg-[#fdf7ef] pl-6! pr-0! pb-5! pt-3! md:w-[calc(min(72rem,100vw)*0.8)] md:max-w-none',
+                        'flex max-h-[min(calc(min(92dvh,720px)+100px),92dvh)] w-full max-w-[min(32rem,calc(100vw-40px))]! flex-col overflow-hidden border-[#b89572] bg-[#fdf7ef] pl-4! pr-0! pb-3! pt-2! md:max-h-[min(calc(min(90vh,720px)+100px),80vh)] md:w-[calc(min(72rem,100vw)*0.8)] md:max-w-none!',
                     )}
                 >
-                    <div className="flex shrink-0 flex-row items-center justify-between gap-2 border-b border-[#b89572]/35 pb-2 pr-6">
+                    <div className="flex shrink-0 flex-row items-center justify-between gap-2 border-b border-[#b89572]/35 pb-1.5 pr-4">
                         <DialogTitle className="flex-1 min-w-0 text-left text-[11px] font-semibold uppercase tracking-[0.28em] leading-none text-[#8b6b4a]">
                             Product details
                             {selected?.name?.trim() ? (
@@ -183,15 +187,15 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                         </DialogTitle>
                         <DialogClose
                             type="button"
-                            className="-mr-1 -mt-1 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-[#5c4032] opacity-80 ring-offset-[#fdf7ef] transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
+                            className="-mr-1 -mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-sm border border-[#b89572]/55 text-[#5c4032] opacity-80 ring-offset-[#fdf7ef] transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2 md:size-8"
                             aria-label="Close dialog"
                         >
-                            <X className="size-3.5" strokeWidth={1.75} aria-hidden />
+                            <X className="size-6 md:size-4" strokeWidth={1.75} aria-hidden />
                         </DialogClose>
                     </div>
-                    <div className="min-h-0 max-h-[calc(min(calc(min(90vh,720px)+100px),80vh)-9rem)] flex-1 overflow-y-auto overscroll-contain pt-3">
+                    <div className="min-h-0 max-h-[calc(min(calc(min(92dvh,720px)+100px),92dvh)-9rem)] flex-1 overflow-y-auto overscroll-contain pt-2 md:max-h-[calc(min(calc(min(90vh,720px)+100px),80vh)-9rem)]">
                         {selected ? (
-                            <div className="pr-6">
+                            <div className="pr-4">
                                 <div
                                     className="product-title-html mb-4 w-full min-w-0 text-base font-bold uppercase tracking-[0.12em] text-[#4a2518] [&_a]:underline [&_a]:pointer-events-auto"
                                     dangerouslySetInnerHTML={{
@@ -199,10 +203,9 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                                     }}
                                 />
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-[auto_minmax(0,1fr)] md:items-start md:gap-6">
-                                    <div className="aspect-square w-full max-w-sm shrink-0 overflow-hidden rounded-xl border border-[#b89572]/60 bg-white md:w-52 md:max-w-none">
+                                    <div className="relative aspect-square w-full max-w-sm shrink-0 overflow-hidden rounded-md border border-[#b89572]/60 bg-white md:w-52 md:max-w-none">
                                         {modalImage ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={modalImage} alt={modalAlt} className="h-full w-full object-cover" />
+                                            <RemoteImage src={modalImage} alt={modalAlt} sizes="(max-width: 768px) 100vw, 208px" />
                                         ) : (
                                             <div className="flex h-full items-center justify-center text-[11px] font-medium uppercase tracking-wider text-[#8b6b4a]">
                                                 No image
@@ -244,19 +247,19 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                                     </TabsList>
                                     <TabsContent
                                         value="nutrition"
-                                        className="mt-3 rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-4 text-left"
+                                        className="mt-3 rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
                                     >
                                         <HtmlOrEmptyTab html={selected.nutrition} />
                                     </TabsContent>
                                     <TabsContent
                                         value="ingredients"
-                                        className="mt-3 rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-4 text-left"
+                                        className="mt-3 rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
                                     >
                                         <HtmlOrEmptyTab html={selected.ingredients} />
                                     </TabsContent>
                                     <TabsContent
                                         value="download"
-                                        className="mt-3 rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-4 text-left"
+                                        className="mt-3 rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
                                     >
                                         <DownloadTab text={selected.download} />
                                     </TabsContent>

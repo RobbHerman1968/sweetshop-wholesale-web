@@ -1,20 +1,20 @@
 import { Account } from './account-entity'
 
 export type User = {
-    id: string
+    id: number
     userName: string
     passwordHash: string
     isActive: boolean
     isAdmin: boolean
     firstName: string
     lastName: string
-    accountId: number
+    accountMateId: string | null
     accounts: Account[]
 }
 
 export type UserReset = {
     id: number
-    userId: string
+    userId: number
     resetValue: number
     validUntil: Date
 }

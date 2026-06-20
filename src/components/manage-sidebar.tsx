@@ -9,6 +9,9 @@ const navItems = [
     { href: '/manage/users', label: 'Users' },
     { href: '/manage/accounts', label: 'Accounts' },
     { href: '/manage/products', label: 'Products' },
+    { href: '/manage/categories', label: 'Categories' },
+    { href: '/manage/pages', label: 'Pages' },
+    { href: '/manage/menus', label: 'Menus' },
     { href: '/manage/orders', label: 'Orders' },
     { href: '/manage/images', label: 'Images' },
 ] as const;

@@ -6,9 +6,10 @@ import { getServerSession } from 'next-auth';
 import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { authOptions } from '@/auth';
 import { db } from '@/lib/db-pg';
-import { getShopProductGroupIdsForUserAccount, verifyUserOwnsAccount } from '@/lib/db-pg/actions/account';
+import { getShopProductGroupIdsForUserAccount, getUserAccounts, verifyUserOwnsAccount } from '@/lib/db-pg/actions/account';
 import { account, accountGroup, product, productGroupProduct } from '@/lib/drizzle/schema';
 import { WHOLESALE_SELECTED_ACCOUNT_COOKIE } from '@/lib/wholesale-account-cookie';
+import { parseUserId } from '@/lib/user-id';
 
 export type WholesaleAccountSwitcherOption = {
     id: number;
@@ -39,21 +40,31 @@ function resolveSelectedAccountFromCookie(
     };
 }
 
-async function getWholesaleSelectionCore(userId: string): Promise<{
+async function getWholesaleSelectionCore(userId: number): Promise<{
     accounts: WholesaleAccountSwitcherOption[];
     selectedAccountId: number | null;
     shouldPersistCookie: boolean;
 }> {
-    const uid = userId.trim();
+    const uid = userId;
     if (!uid) {
         return { accounts: [], selectedAccountId: null, shouldPersistCookie: false };
     }
 
-    const rows = await db.query.account.findMany({
-        where: eq(account.userId, uid),
-        columns: { id: true, name: true, accountMateId: true },
-        orderBy: [asc(account.name), asc(account.id)],
-    });
+    const linkedAccounts = await getUserAccounts(userId);
+    if (linkedAccounts.length === 0) {
+        return { accounts: [], selectedAccountId: null, shouldPersistCookie: false };
+    }
+
+    const rows = linkedAccounts
+        .map((r) => ({
+            id: r.id,
+            name: r.name,
+            accountMateId: r.accountMateId,
+        }))
+        .sort((a, b) => {
+            const nameCmp = (a.name ?? '').localeCompare(b.name ?? '');
+            return nameCmp !== 0 ? nameCmp : a.id - b.id;
+        });
 
     const accounts: WholesaleAccountSwitcherOption[] = rows.map((r) => ({
         id: r.id,
@@ -69,7 +80,7 @@ async function getWholesaleSelectionCore(userId: string): Promise<{
 }
 
 /** Effective wholesale account for shop catalog: valid cookie, else first account (by name, then id). */
-export async function getEffectiveWholesaleAccountIdForShopCatalog(userId: string): Promise<number | null> {
+export async function getEffectiveWholesaleAccountIdForShopCatalog(userId: number): Promise<number | null> {
     const { selectedAccountId } = await getWholesaleSelectionCore(userId);
     return selectedAccountId;
 }
@@ -81,8 +92,8 @@ export async function getWholesaleAccountSwitcherState(): Promise<{
     shouldPersistCookie: boolean;
 }> {
     const session = await getServerSession(authOptions);
-    const userId = session?.user?.id?.trim() ?? '';
-    if (!userId) {
+    const userId = parseUserId(session?.user?.id);
+    if (userId == null) {
         return { accounts: [], selectedAccountId: null, shouldPersistCookie: false };
     }
 
@@ -91,8 +102,8 @@ export async function getWholesaleAccountSwitcherState(): Promise<{
 
 export async function setWholesaleSelectedAccount(accountId: number | null): Promise<{ ok: boolean }> {
     const session = await getServerSession(authOptions);
-    const userId = session?.user?.id?.trim() ?? '';
-    if (!userId) {
+    const userId = parseUserId(session?.user?.id);
+    if (userId == null) {
         return { ok: false };
     }
 
@@ -140,8 +151,8 @@ export async function getWholesaleAccountCatalogDebug(
     accountId: number,
 ): Promise<{ ok: false } | ({ ok: true } & WholesaleAccountCatalogDebug)> {
     const session = await getServerSession(authOptions);
-    const userId = session?.user?.id?.trim() ?? '';
-    if (!userId) return { ok: false };
+    const userId = parseUserId(session?.user?.id);
+    if (userId == null) return { ok: false };
 
     const owns = await verifyUserOwnsAccount(userId, accountId);
     if (!owns) return { ok: false };
