@@ -120,7 +120,7 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                     const firstImage = p.productImages?.[0]?.vercelImage?.path;
                     const label = stripHtml(p.name ?? '') || `Product ${p.id}`;
                     return (
-                        <li key={p.id}>
+                        <li key={p.id} className="h-full">
                             <article
                                 role="button"
                                 tabIndex={0}
@@ -150,7 +150,7 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                                 </div>
                                 <div className="flex flex-1 flex-col p-4">
                                     <h2
-                                        className="product-title-html text-[12px] font-bold uppercase tracking-[0.12em] text-[#4a2518] line-clamp-3 [&_a]:underline [&_a]:pointer-events-auto"
+                                        className="product-title-html min-h-[4lh] text-[12px] font-bold uppercase leading-snug tracking-[0.12em] text-[#4a2518] line-clamp-4 [&_a]:underline [&_a]:pointer-events-auto"
                                         dangerouslySetInnerHTML={{
                                             __html: p.name?.trim() ? p.name : '—',
                                         }}

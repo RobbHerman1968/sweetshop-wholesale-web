@@ -63,7 +63,15 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
-            <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Users</h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Users</h1>
+                <Link
+                    href={`/manage/users/new?returnTo=${encodeURIComponent(listHref)}`}
+                    className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
+                >
+                    Add user
+                </Link>
+            </div>
 
             <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">

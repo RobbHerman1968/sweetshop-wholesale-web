@@ -1,13 +1,14 @@
 'use server';
 
 import * as argon2 from 'argon2';
-import { getUserAccounts } from '@/lib/db-pg/actions/account';
+import { getUserAccounts, syncUserAccountFromAccountMate } from '@/lib/db-pg/actions/account';
 import { userResetMapper, userMapper } from '../mappers/user-mapper';
 import { User } from '../entities/user-entity';
 import { db } from '@/lib/db-pg';
 import { user } from '@/lib/drizzle/schema';
 import { and, asc, eq, ilike, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import moment from 'moment';
 
 export type ManageUser = {
@@ -26,6 +27,11 @@ function trimOrNull(value: FormDataEntryValue | null): string | null {
     }
     const trimmed = String(value).trim();
     return trimmed || null;
+}
+
+function parseCheckbox(formData: FormData, name: string): boolean {
+    const value = formData.get(name);
+    return value === 'on' || value === 'true';
 }
 
 export async function getUserByUserName(userName: string) {
@@ -79,8 +85,8 @@ export async function updateUserFromForm(formData: FormData) {
     const firstName = trimOrNull(formData.get('firstName'));
     const lastName = trimOrNull(formData.get('lastName'));
     const accountMateId = trimOrNull(formData.get('accountMateId'));
-    const isAdmin = formData.get('isAdmin') === 'on' || formData.get('isAdmin') === 'true';
-    const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true';
+    const isAdmin = parseCheckbox(formData, 'isAdmin');
+    const isActive = parseCheckbox(formData, 'isActive');
     const newPassword = trimOrNull(formData.get('newPassword'));
 
     if (userName !== existing.userName) {
@@ -119,6 +125,66 @@ export async function updateUserFromForm(formData: FormData) {
 
     revalidatePath('/manage/users');
     revalidatePath(`/manage/users/${id}`);
+}
+
+export type CreateUserFormResult = { ok: true; id: number } | { ok: false; error: string };
+
+export async function createUserFromForm(formData: FormData): Promise<CreateUserFormResult> {
+    const userName = trimOrNull(formData.get('userName'))?.toLowerCase();
+    const firstName = trimOrNull(formData.get('firstName'));
+    const lastName = trimOrNull(formData.get('lastName'));
+    const accountMateId = trimOrNull(formData.get('accountMateId'));
+    const password = trimOrNull(formData.get('password'));
+    const isAdmin = parseCheckbox(formData, 'isAdmin');
+    const isActive = parseCheckbox(formData, 'isActive');
+
+    if (!userName) {
+        return { ok: false, error: 'Username is required.' };
+    }
+    if (!firstName) {
+        return { ok: false, error: 'First name is required.' };
+    }
+    if (!lastName) {
+        return { ok: false, error: 'Last name is required.' };
+    }
+    if (!password || password.length < 6) {
+        return { ok: false, error: 'Password must be at least 6 characters.' };
+    }
+
+    const [conflict] = await db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.userName, userName))
+        .limit(1);
+    if (conflict) {
+        return { ok: false, error: 'That username is already in use.' };
+    }
+
+    const [{ maxId }] = await db.select({ maxId: sql<number>`coalesce(max(${user.id}), 0)` }).from(user);
+    const nextId = Number(maxId) + 1;
+    const passwordHash = await argon2.hash(password);
+
+    await db.insert(user).values({
+        id: nextId,
+        userName,
+        passwordHash,
+        firstName,
+        lastName,
+        accountMateId,
+        isAdmin,
+        isActive,
+    });
+
+    if (accountMateId) {
+        try {
+            await syncUserAccountFromAccountMate(nextId);
+        } catch (err) {
+            console.error('[create user account sync]', err);
+        }
+    }
+
+    revalidatePath('/manage/users');
+    redirect(`/manage/users/${nextId}`);
 }
 
 export async function getUserWithAccountsById(userId: number) {
