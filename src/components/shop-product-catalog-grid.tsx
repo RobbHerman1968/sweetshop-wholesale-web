@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RemoteImage } from '@/components/remote-image';
+import { ShopAddToCartControls } from '@/components/shop-add-to-cart-controls';
 import { cn } from '@/lib/utils';
 
 export type ShopCatalogProduct = {
@@ -85,9 +86,10 @@ function HtmlOrEmptyTab({
 type Props = {
     products: ShopCatalogProduct[];
     isLoggedIn: boolean;
+    shoppingAccountId: number | null;
 };
 
-export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
+export function ShopProductCatalogGrid({ products, isLoggedIn, shoppingAccountId }: Props) {
     const [open, setOpen] = useState(false);
     const [selected, setSelected] = useState<ShopCatalogProduct | null>(null);
 
@@ -104,7 +106,7 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
     const handleCardActivate = useCallback(
         (p: ShopCatalogProduct, e: React.MouseEvent | React.KeyboardEvent) => {
             const target = e.target as HTMLElement | null;
-            if (target?.closest('a')) return;
+            if (target?.closest('a') || target?.closest('[data-shop-cart]')) return;
             openProduct(p);
         },
         [openProduct],
@@ -163,7 +165,13 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                                             Sign in for wholesale pricing
                                         </p>
                                     )}
-                                    <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[#8b6b4a]">Add to cart coming soon</p>
+                                    {shoppingAccountId != null ? (
+                                        <ShopAddToCartControls productId={p.id} />
+                                    ) : (
+                                        <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[#8b6b4a]">
+                                            Add to cart coming soon
+                                        </p>
+                                    )}
                                 </div>
                             </article>
                         </li>
@@ -230,6 +238,9 @@ export function ShopProductCatalogGrid({ products, isLoggedIn }: Props) {
                                             <p className="mt-1 text-sm font-semibold text-[#4a2518]">
                                                 ${Number(selected.price).toFixed(2)}
                                             </p>
+                                        ) : null}
+                                        {shoppingAccountId != null ? (
+                                            <ShopAddToCartControls productId={selected.id} variant="detail" className="mt-4" />
                                         ) : null}
                                     </div>
                                 </div>

@@ -386,6 +386,64 @@ function accountLinkedToUserCondition(keys: { email: string; idAsText: string; a
     return or(...conditions);
 }
 
+function userLinkedToAccountCondition(accountRow: { contactEmail: string | null; accountMateId: string | null }) {
+    const contactEmail = (accountRow.contactEmail ?? '').trim().toLowerCase();
+    const accountMateId = (accountRow.accountMateId ?? '').trim();
+    const conditions = [];
+
+    if (contactEmail) {
+        conditions.push(sql`lower(trim(${user.userName})) = ${contactEmail}`);
+    }
+    if (accountMateId) {
+        conditions.push(sql`${user.id}::text = ${accountMateId}`);
+        conditions.push(sql`lower(trim(${user.userName})) = ${accountMateId.toLowerCase()}`);
+        conditions.push(eq(user.accountMateId, accountMateId));
+    }
+
+    if (conditions.length === 0) {
+        return null;
+    }
+
+    return or(...conditions);
+}
+
+function formatUserDisplayName(row: { firstName: string | null; lastName: string | null; userName: string }): string {
+    const name = [row.firstName, row.lastName].filter(Boolean).join(' ').trim();
+    return name || row.userName.trim();
+}
+
+/** Display name for the user linked to a wholesale account (name, else email). */
+export async function getAccountOwnerUserDisplayName(accountId: number): Promise<string | null> {
+    if (!Number.isFinite(accountId) || accountId <= 0) {
+        return null;
+    }
+
+    const accountRow = await db.query.account.findFirst({
+        where: eq(account.id, accountId),
+        columns: { contactEmail: true, accountMateId: true },
+    });
+    if (!accountRow) {
+        return null;
+    }
+
+    const linkCondition = userLinkedToAccountCondition(accountRow);
+    if (!linkCondition) {
+        return null;
+    }
+
+    const [owner] = await db
+        .select({ firstName: user.firstName, lastName: user.lastName, userName: user.userName })
+        .from(user)
+        .where(linkCondition)
+        .limit(1);
+
+    if (!owner) {
+        return null;
+    }
+
+    return formatUserDisplayName(owner);
+}
+
 /** DB/driver may return INTEGER columns as number, string, or bigint — normalize for catalog filtering. */
 function collectDistinctProductGroupIds(rows: { productGroupId: unknown }[]): number[] {
     const out: number[] = [];

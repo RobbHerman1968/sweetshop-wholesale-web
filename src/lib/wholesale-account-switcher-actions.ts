@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { and, asc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { authOptions } from '@/auth';
@@ -24,6 +25,11 @@ function wholesaleAccountCookieOptions() {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
     };
+}
+
+function revalidateShopAccountPaths() {
+    revalidatePath('/shop');
+    revalidatePath('/cart');
 }
 
 async function resolveIsAdminShopAs(
@@ -230,7 +236,7 @@ export async function clearWholesaleShopAsSelection(): Promise<{ ok: true }> {
     const cookieStore = await cookies();
     cookieStore.delete(WHOLESALE_SELECTED_ACCOUNT_COOKIE);
     cookieStore.delete(WHOLESALE_ADMIN_SHOP_AS_COOKIE);
-    revalidatePath('/shop');
+    revalidateShopAccountPaths();
     return { ok: true };
 }
 
@@ -264,7 +270,7 @@ export async function getWholesaleAccountSwitcherState(): Promise<{
 
 export async function setWholesaleSelectedAccount(
     accountId: number | null,
-    options?: { adminShopAs?: boolean },
+    options?: { adminShopAs?: boolean; redirectToShop?: boolean },
 ): Promise<{ ok: boolean }> {
     const session = await getServerSession(authOptions);
     const userId = parseUserId(session?.user?.id);
@@ -282,22 +288,13 @@ export async function setWholesaleSelectedAccount(
         }
         cookieStore.delete(WHOLESALE_SELECTED_ACCOUNT_COOKIE);
         cookieStore.delete(WHOLESALE_ADMIN_SHOP_AS_COOKIE);
-        revalidatePath('/shop');
+        revalidateShopAccountPaths();
         return { ok: true };
     }
 
     const ok = await canAccessAccountForShop(userId, accountId, isAdmin);
     if (!ok) {
         return { ok: false };
-    }
-
-    if (!isAdmin) {
-        const raw = cookieStore.get(WHOLESALE_SELECTED_ACCOUNT_COOKIE)?.value;
-        const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-        const hasValidCookie = Number.isFinite(parsed) && parsed > 0;
-        if (hasValidCookie && parsed !== accountId) {
-            return { ok: false };
-        }
     }
 
     cookieStore.set(WHOLESALE_SELECTED_ACCOUNT_COOKIE, String(accountId), cookieOptions);
@@ -313,7 +310,12 @@ export async function setWholesaleSelectedAccount(
         cookieStore.delete(WHOLESALE_ADMIN_SHOP_AS_COOKIE);
     }
 
-    revalidatePath('/shop');
+    revalidateShopAccountPaths();
+
+    if (options?.redirectToShop) {
+        redirect('/shop');
+    }
+
     return { ok: true };
 }
 
@@ -353,7 +355,7 @@ export async function resetAdminShopAs(): Promise<{ ok: boolean }> {
         cookieStore.delete(WHOLESALE_SELECTED_ACCOUNT_COOKIE);
     }
 
-    revalidatePath('/shop');
+    revalidateShopAccountPaths();
     return { ok: true };
 }
 

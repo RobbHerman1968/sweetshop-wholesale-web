@@ -6,7 +6,6 @@ import { ChevronDown } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-    getWholesaleAccountCatalogDebug,
     getWholesaleAccountSwitcherState,
     resetAdminShopAs,
     searchWholesaleAccountsForAdmin,
@@ -15,6 +14,7 @@ import {
 } from '@/lib/wholesale-account-switcher-actions';
 import { Input } from '@/components/ui/input';
 import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
+import { useShopCartStore } from '@/store/useShopCartStore';
 import { cn } from '@/lib/utils';
 
 const triggerButtonClass =
@@ -53,6 +53,7 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
             setIsAdminShopAs(next.isAdminShopAs);
             setCanShopAsAnyAccount(next.canShopAsAnyAccount);
             setHasOwnedAccounts(next.hasOwnedAccounts);
+            useShopCartStore.getState().setAccountId(next.selectedAccountId);
         } finally {
             setLoading(false);
         }
@@ -70,6 +71,7 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
             setAdminSearch('');
             setAdminSearchResults([]);
             setLoading(false);
+            useShopCartStore.getState().reset();
             return;
         }
         void refreshState();
@@ -82,6 +84,7 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
             const { ok } = await setWholesaleSelectedAccount(selectedAccountId);
             if (!ok) return;
             setShouldPersistCookie(false);
+            useShopCartStore.getState().setAccountId(selectedAccountId);
             router.refresh();
         })();
     }, [status, loading, shouldPersistCookie, selectedAccountId, router]);
@@ -109,38 +112,36 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
     }, [adminSearch, canShopAsAnyAccount, open]);
 
     const pickAccount = async (accountId: number, adminShopAs = false) => {
-        const { ok } = await setWholesaleSelectedAccount(accountId, adminShopAs ? { adminShopAs: true } : undefined);
-        if (!ok) return;
-
-        setSelectedAccountId(accountId);
         setOpen(false);
         onAccountSelected?.();
         markPendingShopQueryStrip();
 
-        // Navigate immediately; debug fetch must not block routing (slow DB → no transition).
-        void getWholesaleAccountCatalogDebug(accountId)
-            .then((dbg) => {
-                if (!dbg.ok) return;
-                console.log('[Wholesale account change]', {
-                    accountId: dbg.accountId,
-                    accountGroupLinks: dbg.accountGroupLinks,
-                    productGroupIds: dbg.productGroupIds,
-                    activeProductTotal: dbg.activeProductTotal,
-                    activeProductsSample: dbg.activeProductsSample,
-                    ...(dbg.activeProductsShown < dbg.activeProductTotal
-                        ? {
-                              note: `Sample shows ${dbg.activeProductsShown} of ${dbg.activeProductTotal} active products (first 50 by name).`,
-                          }
-                        : {}),
-                });
-            })
-            .catch(() => {
-                /* ignore */
-            });
+        const picked =
+            accounts.find((a) => a.id === accountId) ?? adminSearchResults.find((a) => a.id === accountId);
+        if (picked) {
+            setSelectedAccountId(accountId);
+            setSelectedAccountDisplayName(picked.displayName);
+        }
 
-        // Client `router.push` after a server action is unreliable here; full navigation
-        // applies the Set-Cookie from the action and always loads the shop.
-        window.location.assign('/shop');
+        try {
+            const { ok } = await setWholesaleSelectedAccount(accountId, {
+                adminShopAs: adminShopAs ? true : undefined,
+                redirectToShop: true,
+            });
+            if (!ok) {
+                void refreshState();
+            }
+        } catch (error) {
+            // redirect() throws; Next.js handles navigation from the server action response.
+            if (typeof error === 'object' && error != null && 'digest' in error) {
+                const digest = String((error as { digest?: string }).digest ?? '');
+                if (digest.startsWith('NEXT_REDIRECT')) {
+                    return;
+                }
+            }
+            console.error('[Wholesale account change]', error);
+            void refreshState();
+        }
     };
 
     const resetShopAs = async () => {
@@ -165,8 +166,9 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
     }
 
     const selectedLabel = selectedAccountDisplayName?.trim() || 'Account';
+    const showAccountPicker = canShopAsAnyAccount || accounts.length > 1;
 
-    if (!canShopAsAnyAccount) {
+    if (!showAccountPicker && !loading) {
         return (
             <div
                 className={cn(triggerButtonClass, 'cursor-default', loading && 'opacity-70')}
@@ -206,7 +208,7 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
         </div>
     );
 
-    const adminSearchSection = canShopAsAnyAccount && !isAdminShopAs ? (
+    const adminSearchSection = canShopAsAnyAccount ? (
         <div className="border-t border-[#ebe6e1] p-1">
             <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6b6560]">Shop as account</p>
             <div className="px-1 pb-1">

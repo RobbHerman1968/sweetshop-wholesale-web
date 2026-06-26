@@ -11,11 +11,9 @@ import type { BrandBarNavCategory } from '@/assets/brand-bar-nav';
 import { UserAccountMenu } from '@/components/user-account-menu';
 import { WholesaleAccountSwitcher } from '@/components/wholesale-account-switcher';
 import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
+import { useShopCartCount } from '@/hooks/use-shop-cart-count';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
-/** Replace with live cart line quantity (e.g. from API or store) when checkout is wired. */
-const TEMPORARY_CART_ITEM_COUNT: number = 3;
 
 const headerNavLinkClass =
     'inline-flex items-center rounded-md px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5c4032] transition-colors hover:bg-[#f3e0cf] hover:text-[#3c251a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f6ebdd]';
@@ -30,18 +28,19 @@ type CartNavButtonProps = {
     className?: string;
     /** Icon + count badge only; for narrow headers (e.g. mobile). */
     compact?: boolean;
+    itemCount: number;
 };
 
-function CartNavButton({ variant, className, compact }: CartNavButtonProps) {
-    const count = TEMPORARY_CART_ITEM_COUNT;
+function CartNavButton({ variant, className, compact, itemCount }: CartNavButtonProps) {
+    const count = itemCount;
     const countDisplay = count > 99 ? '99+' : String(count);
     const itemsLine = count === 1 ? '1 item' : `${countDisplay} items`;
     const aria = `Shopping cart, ${itemsLine}`;
 
     if (compact) {
         return (
-            <button
-                type="button"
+            <Link
+                href="/cart"
                 aria-label={aria}
                 className={cn(
                     'relative inline-flex size-10 shrink-0 items-center justify-center rounded-md transition-colors',
@@ -60,13 +59,13 @@ function CartNavButton({ variant, className, compact }: CartNavButtonProps) {
                         {countDisplay}
                     </span>
                 ) : null}
-            </button>
+            </Link>
         );
     }
 
     return (
-        <button
-            type="button"
+        <Link
+            href="/cart"
             aria-label={aria}
             className={cn(
                 'inline-flex items-end gap-1.5 text-left transition-colors',
@@ -88,7 +87,7 @@ function CartNavButton({ variant, className, compact }: CartNavButtonProps) {
                 </span>
                 <span className="text-[13px] font-bold leading-none tracking-tight text-[#1f1814]">Cart</span>
             </span>
-        </button>
+        </Link>
     );
 }
 
@@ -98,6 +97,7 @@ export function SiteHeader({ onLoginClick, brandBarCategories }: SiteHeaderProps
     const router = useRouter();
     const { status } = useSession();
     const isLoggedIn = status === 'authenticated';
+    const { itemCount: cartItemCount } = useShopCartCount();
 
     const onShopNavClick = useCallback(
         (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -156,7 +156,7 @@ export function SiteHeader({ onLoginClick, brandBarCategories }: SiteHeaderProps
                             {isLoggedIn ? (
                                 <>
                                     <WholesaleAccountSwitcher onAccountSelected={() => setIsMenuOpen(false)} />
-                                    <CartNavButton variant="ghost" />
+                                    <CartNavButton variant="ghost" itemCount={cartItemCount} />
                                     <UserAccountMenu onNavigate={() => setIsMenuOpen(false)} />
                                 </>
                             ) : (
@@ -175,7 +175,7 @@ export function SiteHeader({ onLoginClick, brandBarCategories }: SiteHeaderProps
                         <div className="flex shrink-0 items-center gap-1.5 md:hidden">
                             {isLoggedIn ? (
                                 <>
-                                    <CartNavButton variant="ghost" compact />
+                                    <CartNavButton variant="ghost" compact itemCount={cartItemCount} />
                                     <UserAccountMenu onNavigate={() => setIsMenuOpen(false)} />
                                 </>
                             ) : null}

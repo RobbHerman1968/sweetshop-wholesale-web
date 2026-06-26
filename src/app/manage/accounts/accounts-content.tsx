@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { ShopAsAccountButton } from '@/components/shop-as-account-button';
 import { Input } from '@/components/ui/input';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
@@ -156,7 +155,6 @@ export function AccountsContent({ data, pagination, searchName, searchAccountMat
                                     >
                                         Edit
                                     </Link>
-                                    <ShopAsAccountButton accountId={acc.id} variant="outline" />
                                 </div>
                             </article>
                         </li>

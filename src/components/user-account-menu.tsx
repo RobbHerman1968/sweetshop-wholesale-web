@@ -7,6 +7,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { clearWholesaleShopAsSelection } from '@/lib/wholesale-account-switcher-actions';
+import { useShopCartStore } from '@/store/useShopCartStore';
 import { cn } from '@/lib/utils';
 
 export type UserAccountMenuProps = {
@@ -121,6 +122,7 @@ export function UserAccountMenu({ triggerClassName, onNavigate }: UserAccountMen
                         onClick={() => {
                             onNavigate?.();
                             void (async () => {
+                                useShopCartStore.getState().reset();
                                 await clearWholesaleShopAsSelection();
                                 await signOut();
                             })();

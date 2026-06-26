@@ -10,6 +10,8 @@ import { ShopProductCatalogGrid } from '@/components/shop-product-catalog-grid';
 import { ShopStripQueryAfterChromeNav } from '@/components/shop-strip-query-after-chrome-nav';
 import { parseShopFacetParams } from '@/lib/shop-product-facets';
 import { SITE_MAIN_FOCUS_CLASS, SITE_MAIN_ID } from '@/lib/site-main';
+import { getEffectiveWholesaleAccountIdForShopCatalog } from '@/lib/wholesale-account-switcher-actions';
+import { parseUserId } from '@/lib/user-id';
 import { cn } from '@/lib/utils';
 
 const PER_PAGE = 24;
@@ -57,6 +59,9 @@ type Props = {
 export default async function ShopPage({ searchParams }: Props) {
     const [session, params] = await Promise.all([getServerSession(authOptions), searchParams]);
     const isLoggedIn = Boolean(session?.user);
+    const userId = parseUserId(session?.user?.id);
+    const shoppingAccountId =
+        userId != null ? await getEffectiveWholesaleAccountIdForShopCatalog(userId, session?.user?.isAdmin ?? false) : null;
     const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1);
     const search = params.search?.trim() ?? '';
     const facetIds = parseShopFacetParams(params.facet);
@@ -140,7 +145,11 @@ export default async function ShopPage({ searchParams }: Props) {
                                     </p>
                                 ) : (
                                     <>
-                                        <ShopProductCatalogGrid products={catalog.data} isLoggedIn={isLoggedIn} />
+                                        <ShopProductCatalogGrid
+                                            products={catalog.data}
+                                            isLoggedIn={isLoggedIn}
+                                            shoppingAccountId={shoppingAccountId}
+                                        />
                                         <ShopCatalogPagination
                                             className="pt-2"
                                             currentPage={currentPage}

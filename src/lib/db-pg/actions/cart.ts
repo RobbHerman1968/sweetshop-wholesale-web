@@ -33,6 +33,46 @@ export async function getCartByAccountId(accountId: number) {
     return null;
 }
 
+/** Sum of line quantities for the account cart (0 when no cart). */
+export async function getCartItemCountByAccountId(accountId: number): Promise<number> {
+    const data = await db.query.cart.findFirst({
+        where: eq(cart.accountId, accountId),
+        columns: { id: true },
+        with: {
+            cartItems: {
+                columns: { quantity: true },
+            },
+        },
+    });
+
+    if (!data?.cartItems?.length) {
+        return 0;
+    }
+
+    return data.cartItems.reduce((sum, item) => sum + item.quantity, 0);
+}
+
+async function recalculateCartTotalsByAccountId(accountId: number) {
+    const thisCart = await getCartByAccountId(accountId);
+    if (!thisCart) {
+        return;
+    }
+
+    let newSubTotal = 0;
+    for (const item of thisCart.cartItems) {
+        newSubTotal += Number(item.lineTotal);
+    }
+
+    const newTotal = newSubTotal - Number(thisCart.discounts) + Number(thisCart.tax) + Number(thisCart.shipping);
+    await db
+        .update(cart)
+        .set({
+            subTotal: newSubTotal.toString(),
+            total: newTotal.toString(),
+        })
+        .where(eq(cart.id, thisCart.id));
+}
+
 export async function addItemToCart(accountId: number, productId: number, quantity: number, unitPrice: number) {
     let thisCart = await getCartByAccountId(accountId);
     console.log(thisCart);
@@ -89,33 +129,24 @@ export async function addItemToCart(accountId: number, productId: number, quanti
     }
 
     // UPDATE THE TOTAL
-    thisCart = await getCartByAccountId(accountId);
-    if (thisCart) {
-        let newSubTotal: number = 0;
-        for (const item of thisCart.cartItems) {
-            newSubTotal += Number(item.lineTotal);
-        }
-
-        const newTotal = newSubTotal - Number(thisCart.discounts) + Number(thisCart.tax) + Number(thisCart.shipping);
-        await db
-            .update(cart)
-            .set({
-                subTotal: newSubTotal.toString(),
-                total: newTotal.toString(),
-            })
-            .where(eq(cart.id, thisCart.id));
-    }
+    await recalculateCartTotalsByAccountId(accountId);
 
     return true;
 }
 
 export async function changeQuantityOnCartItem(cartItemId: number, quantity: number, unitPrice: number) {
-    console.log('changeQuantityOnCartItem');
-    console.log('cartItemId', cartItemId);
-    console.log('quantity', quantity);
-    console.log('unitPrice', unitPrice);
     const newQuantity = quantity;
     const newTotal = newQuantity * unitPrice;
+    const [row] = await db
+        .select({ cartId: cartItem.cartId })
+        .from(cartItem)
+        .where(eq(cartItem.id, cartItemId))
+        .limit(1);
+
+    if (!row) {
+        return false;
+    }
+
     await db
         .update(cartItem)
         .set({
@@ -123,6 +154,42 @@ export async function changeQuantityOnCartItem(cartItemId: number, quantity: num
             lineTotal: newTotal.toString(),
         })
         .where(eq(cartItem.id, cartItemId));
+
+    const [cartRow] = await db
+        .select({ accountId: cart.accountId })
+        .from(cart)
+        .where(eq(cart.id, row.cartId))
+        .limit(1);
+
+    if (cartRow) {
+        await recalculateCartTotalsByAccountId(cartRow.accountId);
+    }
+
+    return true;
+}
+
+export async function removeCartItemById(cartItemId: number) {
+    const [row] = await db
+        .select({ cartId: cartItem.cartId })
+        .from(cartItem)
+        .where(eq(cartItem.id, cartItemId))
+        .limit(1);
+
+    if (!row) {
+        return false;
+    }
+
+    await db.delete(cartItem).where(eq(cartItem.id, cartItemId));
+
+    const [cartRow] = await db
+        .select({ accountId: cart.accountId })
+        .from(cart)
+        .where(eq(cart.id, row.cartId))
+        .limit(1);
+
+    if (cartRow) {
+        await recalculateCartTotalsByAccountId(cartRow.accountId);
+    }
 
     return true;
 }
