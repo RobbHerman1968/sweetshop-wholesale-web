@@ -21,10 +21,7 @@ export async function productMapper(data: any) {
     product.productImages = [];
 
     if (data.productImages) {
-        data.productImages.map(async (pi: any) => {
-            const productImage = await productImageMapper(pi);
-            product.productImages.push(productImage);
-        });
+        product.productImages = await Promise.all(data.productImages.map((pi: any) => productImageMapper(pi)));
     }
     return product;
 }

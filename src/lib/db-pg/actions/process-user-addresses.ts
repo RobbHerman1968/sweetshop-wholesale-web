@@ -1,0 +1,194 @@
+'use server';
+
+import { sql } from 'drizzle-orm';
+
+import { db } from '@/lib/db-pg';
+import { getAccountAddressesFromSweetshopOld } from '@/lib/db-sweetshop-old';
+import { userAddress } from '@/lib/drizzle/schema';
+
+export type UserAddressSyncResult = {
+    fetched: number;
+    inserted: number;
+    updated: number;
+    skipped: number;
+};
+
+function trimOrNull(value: unknown): string | null {
+    if (value == null) {
+        return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed || null;
+}
+
+function digitsOnlyOrNull(value: unknown): string | null {
+    const trimmed = trimOrNull(value);
+    if (!trimmed) {
+        return null;
+    }
+    const digits = trimmed.replace(/\D/g, '');
+    return digits || null;
+}
+
+function isBillingAddressName(name: string | null): boolean {
+    return name?.trim().toLowerCase() === 'billing address';
+}
+
+function resolveLegacyAddressType(type: string | null, name: string | null): string | null {
+    if (type) {
+        return type;
+    }
+    if (isBillingAddressName(name)) {
+        return 'B';
+    }
+    return null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyAccountAddressId(row: any): number | null {
+    const id = Number(row.Id ?? row.id);
+    return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyAccountAddressUserId(row: any): number | null {
+    const userId = Number(row.AccountId ?? row.accountId);
+    return Number.isFinite(userId) && userId > 0 ? userId : null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapLegacyAccountAddressRow(row: any) {
+    const companyName = trimOrNull(row.Company ?? row.company);
+    const name = trimOrNull(row.AddressName ?? row.addressName);
+    const type = resolveLegacyAddressType(trimOrNull(row.AddressType ?? row.addressType), name);
+
+    return {
+        id: readLegacyAccountAddressId(row)!,
+        userId: readLegacyAccountAddressUserId(row),
+        name,
+        type,
+        companyName,
+        firstName: trimOrNull(row.FirstName ?? row.firstName),
+        lastName: trimOrNull(row.LastName ?? row.lastName),
+        addressLine1: trimOrNull(row.Address1 ?? row.address1),
+        addressLine2: trimOrNull(row.Address2 ?? row.address2),
+        city: trimOrNull(row.City ?? row.city),
+        state: trimOrNull(row.State ?? row.state),
+        postalCode: trimOrNull(row.ZipCode ?? row.zipCode),
+        county: trimOrNull(row.Country ?? row.country),
+        emailAddress: trimOrNull(row.EmailAddress ?? row.emailAddress),
+        phoneNumber: digitsOnlyOrNull(row.PhoneNumber ?? row.phoneNumber),
+    };
+}
+
+type LegacyUserAddressRow = ReturnType<typeof mapLegacyAccountAddressRow>;
+
+async function upsertUserAddressChunk(chunk: LegacyUserAddressRow[]) {
+    if (chunk.length === 0) {
+        return;
+    }
+
+    await db
+        .insert(userAddress)
+        .values(chunk)
+        .onConflictDoUpdate({
+            target: userAddress.id,
+            set: {
+                userId: sql`excluded."userId"`,
+                name: sql`excluded.name`,
+                type: sql`excluded.type`,
+                companyName: sql`excluded."companyName"`,
+                firstName: sql`excluded."firstName"`,
+                lastName: sql`excluded."lastName"`,
+                addressLine1: sql`excluded."addressLine1"`,
+                addressLine2: sql`excluded."addressLine2"`,
+                city: sql`excluded.city`,
+                state: sql`excluded.state`,
+                postalCode: sql`excluded."postalCode"`,
+                county: sql`excluded.county`,
+                emailAddress: sql`excluded."emailAddress"`,
+                phoneNumber: sql`excluded."phoneNumber"`,
+            },
+        });
+}
+
+export async function getMaxUserAddressId(): Promise<number> {
+    const [result] = await db.select({ max: sql<number>`coalesce(max(${userAddress.id}), 0)` }).from(userAddress);
+    return Number(result?.max ?? 0);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncLegacyUserAddressRows(rows: any[]): Promise<UserAddressSyncResult> {
+    const existingRows = await db.select({ id: userAddress.id }).from(userAddress);
+    const existingUserAddressIds = new Set(existingRows.map((row) => row.id));
+
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+    const pendingRows: LegacyUserAddressRow[] = [];
+    const chunkSize = 500;
+
+    console.log(`User address sync: starting ${rows.length} legacy AccountAddress rows`);
+
+    async function flushChunk() {
+        if (pendingRows.length === 0) {
+            return;
+        }
+
+        const chunk = pendingRows.splice(0, pendingRows.length);
+        await upsertUserAddressChunk(chunk);
+        console.log(
+            `User address sync: upserted ${chunk.length} rows (${updated} updated, ${inserted} inserted, ${skipped} skipped so far)`,
+        );
+    }
+
+    for (const row of rows) {
+        const id = readLegacyAccountAddressId(row);
+        if (id == null) {
+            skipped += 1;
+            continue;
+        }
+
+        if (existingUserAddressIds.has(id)) {
+            updated += 1;
+        } else {
+            inserted += 1;
+            existingUserAddressIds.add(id);
+        }
+
+        pendingRows.push(mapLegacyAccountAddressRow(row));
+
+        if (pendingRows.length >= chunkSize) {
+            await flushChunk();
+        }
+    }
+
+    await flushChunk();
+
+    console.log(
+        `User address sync: complete (${updated} updated, ${inserted} inserted, ${skipped} skipped, ${rows.length} fetched)`,
+    );
+
+    return {
+        fetched: rows.length,
+        inserted,
+        updated,
+        skipped,
+    };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function processOldUserAddresses(rows: any[]): Promise<UserAddressSyncResult> {
+    return syncLegacyUserAddressRows(rows);
+}
+
+export async function syncUserAddressesFromLegacy(): Promise<UserAddressSyncResult> {
+    try {
+        const rows = await getAccountAddressesFromSweetshopOld(0);
+        console.log(`User address sync: fetched ${rows.length} legacy AccountAddress rows`);
+        return syncLegacyUserAddressRows(rows);
+    } catch (error) {
+        console.error('Error syncing user addresses from legacy AccountAddress:', error);
+        throw error instanceof Error ? error : new Error('Failed to sync user addresses from legacy AccountAddress');
+    }
+}

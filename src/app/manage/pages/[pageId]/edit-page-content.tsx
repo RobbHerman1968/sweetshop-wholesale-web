@@ -35,7 +35,7 @@ export function EditPageContent({ page }: Props) {
 
             <header className="space-y-1">
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Edit Page</h1>
-                <p className="text-xs text-[#6e4a34]">Update page title, URL slug, hero image, content, and visibility.</p>
+                <p className="text-xs text-[#6e4a34]">Update page title, URL slug, content, and visibility.</p>
             </header>
 
             <section className="space-y-4 rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 sm:p-6">
@@ -65,13 +65,6 @@ export function EditPageContent({ page }: Props) {
                         </Label>
                         <Input id="edit-page-navName" name="navName" value={navName} readOnly className="w-full bg-[#f3e0cf]/50" required />
                     </div>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="edit-page-imageUrl" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                        Hero image URL
-                    </Label>
-                    <Input id="edit-page-imageUrl" name="imageUrl" type="url" defaultValue={page.imageUrl ?? ''} className="w-full" placeholder="https://…" />
                 </div>
 
                 <div className="flex flex-wrap items-center gap-6">

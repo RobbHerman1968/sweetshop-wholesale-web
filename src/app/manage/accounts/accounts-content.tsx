@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { ShopAsAccountButton } from '@/components/shop-as-account-button';
 import { Input } from '@/components/ui/input';
+import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
 
 type AccountRow = {
@@ -68,11 +70,33 @@ export function AccountsContent({ data, pagination, searchName, searchAccountMat
             <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Account name</span>
-                    <Input name="name" type="search" placeholder="Search by name" defaultValue={searchName} className="w-48 min-w-0 sm:w-56" />
+                    <Input
+                        name="name"
+                        type="search"
+                        placeholder="Search by name"
+                        defaultValue={searchName}
+                        className="w-48 min-w-0 sm:w-56"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchName, () =>
+                                router.push(`/manage/accounts${buildQuery({ page: 1, accountMateId: searchAccountMateId || undefined })}`),
+                            )
+                        }
+                    />
                 </label>
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">AccountMate ID</span>
-                    <Input name="accountMateId" type="search" placeholder="Search by AccountMate ID" defaultValue={searchAccountMateId} className="w-40 min-w-0 sm:w-48" />
+                    <Input
+                        name="accountMateId"
+                        type="search"
+                        placeholder="Search by AccountMate ID"
+                        defaultValue={searchAccountMateId}
+                        className="w-40 min-w-0 sm:w-48"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchAccountMateId, () =>
+                                router.push(`/manage/accounts${buildQuery({ page: 1, name: searchName || undefined })}`),
+                            )
+                        }
+                    />
                 </label>
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search
@@ -125,13 +149,14 @@ export function AccountsContent({ data, pagination, searchName, searchAccountMat
                                 <p className="mt-1 truncate text-[11px] text-[#6e4a34]">{[acc.contactFirstName, acc.contactLastName].filter(Boolean).join(' ') || '—'}</p>
                                 {acc.contactEmail && <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{acc.contactEmail}</p>}
                                 {acc.contactPhone && <p className="mt-0.5 text-[11px] text-[#6e4a34]">{acc.contactPhone}</p>}
-                                <div className="mt-3">
+                                <div className="mt-3 flex flex-wrap gap-2">
                                     <Link
                                         href={`/manage/accounts/${acc.id}?returnTo=${encodeURIComponent(listHref)}`}
                                         className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
                                     >
                                         Edit
                                     </Link>
+                                    <ShopAsAccountButton accountId={acc.id} variant="outline" />
                                 </div>
                             </article>
                         </li>

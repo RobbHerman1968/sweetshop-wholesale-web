@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ExternalLink } from 'lucide-react';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { buildShopCategoryPath } from '@/lib/shop-category-path';
+import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import type { ShopCategory } from '@/lib/db-pg/actions/category';
 
 type CategoriesContentProps = {
@@ -55,7 +57,16 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
             <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
-                    <Input name="name" type="search" placeholder="Search by name" defaultValue={searchName} className="w-48 min-w-0 sm:w-56" />
+                    <Input
+                        name="name"
+                        type="search"
+                        placeholder="Search by name"
+                        defaultValue={searchName}
+                        className="w-48 min-w-0 sm:w-56"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchName, () => router.push(`/manage/categories${buildQuery({ page: 1 })}`))
+                        }
+                    />
                 </label>
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search
@@ -111,14 +122,20 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
                                     <Link href={`/manage/categories/${c.id}`} className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}>
                                         Edit
                                     </Link>
+                                    <Link href={`/manage/categories/${c.id}/products`} className={cn(buttonVariants({ variant: 'outline' }), 'text-[11px]')}>
+                                        All products
+                                    </Link>
                                     {c.isActive && c.navName ? (
                                         <Link
                                             href={buildShopCategoryPath(c.id, c.navName)}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className={cn(buttonVariants({ variant: 'outline' }), 'text-[11px]')}
+                                            title="Opens the live shop category in a new tab"
+                                            aria-label={`View live category ${c.name || ''} in a new tab`}
+                                            className={cn(buttonVariants({ variant: 'outline' }), 'inline-flex items-center gap-1.5 text-[11px]')}
                                         >
-                                            View
+                                            View live
+                                            <ExternalLink className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
                                         </Link>
                                     ) : null}
                                 </div>

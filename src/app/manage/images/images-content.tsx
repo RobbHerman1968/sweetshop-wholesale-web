@@ -10,15 +10,19 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
-import { applyVercelImageNamesFromFilenameList, deleteVercelImageIfUnused, updateVercelImageName, updateVercelImageNamesBulk } from '@/lib/db-pg/actions/image';
+import { deleteVercelImageIfUnused, updateVercelImageName, updateVercelImageNamesBulk } from '@/lib/db-pg/actions/image';
 import type { ImageLibraryFilter } from '@/lib/image-library-filter';
+import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { buildLegacyDynImageUrl } from '@/lib/legacy-dynimage-url';
 import { RemoteImage } from '@/components/remote-image';
 
 type ImageRow = {
     id: number;
     name: string;
+    imageName: string;
+    isProductImage: boolean;
     /** Vercel Blob (or other) HTTPS URL for the image file. */
     publicUrl: string;
 };
@@ -120,10 +124,6 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
     const [bulkEditOpen, setBulkEditOpen] = useState(false);
     const [bulkRows, setBulkRows] = useState<{ id: number; name: string; publicUrl: string }[]>([]);
     const [savingBulk, setSavingBulk] = useState(false);
-    const [filenameListOpen, setFilenameListOpen] = useState(false);
-    const [filenameListText, setFilenameListText] = useState('');
-    const [filenameListApplying, setFilenameListApplying] = useState(false);
-    const [filenameListResult, setFilenameListResult] = useState<Awaited<ReturnType<typeof applyVercelImageNamesFromFilenameList>> | null>(null);
 
     const selectedCount = selectedById.size;
 
@@ -168,7 +168,7 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
 
     function openEditSheet(img: ImageRow) {
         setImageToEdit(img);
-        setEditName(img.name || '');
+        setEditName(img.name || img.imageName || '');
     }
 
     async function saveEditName() {
@@ -193,25 +193,6 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
         }
     }
 
-    async function applyFilenameList() {
-        setFilenameListApplying(true);
-        setFilenameListResult(null);
-        const result = await applyVercelImageNamesFromFilenameList(filenameListText);
-        setFilenameListApplying(false);
-        setFilenameListResult(result);
-        if (result.updated.length > 0) {
-            router.refresh();
-        }
-    }
-
-    function onFilenameListOpenChange(open: boolean) {
-        setFilenameListOpen(open);
-        if (!open) {
-            setFilenameListText('');
-            setFilenameListResult(null);
-        }
-    }
-
     const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const form = e.currentTarget;
@@ -229,88 +210,6 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
-            <Dialog open={filenameListOpen} onOpenChange={onFilenameListOpenChange}>
-                <DialogContent className="max-h-[90vh] overflow-y-auto border-[#c49a78] bg-[#f8eddf] sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle className="text-[#4a2518]">Match filenames to library names</DialogTitle>
-                        <DialogDescription className="text-[#6e4a34]">
-                            Paste one filename per line (full paths are fine). Only library rows with id greater than 2000 are matched or updated. Each line matches a row whose current{' '}
-                            <code className="rounded bg-[#fdf7ef] px-1 text-[11px]">imageName</code> matches if it equals the stem, the full basename, or common variants (spaces vs underscores, legacy sanitized forms; case-insensitive). That row is updated so{' '}
-                            <code className="rounded bg-[#fdf7ef] px-1 text-[11px]">imageName</code> is the exact basename (trimmed, up to 100 characters), including spaces and punctuation. Names cannot duplicate another row (case-insensitive), including id 2000 or lower.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                        <Label htmlFor="filename-list-paste" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                            Filenames
-                        </Label>
-                        <textarea
-                            id="filename-list-paste"
-                            value={filenameListText}
-                            onChange={(e) => {
-                                setFilenameListText(e.target.value);
-                                setFilenameListResult(null);
-                            }}
-                            rows={12}
-                            placeholder={'photo.jpg\n/Users/you/Downloads/other.png'}
-                            disabled={filenameListApplying}
-                            className={cn(
-                                'w-full resize-y rounded-md border border-[#d1b79a] bg-white px-3 py-2 font-mono text-xs text-[#4a2b1f] outline-none ring-amber-300 focus:ring',
-                                'min-h-[160px]',
-                            )}
-                        />
-                        {filenameListResult && (
-                            <div className="space-y-2 rounded-lg border border-[#c49a78] bg-[#fdf7ef] p-3 text-[11px] text-[#4a2518]">
-                                <p>
-                                    <span className="font-semibold">{filenameListResult.updated.length}</span> updated
-                                    {filenameListResult.skippedUnchanged > 0 && (
-                                        <>
-                                            , <span className="font-semibold">{filenameListResult.skippedUnchanged}</span> already correct
-                                        </>
-                                    )}
-                                    .
-                                </p>
-                                {filenameListResult.duplicateStemInPaste.length > 0 && (
-                                    <p className="text-amber-900">
-                                        Skipped conflicting lines (same name without extension but different extensions):{' '}
-                                        {filenameListResult.duplicateStemInPaste.slice(0, 8).join('; ')}
-                                        {filenameListResult.duplicateStemInPaste.length > 8 ? '…' : ''}
-                                    </p>
-                                )}
-                                {filenameListResult.conflicts.length > 0 && (
-                                    <ul className="list-inside list-disc text-red-800">
-                                        {filenameListResult.conflicts.map((c, i) => (
-                                            <li key={i}>
-                                                {c.line}: {c.message}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                                {filenameListResult.unmatchedLines.length > 0 && (
-                                    <p className="text-[#6e4a34]">
-                                        No match for {filenameListResult.unmatchedLines.length} line(s). First few:{' '}
-                                        {filenameListResult.unmatchedLines.slice(0, 5).join('; ')}
-                                        {filenameListResult.unmatchedLines.length > 5 ? '…' : ''}
-                                    </p>
-                                )}
-                                {filenameListResult.ambiguousLines.length > 0 && (
-                                    <p className="text-red-800">
-                                        Multiple library rows matched the same stem for: {filenameListResult.ambiguousLines.join('; ')}
-                                    </p>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onFilenameListOpenChange(false)} disabled={filenameListApplying}>
-                            Close
-                        </Button>
-                        <Button type="button" onClick={applyFilenameList} disabled={filenameListApplying || !filenameListText.trim()}>
-                            {filenameListApplying ? 'Applying…' : 'Apply'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
             <Dialog open={imageToDelete != null} onOpenChange={(open) => !open && setImageToDelete(null)}>
                 <DialogContent>
                     <DialogHeader>
@@ -384,7 +283,23 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
                         <SheetTitle>Edit image</SheetTitle>
                         <SheetDescription>Update the display name for this image.</SheetDescription>
                     </SheetHeader>
+                    {imageToEdit ? (
                     <div className="space-y-4 py-4">
+                        {imageToEdit.isProductImage && imageToEdit.imageName ? (
+                            <div className="space-y-2">
+                                <Label className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Product old image</Label>
+                                <div className="overflow-hidden rounded-lg border border-[#c49a78] bg-white p-2">
+                                    <img
+                                        src={buildLegacyDynImageUrl(imageToEdit.imageName)}
+                                        alt={imageToEdit.imageName}
+                                        className="mx-auto max-h-64 w-full object-contain"
+                                    />
+                                </div>
+                                <p className="truncate text-[11px] text-[#6e4a34]" title={imageToEdit.imageName}>
+                                    {imageToEdit.imageName}
+                                </p>
+                            </div>
+                        ) : null}
                         <div className="space-y-2">
                             <Label htmlFor="edit-image-name" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
                                 Name
@@ -392,6 +307,7 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
                             <Input id="edit-image-name" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Image name" className="w-full" />
                         </div>
                     </div>
+                    ) : null}
                     <SheetFooter>
                         <Button type="button" variant="outline" onClick={() => setImageToEdit(null)}>
                             Cancel
@@ -417,9 +333,6 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
                             </Button>
                         </>
                     )}
-                    <Button type="button" variant="outline" className="text-[11px]" onClick={() => setFilenameListOpen(true)}>
-                        Fix names from list…
-                    </Button>
                     <Button type="button" variant="outline" onClick={() => setAddOtherImageOpen(true)}>
                         Add other images
                     </Button>
@@ -445,7 +358,18 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
                 </label>
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
-                    <Input name="name" type="search" placeholder="Search by name" defaultValue={searchName} className="w-48 min-w-0 sm:w-56" />
+                    <Input
+                        name="name"
+                        type="search"
+                        placeholder="Search by name"
+                        defaultValue={searchName}
+                        className="w-48 min-w-0 sm:w-56"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchName, () =>
+                                router.push(`/manage/images${buildQuery({ page: 1, type: imageType })}`),
+                            )
+                        }
+                    />
                 </label>
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search
@@ -469,19 +393,19 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
             {data.length === 0 ? (
                 <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No images found.</p>
             ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
                     {data.map((img) => (
                         <li key={img.id}>
                             <article className="overflow-hidden rounded-lg border border-[#c49a78] bg-[#f8eddf]">
                                 <div className="relative aspect-square w-full bg-[#ffffff]">
                                     {img.publicUrl ? (
-                                        <RemoteImage src={img.publicUrl} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 256px" />
+                                        <RemoteImage src={img.publicUrl} sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 25vw" />
                                     ) : (
                                         <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-wider text-[#6e4a34] bg-white">No file</div>
                                     )}
                                 </div>
                                 <div className="p-3">
-                                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{img.name || '—'}</p>
+                                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{img.name || img.imageName || '—'}</p>
                                     <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{img.publicUrl || '—'}</p>
                                     <div className="mt-2 flex gap-2">
                                         <Button type="button" variant="sweet" className="flex-1 text-[11px]" onClick={() => openEditSheet(img)}>

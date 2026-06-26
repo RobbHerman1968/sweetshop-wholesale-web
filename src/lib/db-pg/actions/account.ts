@@ -435,9 +435,33 @@ export async function verifyUserOwnsAccount(userId: number, accountId: number): 
     return Boolean(row);
 }
 
+export async function accountExists(accountId: number): Promise<boolean> {
+    if (!Number.isFinite(accountId) || accountId <= 0) {
+        return false;
+    }
+
+    const row = await db.query.account.findFirst({
+        where: eq(account.id, accountId),
+        columns: { id: true },
+    });
+    return Boolean(row);
+}
+
+/** Admins may shop as any account; regular users only their linked accounts. */
+export async function canAccessAccountForShop(userId: number, accountId: number, isAdmin: boolean): Promise<boolean> {
+    if (isAdmin) {
+        return accountExists(accountId);
+    }
+    return verifyUserOwnsAccount(userId, accountId);
+}
+
 /** Product groups linked to a specific account (after verifying the account belongs to the user). */
-export async function getShopProductGroupIdsForUserAccount(userId: number, accountId: number): Promise<number[]> {
-    const ok = await verifyUserOwnsAccount(userId, accountId);
+export async function getShopProductGroupIdsForUserAccount(
+    userId: number,
+    accountId: number,
+    isAdmin = false,
+): Promise<number[]> {
+    const ok = await canAccessAccountForShop(userId, accountId, isAdmin);
     if (!ok) return [];
 
     const rows = await db
@@ -452,8 +476,12 @@ export async function getShopProductGroupIdsForUserAccount(userId: number, accou
  * Resolves product group ids for the shop grid for the selected wholesale account.
  * Prefers groups from that account’s `accountGroup` row(s); if none, unions groups from all of the user’s accounts.
  */
-export async function resolveShopCatalogProductGroupIds(userId: number, selectedAccountId: number): Promise<number[]> {
-    const scoped = await getShopProductGroupIdsForUserAccount(userId, selectedAccountId);
+export async function resolveShopCatalogProductGroupIds(
+    userId: number,
+    selectedAccountId: number,
+    isAdmin = false,
+): Promise<number[]> {
+    const scoped = await getShopProductGroupIdsForUserAccount(userId, selectedAccountId, isAdmin);
     if (scoped.length > 0) return scoped;
     return getShopProductGroupIdsForUser(userId);
 }

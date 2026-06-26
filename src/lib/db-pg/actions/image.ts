@@ -11,6 +11,8 @@ import { xrefImageMapper } from '../mappers/image-mapper';
 import { XrefImage } from '../entities/xrefImage-entity';
 import { vercelImageMapper } from '../mappers/image-mapper';
 import type { ImageLibraryFilter } from '@/lib/image-library-filter';
+import { LEGACY_WHOLESALE_ORIGIN } from '@/lib/legacy-product-page-image';
+import { setProductPrimaryImage } from '@/lib/db-pg/actions/product';
 
 export async function getPaginatedImagesFromDB({
     page = 1,
@@ -290,6 +292,100 @@ export async function uploadImageToVercelBlob(formData: FormData): Promise<Uploa
     } catch (err) {
         console.error('[uploadImageToVercelBlob]', err);
         return { success: false, error: 'Upload failed.' };
+    }
+}
+
+function contentTypeFromImageName(name: string): string {
+    const lower = name.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+}
+
+function isAllowedLegacyDynImageUrl(url: string): boolean {
+    try {
+        const parsed = new URL(url);
+        return parsed.origin === LEGACY_WHOLESALE_ORIGIN && parsed.pathname.includes('/dynimage');
+    } catch {
+        return false;
+    }
+}
+
+export type AcceptLegacyProductImageResult =
+    | { success: true; url: string; reusedExisting: boolean }
+    | { success: false; error: string };
+
+/** Download a legacy dynimage, store in Vercel Blob, and set as the product's primary image. */
+export async function acceptLegacyProductImage(
+    productId: number,
+    imageUrl: string,
+    imageName: string,
+): Promise<AcceptLegacyProductImageResult> {
+    if (!Number.isFinite(productId) || productId <= 0) {
+        return { success: false, error: 'Invalid product.' };
+    }
+
+    const trimmedUrl = imageUrl.trim();
+    const trimmedName = imageName.trim();
+    if (!trimmedUrl || !trimmedName) {
+        return { success: false, error: 'Legacy image is missing.' };
+    }
+
+    if (!isAllowedLegacyDynImageUrl(trimmedUrl)) {
+        return { success: false, error: 'Legacy image URL is not allowed.' };
+    }
+
+    const [productRow] = await db.select({ id: product.id }).from(product).where(eq(product.id, productId)).limit(1);
+    if (!productRow) {
+        return { success: false, error: 'Product not found.' };
+    }
+
+    const nameKey = trimmedName.toLowerCase();
+    const [existingImage] = await db
+        .select({ id: vercelImage.id, path: vercelImage.path })
+        .from(vercelImage)
+        .where(sql`lower(${vercelImage.imageName}) = ${nameKey}`)
+        .limit(1);
+
+    if (existingImage) {
+        await setProductPrimaryImage(productId, existingImage.id);
+        revalidatePath('/manage/images');
+        revalidatePath('/manage/products');
+        revalidatePath('/shop');
+        return { success: true, url: existingImage.path, reusedExisting: true };
+    }
+
+    try {
+        const response = await fetch(trimmedUrl, {
+            headers: { Accept: 'image/*', 'User-Agent': 'SweetShop-Wholesale-Manage/1.0' },
+            cache: 'no-store',
+        });
+
+        if (!response.ok) {
+            return { success: false, error: `Could not download legacy image (${response.status}).` };
+        }
+
+        const buffer = await response.arrayBuffer();
+        if (!buffer.byteLength) {
+            return { success: false, error: 'Legacy image download was empty.' };
+        }
+
+        const contentType = response.headers.get('content-type')?.split(';')[0]?.trim() || contentTypeFromImageName(trimmedName);
+        const nameForDb = await resolveUniqueImageNameForDb(trimmedName);
+        const pathname = `product/${Date.now()}-${sanitizeBlobName(trimmedName)}`;
+        const blob = await put(pathname, buffer, { access: 'public', contentType });
+        const vercelImageId = await insertVercelImage(nameForDb, blob.url, true);
+        await setProductPrimaryImage(productId, vercelImageId);
+
+        revalidatePath('/manage/images');
+        revalidatePath('/manage/products');
+        revalidatePath('/shop');
+
+        return { success: true, url: blob.url, reusedExisting: false };
+    } catch (err) {
+        console.error('[acceptLegacyProductImage]', err);
+        return { success: false, error: 'Could not save legacy image to Vercel.' };
     }
 }
 

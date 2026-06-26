@@ -11,6 +11,7 @@ import type { Product } from '@/lib/db-pg/entities/product-entity';
 import TiptapEditor from '@/components/ui/editor/tiptap-editor';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EditProductImageSection } from './edit-product-image-section';
+import { EditProductOldImageTab } from './edit-product-old-image-tab';
 
 type Props = {
     productId: number | null;
@@ -33,6 +34,7 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
     const [categories, setCategories] = useState<ShopCategory[]>([]);
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
     const [saving, setSaving] = useState(false);
+    const [activeTab, setActiveTab] = useState('description');
 
     useEffect(() => {
         if (!productId) return;
@@ -48,6 +50,25 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
         };
     }, [productId]);
 
+    useEffect(() => {
+        if (!productId) return;
+        setActiveTab('description');
+    }, [productId]);
+
+    async function reloadProduct() {
+        if (!productId) return null;
+
+        const [product, categoryIds] = await Promise.all([
+            getProductById(productId),
+            getProductCategoryIds(productId),
+        ]);
+
+        if (product) setProductToEdit(product);
+        setSelectedCategoryIds(categoryIds);
+        onSaved?.();
+        return product;
+    }
+
     function toggleCategory(categoryId: number, checked: boolean) {
         setSelectedCategoryIds((current) => {
             if (checked) {
@@ -60,7 +81,13 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         setSaving(true);
-        await updateProductFromForm(new FormData(e.currentTarget));
+        const formData = new FormData(e.currentTarget);
+        // Category checkboxes live inside an inactive tab panel, so they are omitted from FormData unless that tab is open.
+        formData.delete('categoryIds');
+        for (const categoryId of selectedCategoryIds) {
+            formData.append('categoryIds', String(categoryId));
+        }
+        await updateProductFromForm(formData);
         setSaving(false);
         onClose();
         onSaved?.();
@@ -72,12 +99,12 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
 
     return (
         <Sheet open={productId != null} onOpenChange={handleOpenChange}>
-            <SheetContent side="left" className="flex h-full w-full flex-col overflow-hidden sm:max-w-xl lg:max-w-4xl">
+            <SheetContent side="right" className="flex h-full w-full flex-col overflow-hidden sm:max-w-xl lg:max-w-4xl">
                 {productToEdit ? (
                     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
                         <input type="hidden" name="id" value={productToEdit.id} readOnly />
                         <SheetHeader className="shrink-0 pb-4">
-                            <SheetTitle>Edit product</SheetTitle>
+                            <SheetTitle className="text-lg font-semibold text-[#4a2518]">Edit Product ({productToEdit.id})</SheetTitle>
                             <SheetDescription>Update name, price, categories, description, download, ingredients, and nutrition.</SheetDescription>
                         </SheetHeader>
 
@@ -87,6 +114,7 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
                                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Basic info</h3>
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                                     <EditProductImageSection
+                                        key={productToEdit.productImages?.[0]?.vercelImageId ?? `no-image-${productToEdit.id}`}
                                         product={productToEdit}
                                         onProductChange={setProductToEdit}
                                         onSaved={onSaved}
@@ -144,7 +172,7 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
 
                             {/* ─── Categories + rich text tabs ─── */}
                             <section className="flex min-h-0 flex-1 flex-col space-y-2">
-                                <Tabs defaultValue="description" className="flex min-h-0 flex-1 flex-col">
+                                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
                                     <TabsList className="h-auto w-full shrink-0 justify-start rounded-md border border-[#c49a78] bg-[#f8eddf] p-1.5">
                                         {RICH_TEXT_FIELDS.map(({ name, label }) => (
                                             <TabsTrigger key={name} value={name} className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
@@ -153,6 +181,9 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
                                         ))}
                                         <TabsTrigger value="categories" className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
                                             Categories
+                                        </TabsTrigger>
+                                        <TabsTrigger value="old-product-image" className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
+                                            Get old product image
                                         </TabsTrigger>
                                     </TabsList>
                                     <div className="min-h-0 flex-1 pt-2">
@@ -192,6 +223,13 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
                                                 </ul>
                                             )}
                                         </TabsContent>
+                                        <TabsContent value="old-product-image" className="mt-0 data-[state=inactive]:hidden">
+                                            <EditProductOldImageTab
+                                                product={productToEdit}
+                                                active={activeTab === 'old-product-image'}
+                                                onReloadProduct={reloadProduct}
+                                            />
+                                        </TabsContent>
                                         {RICH_TEXT_FIELDS.map(({ name }) => {
                                             const value = productToEdit[name] ?? '';
                                             return (
@@ -219,7 +257,7 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
                 ) : (
                     <>
                         <SheetHeader className="shrink-0 pb-4">
-                            <SheetTitle>Edit product</SheetTitle>
+                            <SheetTitle className="text-lg font-semibold text-[#4a2518]">Edit Product ({productId})</SheetTitle>
                             <SheetDescription>Update name, price, categories, description, download, ingredients, and nutrition.</SheetDescription>
                         </SheetHeader>
                         <p className="flex-1 py-8 text-center text-xs text-[#6e4a34]">Loading…</p>

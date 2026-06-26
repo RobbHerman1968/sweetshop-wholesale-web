@@ -18,11 +18,11 @@ export async function resolveShopCatalogProductGroupIdsForSession(session: Sessi
         return PUBLIC_SHOP_PRODUCT_GROUP_IDS;
     }
 
-    const effectiveAccountId = await getEffectiveWholesaleAccountIdForShopCatalog(userId);
+    const effectiveAccountId = await getEffectiveWholesaleAccountIdForShopCatalog(userId, session?.user?.isAdmin ?? false);
     if (effectiveAccountId == null) {
         return PUBLIC_SHOP_PRODUCT_GROUP_IDS;
     }
 
-    const productGroupIds = await resolveShopCatalogProductGroupIds(userId, effectiveAccountId);
+    const productGroupIds = await resolveShopCatalogProductGroupIds(userId, effectiveAccountId, session?.user?.isAdmin ?? false);
     return productGroupIds.length > 0 ? productGroupIds : PUBLIC_SHOP_PRODUCT_GROUP_IDS;
 }

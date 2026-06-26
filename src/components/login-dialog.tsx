@@ -2,11 +2,13 @@
 
 import { useId, useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { X } from 'lucide-react';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { ForgotPasswordDialog } from '@/components/forgot-password-dialog';
+import { clearWholesaleShopAsSelection } from '@/lib/wholesale-account-switcher-actions';
 import { loginSchema } from '@/lib/validations/auth';
 
 type LoginDialogProps = {
@@ -55,6 +57,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                 return;
             }
             if (result?.ok) {
+                await clearWholesaleShopAsSelection();
                 setEmail('');
                 setPassword('');
                 onOpenChange(false);
@@ -69,10 +72,26 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="bg-[#fdf7ef] text-[#4a2b1f] border-[#d1b79a]">
-                    <DialogHeader>
-                        <DialogTitle className="text-sm font-semibold uppercase tracking-[0.25em] text-[#7c5b44]">Wholesale Login</DialogTitle>
-                        <DialogDescription className="mt-2 text-xs text-[#7c5b44]">Enter your username and password to access your wholesale account.</DialogDescription>
+                <DialogContent
+                    hideCloseButton
+                    className="w-[calc(100%-24px)] border-[#d1b79a] bg-[#fdf7ef] p-0 px-3 pb-6 pt-3 text-[#4a2b1f] sm:w-full"
+                >
+                    <DialogHeader className="space-y-0">
+                        <div className="flex items-center justify-between gap-3">
+                            <DialogTitle className="text-sm font-semibold uppercase tracking-[0.25em] text-[#7c5b44]">
+                                Wholesale Login
+                            </DialogTitle>
+                            <DialogClose
+                                type="button"
+                                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-[#5c4032] opacity-80 ring-offset-white transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
+                                aria-label="Close dialog"
+                            >
+                                <X className="size-4" strokeWidth={1.75} aria-hidden />
+                            </DialogClose>
+                        </div>
+                        <DialogDescription className="mt-2 text-xs text-[#7c5b44]">
+                            Enter your username and password to access your wholesale account.
+                        </DialogDescription>
                     </DialogHeader>
                     <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
                         {submitError && (

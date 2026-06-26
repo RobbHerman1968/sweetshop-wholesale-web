@@ -6,6 +6,7 @@ export * from './actions/users';
 export * from './actions/order';
 export * from './actions/product';
 export * from './actions/process-users';
+export * from './actions/process-user-addresses';
 export * from './actions/cart';
 export * from './account-mate/service';
 

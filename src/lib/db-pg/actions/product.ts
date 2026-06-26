@@ -2,11 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db-pg';
-import { product, productGroup, productGroupProduct, productImage, productCategory, vercelImage } from '@/lib/drizzle/schema';
-import { count, ilike, eq, and, or, inArray, asc, sql, max } from 'drizzle-orm';
+import { product, productGroup, productGroupProduct, productImage, productCategory, productOldImage, vercelImage } from '@/lib/drizzle/schema';
+import { count, ilike, eq, and, or, inArray, asc, desc, sql, max } from 'drizzle-orm';
 import { Product } from '../entities/product-entity';
 import { productMapper } from '../mappers/product-mapper';
 import { SHOP_PRODUCT_FACETS } from '@/lib/shop-product-facets';
+import { cleanHtmlEntitySymbols } from '@/lib/clean-html-entities';
+import { buildLegacyDynImageUrl } from '@/lib/legacy-dynimage-url';
 
 export async function getProductCount(name: string, itemNumber: string) {
     let returnCount;
@@ -468,6 +470,60 @@ export async function getProductById(id: number) {
     return productMapper(data);
 }
 
+export type ProductOldImageRow = {
+    id: number;
+    fileName: string;
+    isDefault: boolean;
+    isActive: boolean;
+    order: number;
+};
+
+export async function getProductOldImagesForManage(productId: number): Promise<ProductOldImageRow[]> {
+    if (!Number.isFinite(productId) || productId <= 0) return [];
+
+    const rows = await db
+        .select({
+            id: productOldImage.id,
+            fileName: productOldImage.fileName,
+            isDefault: productOldImage.isDefault,
+            isActive: productOldImage.isActive,
+            order: productOldImage.order,
+        })
+        .from(productOldImage)
+        .where(and(eq(productOldImage.productId, productId), eq(productOldImage.isActive, true)))
+        .orderBy(desc(productOldImage.isDefault), asc(productOldImage.order), asc(productOldImage.id));
+
+    return rows.filter((row) => row.fileName.trim());
+}
+
+export type ProductOldImageForEditResult = {
+    imageUrl: string | null;
+    imageName: string | null;
+    error?: string;
+};
+
+export async function getProductOldImageForEditTab(productId: number): Promise<ProductOldImageForEditResult> {
+    if (!Number.isFinite(productId) || productId <= 0) {
+        return { imageUrl: null, imageName: null, error: 'Invalid product id.' };
+    }
+
+    const rows = await getProductOldImagesForManage(productId);
+    const primary = rows[0];
+    if (!primary) {
+        return {
+            imageUrl: null,
+            imageName: null,
+            error: 'No productOldImage row found for this product. Run Load Product Old Images on the Sync page first.',
+        };
+    }
+
+    const fileName = primary.fileName.trim();
+    return {
+        imageUrl: buildLegacyDynImageUrl(fileName),
+        imageName: fileName,
+    };
+}
+
 export async function removeProductImageById(productImageId: number) {
     if (!Number.isFinite(productImageId) || productImageId <= 0) return;
 
@@ -501,7 +557,7 @@ export async function updateProductById(data: Product) {
     await db
         .update(product)
         .set({
-            name: data.name,
+            name: data.name == null ? null : cleanHtmlEntitySymbols(data.name),
             description: data.description,
             itemNumber: data.itemNumber,
             pieces: data.pieces,
@@ -575,7 +631,7 @@ export async function updateProductFromForm(formData: FormData) {
 export async function createProduct(data: Product) {
     await db.insert(product).values({
         id: data.id,
-        name: data.name,
+        name: data.name == null ? null : cleanHtmlEntitySymbols(data.name),
         description: data.description,
         itemNumber: data.itemNumber,
         pieces: data.pieces,
@@ -610,6 +666,46 @@ export async function deleteProductById(id: number) {
     await db.delete(product).where(eq(product.id, id));
 }
 
+function readLegacyBoolean(value: unknown, fallback = false): boolean {
+    if (typeof value === 'boolean') {
+        return value;
+    }
+    if (typeof value === 'number') {
+        return value !== 0;
+    }
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'true' || normalized === '1') return true;
+        if (normalized === 'false' || normalized === '0') return false;
+    }
+    return fallback;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapLegacyProductRow(o: any) {
+    const legacyIsActive = readLegacyBoolean(o.IsActive ?? o.isActive, false);
+    const legacyIsRetail = readLegacyBoolean(o.IsRetail ?? o.isRetail, false);
+    const legacyIsWholesale = readLegacyBoolean(o.IsWholesale ?? o.isWholesale, false);
+    const rawName = o.Name == null ? null : String(o.Name);
+    const isActive = !legacyIsRetail && !legacyIsWholesale ? false : legacyIsActive;
+
+    return {
+        id: o.Id,
+        name: rawName == null ? null : cleanHtmlEntitySymbols(rawName),
+        itemNumber: o.ItemNumber,
+        description: o.Description,
+        nutrition: o.Nutrition,
+        ingredients: o.Ingredients,
+        download: o.Download,
+        price: o.WholesalePrice,
+        pieces: o.Pieces,
+        weightInOunces: o.Weight,
+        isActive,
+        shippingBoxFactor: o.ShippingBoxFactor,
+        isWholesale: legacyIsWholesale ? 1 : 0,
+    };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function processOldProducts(oldProducts: any[]) {
     try {
@@ -617,24 +713,7 @@ export async function processOldProducts(oldProducts: any[]) {
             orderBy: asc(product.id),
         });
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rows: any[] = oldProducts.map((o: any) => {
-            return {
-                id: o.Id,
-                name: o.Name,
-                itemNumber: o.ItemNumber,
-                description: o.Description,
-                nutrition: o.Nutrition,
-                ingredients: o.Ingredients,
-                download: o.Download,
-                price: o.WholesalePrice,
-                pieces: o.Pieces,
-                weightInOunces: o.Weight,
-                isActive: o.IsActive,
-                shippingBoxFactor: o.ShippingBoxFactor,
-                isWholesale: o.IsWholesale ? 1 : 0,
-            };
-        });
+        const rows = oldProducts.map(mapLegacyProductRow);
 
         for (const p of rows) {
             const existingProduct = existingProducts.find((ep) => ep.id === p.id);
@@ -651,40 +730,87 @@ export async function processOldProducts(oldProducts: any[]) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function linkOldProductImageRows(oldProductImages: any[]): Promise<{ linked: number; skippedExisting: number; missingPaths: string[] }> {
+    const vercelImages = await db.query.vercelImage.findMany({
+        orderBy: asc(vercelImage.id),
+    });
+
+    const existingProductImages = await db.query.productImage.findMany({
+        orderBy: asc(productImage.id),
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows: any[] = oldProductImages.map((o: any) => ({
+        id: o.Id,
+        productId: o.ProductId,
+        path: o.Path,
+        isDefault: o.IsDefault,
+    }));
+
+    let linked = 0;
+    let skippedExisting = 0;
+    const missingPaths: string[] = [];
+
+    for (const p of rows) {
+        const path = String(p.path ?? '').trim();
+        if (!path) continue;
+
+        const matchedVercelImage = vercelImages.find((vi) => vi.imageName.toUpperCase() === path.toUpperCase());
+        if (!matchedVercelImage) {
+            missingPaths.push(path);
+            continue;
+        }
+
+        const existingImage = existingProductImages.find((ei) => ei.productId === p.productId && ei.vercelImageId === matchedVercelImage.id);
+        if (existingImage) {
+            skippedExisting++;
+            continue;
+        }
+
+        await db.insert(productImage).values({
+            productId: p.productId,
+            vercelImageId: matchedVercelImage.id,
+        });
+        existingProductImages.push({ id: 0, productId: p.productId, vercelImageId: matchedVercelImage.id });
+        linked++;
+    }
+
+    return { linked, skippedExisting, missingPaths };
+}
+
+export type ImportOldProductImagesResult = {
+    found: number;
+    linked: number;
+    skippedExisting: number;
+    missingPaths: string[];
+};
+
+export async function importOldProductImagesForProduct(productId: number): Promise<ImportOldProductImagesResult> {
+    if (!Number.isFinite(productId) || productId <= 0) {
+        return { found: 0, linked: 0, skippedExisting: 0, missingPaths: [] };
+    }
+
+    const { getProductImagesFromSweetshopOldByProductId } = await import('@/lib/db-sweetshop-old');
+    const oldProductImages = await getProductImagesFromSweetshopOldByProductId(productId);
+    const { linked, skippedExisting, missingPaths } = await linkOldProductImageRows(oldProductImages);
+
+    if (linked > 0) {
+        revalidatePath('/manage/products');
+        revalidatePath('/shop');
+    }
+
+    return {
+        found: oldProductImages.length,
+        linked,
+        skippedExisting,
+        missingPaths,
+    };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function processOldProductImages(oldProductImages: any[]) {
     try {
-        const vercelImages = await db.query.vercelImage.findMany({
-            orderBy: asc(vercelImage.id),
-        });
-
-        const existingProductImages = await db.query.productImage.findMany({
-            orderBy: asc(productImage.id),
-        });
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rows: any[] = oldProductImages.map((o: any) => {
-            return {
-                id: o.Id,
-                productId: o.ProductId,
-                path: o.Path,
-                isDefault: o.IsDefault,
-            };
-        });
-
-        for (const p of rows) {
-            const vercelImage = vercelImages.find((vi) => vi.imageName.toUpperCase() === p.path.toUpperCase());
-            if (!vercelImage) {
-                console.log(`********* Vercel image not found for path: ${p.path}`);
-                continue;
-            }
-            const existingImage = existingProductImages.find((ei) => ei.productId === p.productId && ei.vercelImageId === vercelImage?.id);
-            if (!existingImage) {
-                await db.insert(productImage).values({
-                    productId: p.productId,
-                    vercelImageId: vercelImage?.id,
-                });
-            }
-        }
+        await linkOldProductImageRows(oldProductImages);
     } catch (error) {
         console.error('Error processing old product images:', error);
         throw new Error('Failed to process old product images');

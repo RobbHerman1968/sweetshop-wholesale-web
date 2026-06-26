@@ -27,7 +27,9 @@ export default async function ManageImagesPage({ searchParams }: Props) {
             <ImagesContent
                 data={result.data.map((img) => ({
                     id: img.id,
-                    name: img.name ?? img.imageName ?? '',
+                    name: img.name ?? '',
+                    imageName: img.imageName ?? '',
+                    isProductImage: img.isProductImage,
                     publicUrl: typeof img.path === 'string' ? img.path.trim() : '',
                 }))}
                 pagination={result.pagination}

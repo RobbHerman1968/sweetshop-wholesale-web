@@ -17,9 +17,9 @@ export function getMenuUsageDescription(menuId: number): string | null {
         case WHOLESALE_BRAND_BAR_MENU_ID:
             return 'Top navigation bar on the public site';
         case WHOLESALE_PAGE_MENU_ID:
-            return 'Left sidebar on CMS pages';
+            return 'Left sidebar on Pages Menu';
         case WHOLESALE_SHOPPING_MENU_ID:
-            return 'Left sidebar in the shop catalog';
+            return 'Left sidebar in the Shopping Menu';
         default:
             return null;
     }

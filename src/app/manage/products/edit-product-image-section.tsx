@@ -64,33 +64,35 @@ export function EditProductImageSection({ product, onProductChange, onSaved }: P
 
     return (
         <>
-            <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Product image</p>
-                <button
-                    type="button"
-                    onClick={() => {
-                        setError(null);
-                        setDialogOpen(true);
-                    }}
-                    className={cn(
-                        'group relative aspect-square w-full max-w-[200px] overflow-hidden rounded-xl border-2 border-[#c49a78] bg-white transition-colors hover:border-[#8b6342]',
-                        !imagePath && 'border-dashed bg-[#f8eddf]',
-                    )}
-                >
-                    {imagePath ? (
-                        <>
-                            <RemoteImage src={imagePath} alt={imageName || product.name || 'Product image'} sizes="200px" className="brightness-110" />
-                            <span className="absolute inset-x-0 bottom-0 bg-[#4a2518]/75 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#fdf7ef] opacity-0 transition-opacity group-hover:opacity-100">
-                                Change image
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Product image</p>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setError(null);
+                            setDialogOpen(true);
+                        }}
+                        className={cn(
+                            'group relative aspect-square w-full max-w-[200px] overflow-hidden rounded-xl border-2 border-[#c49a78] bg-white transition-colors hover:border-[#8b6342]',
+                            !imagePath && 'border-dashed bg-[#f8eddf]',
+                        )}
+                    >
+                        {imagePath ? (
+                            <>
+                                <RemoteImage src={imagePath} alt={imageName || product.name || 'Product image'} sizes="200px" className="brightness-110" />
+                                <span className="absolute inset-x-0 bottom-0 bg-[#4a2518]/75 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#fdf7ef] opacity-0 transition-opacity group-hover:opacity-100">
+                                    Change image
+                                </span>
+                            </>
+                        ) : (
+                            <span className="flex h-full flex-col items-center justify-center gap-1 px-3 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-[#6e4a34]">
+                                <span>No image</span>
+                                <span className="text-[10px] normal-case tracking-normal text-[#8b6342]">Click to add</span>
                             </span>
-                        </>
-                    ) : (
-                        <span className="flex h-full flex-col items-center justify-center gap-1 px-3 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-[#6e4a34]">
-                            <span>No image</span>
-                            <span className="text-[10px] normal-case tracking-normal text-[#8b6342]">Click to add</span>
-                        </span>
-                    )}
-                </button>
+                        )}
+                    </button>
+                </div>
             </div>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

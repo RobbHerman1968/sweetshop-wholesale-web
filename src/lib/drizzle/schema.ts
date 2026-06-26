@@ -19,6 +19,19 @@ export const product = pgTable("product", {
 	isWholesale: integer().default(0).notNull(),
 });
 
+export const user = pgTable("user", {
+	id: integer().primaryKey().notNull(),
+	userName: text().notNull(),
+	passwordHash: text().notNull(),
+	isActive: boolean().default(false).notNull(),
+	isAdmin: boolean().default(false).notNull(),
+	firstName: text(),
+	lastName: text(),
+	accountMateId: text(),
+}, (table) => [
+	unique("user_username_unique").on(table.userName),
+]);
+
 export const account = pgTable("account", {
 	id: serial().primaryKey().notNull(),
 	accountMateId: text(),
@@ -38,19 +51,6 @@ export const account = pgTable("account", {
 	contactZipCode: text(),
 	contactEmail: text(),
 });
-
-export const user = pgTable("user", {
-	id: integer().primaryKey().notNull(),
-	userName: text().notNull(),
-	passwordHash: text().notNull(),
-	isActive: boolean().default(false).notNull(),
-	isAdmin: boolean().default(false).notNull(),
-	firstName: text(),
-	lastName: text(),
-	accountMateId: text(),
-}, (table) => [
-	unique("user_username_unique").on(table.userName),
-]);
 
 export const accountGroup = pgTable("accountGroup", {
 	id: serial().primaryKey().notNull(),
@@ -300,4 +300,22 @@ export const productOld = pgTable("productOld", {
 	weightInOunces: numeric({ precision: 10, scale:  2 }),
 	isActive: boolean().notNull(),
 	shippingBoxFactor: numeric({ precision: 10, scale:  3 }),
+});
+
+export const userAddress = pgTable("userAddress", {
+	id: serial().primaryKey().notNull(),
+	userId: integer(),
+	name: text(),
+	type: text(),
+	companyName: text(),
+	firstName: text(),
+	lastName: text(),
+	addressLine1: text(),
+	addressLine2: text(),
+	city: text(),
+	state: text(),
+	postalCode: text(),
+	county: text(),
+	emailAddress: text(),
+	phoneNumber: text(),
 });

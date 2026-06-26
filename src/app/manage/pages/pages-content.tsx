@@ -6,6 +6,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { buildPagePath } from '@/lib/page-path';
 import type { SitePage } from '@/lib/db-pg/actions/page';
 
@@ -55,7 +56,16 @@ export function PagesContent({ data, pagination, searchName }: PagesContentProps
             <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
-                    <Input name="name" type="search" placeholder="Search by name" defaultValue={searchName} className="w-48 min-w-0 sm:w-56" />
+                    <Input
+                        name="name"
+                        type="search"
+                        placeholder="Search by name"
+                        defaultValue={searchName}
+                        className="w-48 min-w-0 sm:w-56"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchName, () => router.push(`/manage/pages${buildQuery({ page: 1 })}`))
+                        }
+                    />
                 </label>
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search

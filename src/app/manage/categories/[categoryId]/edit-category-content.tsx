@@ -33,9 +33,14 @@ export function EditCategoryContent({ category }: Props) {
         <form onSubmit={handleSubmit} className="space-y-8">
             <input type="hidden" name="id" value={category.id} readOnly />
 
-            <header className="space-y-1">
-                <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Edit Category</h1>
-                <p className="text-xs text-[#6e4a34]">Update category name, URL slug, and visibility.</p>
+            <header className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                    <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Edit Category</h1>
+                    <p className="text-xs text-[#6e4a34]">Update category name, URL slug, and visibility.</p>
+                </div>
+                <Link href={`/manage/categories/${category.id}/products`} className={buttonVariants({ variant: 'outline' })}>
+                    All products
+                </Link>
             </header>
 
             <section className="space-y-4 rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 sm:p-6">

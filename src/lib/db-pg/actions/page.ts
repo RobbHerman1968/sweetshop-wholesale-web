@@ -135,8 +135,8 @@ export async function updatePageFromForm(formData: FormData) {
 
     const name = (formData.get('name') as string)?.trim() ?? existing.name;
     const navName = slugifyPageNavName(name);
-    const imageUrlRaw = (formData.get('imageUrl') as string)?.trim();
-    const imageUrl = imageUrlRaw || null;
+    const imageUrlRaw = formData.get('imageUrl');
+    const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw.trim() || null : existing.imageUrl;
     const content = getFormRichText(formData, 'content', existing.content);
     const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true';
 

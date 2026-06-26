@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
 import { describeMenuItemTarget } from '@/lib/menu-manage-utils';
 import type { ManageMenu, ManageMenuItem } from '@/lib/db-pg/actions/menu';
@@ -52,7 +53,16 @@ export function MenuItemsContent({ menu, items, categoryNames, pageNames, search
             <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
-                    <Input name="name" type="search" placeholder="Search by name" defaultValue={searchName} className="w-48 min-w-0 sm:w-56" />
+                    <Input
+                        name="name"
+                        type="search"
+                        placeholder="Search by name"
+                        defaultValue={searchName}
+                        className="w-48 min-w-0 sm:w-56"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchName, () => router.push(`/manage/menus/${menu.id}${buildQuery()}`))
+                        }
+                    />
                 </label>
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search
@@ -80,30 +90,30 @@ export function MenuItemsContent({ menu, items, categoryNames, pageNames, search
                     <table className="min-w-full text-left text-xs text-[#6e4a34]">
                         <thead className="border-b border-[#c49a78] text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4a2518]">
                             <tr>
-                                <th className="px-4 py-3">Name</th>
-                                <th className="px-4 py-3">Target</th>
-                                <th className="px-4 py-3">Order</th>
-                                <th className="px-4 py-3">Status</th>
-                                <th className="px-4 py-3">Actions</th>
+                                <th className="px-4 py-2">Name</th>
+                                <th className="px-4 py-2">Target</th>
+                                <th className="px-4 py-2">Order</th>
+                                <th className="px-4 py-2">Status</th>
+                                <th className="px-4 py-2">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {items.map((item) => (
                                 <tr key={item.id} className="border-b border-[#e3cbb0]/80 last:border-b-0">
-                                    <td className="px-4 py-3 font-semibold text-[#4a2518]">{item.name || '—'}</td>
-                                    <td className="px-4 py-3">{describeMenuItemTarget(item, categoryNameMap, pageNameMap)}</td>
-                                    <td className="px-4 py-3">{item.displayOrder}</td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-1.5 font-semibold text-[#4a2518]">{item.name || '—'}</td>
+                                    <td className="px-4 py-1.5">{describeMenuItemTarget(item, categoryNameMap, pageNameMap)}</td>
+                                    <td className="px-4 py-1.5">{item.displayOrder}</td>
+                                    <td className="px-4 py-1.5">
                                         <div className="flex flex-wrap gap-1.5">
                                             {!item.isActive && (
                                                 <span className="rounded bg-[#6e4a34]/80 px-1.5 py-0.5 text-[10px] uppercase text-white">Hidden</span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-1.5">
                                         <Link
                                             href={`/manage/menus/${menu.id}/items/${item.id}`}
-                                            className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
+                                            className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
                                         >
                                             Edit
                                         </Link>

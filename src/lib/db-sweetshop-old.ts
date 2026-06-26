@@ -168,6 +168,36 @@ export async function getOrderAddressesFromSweetshopOld(maxOrderAddressId: numbe
     }
 }
 
+export async function getAccountAddressesFromSweetshopOld(minId = 0): Promise<any[]> {
+    try {
+        const batchSize = 10000;
+        const allRows: any[] = [];
+        let maxId = minId;
+
+        while (true) {
+            const query = `SELECT TOP ${batchSize} * FROM AccountAddress WHERE Id > ${maxId} ORDER BY Id`;
+            const batch = await fetchData(query);
+            if (!batch.length) {
+                break;
+            }
+
+            allRows.push(...batch);
+            const lastRow = batch[batch.length - 1];
+            maxId = Number(lastRow.Id ?? lastRow.id ?? maxId);
+            console.log(`User address sync: fetched ${allRows.length} legacy AccountAddress rows so far (last Id ${maxId})`);
+
+            if (batch.length < batchSize) {
+                break;
+            }
+        }
+
+        return allRows;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
 export async function getProductsFromSweetshopOld(): Promise<any[]> {
     try {
         const query = 'SELECT * FROM Product';
@@ -179,11 +209,69 @@ export async function getProductsFromSweetshopOld(): Promise<any[]> {
     }
 }
 
+export async function getCategoriesFromSweetshopOld(): Promise<any[]> {
+    try {
+        const query = 'SELECT * FROM Category ORDER BY Id';
+        const data = await fetchData(query);
+        return data;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
+export async function getCategoryProductsFromSweetshopOld(): Promise<any[]> {
+    try {
+        const batchSize = 10000;
+        const allRows: any[] = [];
+        let maxId = 0;
+
+        while (true) {
+            const query = `SELECT TOP ${batchSize} * FROM CategoryProduct WHERE Id > ${maxId} ORDER BY Id`;
+            const batch = await fetchData(query);
+            if (!batch.length) {
+                break;
+            }
+
+            allRows.push(...batch);
+            const lastRow = batch[batch.length - 1];
+            maxId = Number(lastRow.Id ?? lastRow.id ?? maxId);
+            console.log(`Product category sync: fetched ${allRows.length} legacy CategoryProduct rows so far (last Id ${maxId})`);
+
+            if (batch.length < batchSize) {
+                break;
+            }
+        }
+
+        return allRows;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
 export async function getProductImagesFromSweetshopOld(): Promise<any[]> {
     try {
         const query = 'SELECT * FROM ProductImage';
         const data = await fetchData(query);
         return data;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
+export async function getProductImagesFromSweetshopOldByProductId(productId: number): Promise<any[]> {
+    if (!Number.isFinite(productId) || productId <= 0) return [];
+
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool
+            .request()
+            .input('productId', sql.Int, productId)
+            .query('SELECT * FROM ProductImage WHERE ProductId = @productId ORDER BY Id');
+        await pool.close();
+        return result.recordset;
     } catch (err) {
         console.error('SQL error', err);
         throw err;

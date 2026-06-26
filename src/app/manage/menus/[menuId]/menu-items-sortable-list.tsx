@@ -135,12 +135,12 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames }:
                 <table className="min-w-full text-left text-xs text-[#6e4a34]">
                     <thead className="border-b border-[#c49a78] text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4a2518]">
                         <tr>
-                            <th className="w-10 px-2 py-3" aria-label="Reorder" />
-                            <th className="px-4 py-3">Name</th>
-                            <th className="px-4 py-3">Target</th>
-                            <th className="px-4 py-3">Order</th>
-                            <th className="px-4 py-3">Status</th>
-                            <th className="px-4 py-3">Actions</th>
+                            <th className="w-10 px-2 py-2" aria-label="Reorder" />
+                            <th className="px-4 py-2">Name</th>
+                            <th className="px-4 py-2">Target</th>
+                            <th className="px-4 py-2">Order</th>
+                            <th className="px-4 py-2">Status</th>
+                            <th className="px-4 py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -165,24 +165,24 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames }:
                                         isDropTarget && dropPosition === 'child' && 'bg-[#f3e0cf]/70',
                                     )}
                                 >
-                                    <td className="px-2 py-3 align-middle">
+                                    <td className="px-2 py-1.5 align-middle">
                                         <button
                                             type="button"
                                             aria-label={`Drag ${item.name || 'menu item'}`}
-                                            className="flex cursor-grab items-center justify-center rounded p-1 text-[#8b6b4a] active:cursor-grabbing"
+                                            className="flex cursor-grab items-center justify-center rounded p-0.5 text-[#8b6b4a] active:cursor-grabbing"
                                             onMouseDown={(event) => event.stopPropagation()}
                                         >
                                             <GripVertical className="h-4 w-4" />
                                         </button>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-1.5">
                                         <span style={{ paddingLeft: `${item.depth * 16}px` }} className="inline-block font-semibold text-[#4a2518]">
                                             {item.name || '—'}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3">{describeMenuItemTarget(item, categoryNameMap, pageNameMap)}</td>
-                                    <td className="px-4 py-3">{item.displayOrder}</td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-1.5">{describeMenuItemTarget(item, categoryNameMap, pageNameMap)}</td>
+                                    <td className="px-4 py-1.5">{item.displayOrder}</td>
+                                    <td className="px-4 py-1.5">
                                         <div className="flex flex-wrap gap-1.5">
                                             {item.parentMenuItemId === 0 ? (
                                                 <span className="rounded bg-[#4a2518]/80 px-1.5 py-0.5 text-[10px] uppercase text-white">Top</span>
@@ -192,10 +192,10 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames }:
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-1.5">
                                         <Link
                                             href={`/manage/menus/${menu.id}/items/${item.id}`}
-                                            className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
+                                            className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
                                             onClick={(event) => event.stopPropagation()}
                                         >
                                             Edit

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
 
 type UserRow = {
@@ -67,11 +68,33 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
             <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Username</span>
-                    <Input name="userName" type="search" placeholder="Search by username" defaultValue={searchUserName} className="w-48 min-w-0 sm:w-56" />
+                    <Input
+                        name="userName"
+                        type="search"
+                        placeholder="Search by username"
+                        defaultValue={searchUserName}
+                        className="w-48 min-w-0 sm:w-56"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchUserName, () =>
+                                router.push(`/manage/users${buildQuery({ page: 1, lastName: searchLastName || undefined })}`),
+                            )
+                        }
+                    />
                 </label>
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Last name</span>
-                    <Input name="lastName" type="search" placeholder="Search by last name" defaultValue={searchLastName} className="w-40 min-w-0 sm:w-48" />
+                    <Input
+                        name="lastName"
+                        type="search"
+                        placeholder="Search by last name"
+                        defaultValue={searchLastName}
+                        className="w-40 min-w-0 sm:w-48"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchLastName, () =>
+                                router.push(`/manage/users${buildQuery({ page: 1, userName: searchUserName || undefined })}`),
+                            )
+                        }
+                    />
                 </label>
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search

@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { UserAccountMenu } from '@/components/user-account-menu';
+import { WholesaleAccountSwitcher } from '@/components/wholesale-account-switcher';
 
 export function ManageHeader() {
     return (
@@ -27,6 +28,7 @@ export function ManageHeader() {
                     </span>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
+                    <WholesaleAccountSwitcher />
                     <UserAccountMenu />
                 </div>
             </div>

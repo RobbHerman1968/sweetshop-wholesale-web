@@ -155,8 +155,8 @@ export function SiteHeader({ onLoginClick, brandBarCategories }: SiteHeaderProps
                         <div className="hidden items-center gap-3 md:flex">
                             {isLoggedIn ? (
                                 <>
-                                    <CartNavButton variant="ghost" />
                                     <WholesaleAccountSwitcher onAccountSelected={() => setIsMenuOpen(false)} />
+                                    <CartNavButton variant="ghost" />
                                     <UserAccountMenu onNavigate={() => setIsMenuOpen(false)} />
                                 </>
                             ) : (
@@ -171,7 +171,7 @@ export function SiteHeader({ onLoginClick, brandBarCategories }: SiteHeaderProps
                             )}
                         </div>
 
-                        {/* Mobile: cart + account in header; wholesale switcher stays in menu */}
+                        {/* Mobile: cart + account + menu */}
                         <div className="flex shrink-0 items-center gap-1.5 md:hidden">
                             {isLoggedIn ? (
                                 <>
@@ -196,17 +196,18 @@ export function SiteHeader({ onLoginClick, brandBarCategories }: SiteHeaderProps
                         </div>
                     </div>
 
+                    {isLoggedIn ? (
+                        <div className="flex justify-end pb-0.5 md:hidden">
+                            <WholesaleAccountSwitcher onAccountSelected={() => setIsMenuOpen(false)} />
+                        </div>
+                    ) : null}
+
                     {/* Mobile nav + actions */}
                     <div
                         id="site-header-mobile-nav"
                         hidden={!isMenuOpen}
                         className="flex flex-col gap-2 rounded-lg border border-[#d4c4b0] bg-[#f6ebdd] px-3 py-3 text-[11px] uppercase tracking-[0.18em] text-[#5c4032] md:hidden"
                     >
-                        {isLoggedIn ? (
-                            <div className="min-w-0 border-b border-[#d4c4b0] pb-3 [&>button]:max-w-none [&>button]:w-full [&>div]:max-w-none [&>div]:w-full">
-                                <WholesaleAccountSwitcher onAccountSelected={() => setIsMenuOpen(false)} />
-                            </div>
-                        ) : null}
                         <nav className="flex flex-col gap-1" aria-label="Company">
                             <Link
                                 href="/locations"

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { ShopAsAccountButton } from '@/components/shop-as-account-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { updateAccountFromForm, reloadAccountFromAccountMate } from '@/lib/db-pg/actions/account';
@@ -253,6 +254,7 @@ export function EditAccountContent({ account, backHref }: Props) {
                 <Link href={backHref} className={buttonVariants({ variant: 'outline' })}>
                     Cancel
                 </Link>
+                <ShopAsAccountButton accountId={accountFields.id} />
                 <Button type="submit" disabled={saving}>
                     {saving ? 'Saving…' : 'Save changes'}
                 </Button>

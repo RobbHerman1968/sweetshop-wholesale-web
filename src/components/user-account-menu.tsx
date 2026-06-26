@@ -6,6 +6,7 @@ import { Home, LayoutDashboard, LogOut, User } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
+import { clearWholesaleShopAsSelection } from '@/lib/wholesale-account-switcher-actions';
 import { cn } from '@/lib/utils';
 
 export type UserAccountMenuProps = {
@@ -119,7 +120,10 @@ export function UserAccountMenu({ triggerClassName, onNavigate }: UserAccountMen
                         )}
                         onClick={() => {
                             onNavigate?.();
-                            void signOut();
+                            void (async () => {
+                                await clearWholesaleShopAsSelection();
+                                await signOut();
+                            })();
                         }}
                     >
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#f5ecee] text-[#7a3d48]">
