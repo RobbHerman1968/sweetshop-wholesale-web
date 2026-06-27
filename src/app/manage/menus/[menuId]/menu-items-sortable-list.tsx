@@ -47,15 +47,15 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames }:
     const categoryNameMap = new Map(Object.entries(categoryNames).map(([id, name]) => [Number(id), name]));
     const pageNameMap = new Map(Object.entries(pageNames).map(([id, name]) => [Number(id), name]));
 
-    const [rows, setRows] = useState<FlatMenuItemRow[]>(() => buildFlatRowsFromItems(items, menu.id));
+    const [rows, setRows] = useState<FlatMenuItemRow[]>(() => buildFlatRowsFromItems(items, menu.isShopping));
     const [draggedId, setDraggedId] = useState<number | null>(null);
     const [dropHint, setDropHint] = useState<DropHint | null>(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        setRows(buildFlatRowsFromItems(items, menu.id));
-    }, [items, menu.id]);
+        setRows(buildFlatRowsFromItems(items, menu.isShopping));
+    }, [items, menu.isShopping]);
 
     async function persistRows(nextRows: FlatMenuItemRow[]) {
         if (!isValidMenuOutline(nextRows)) {
@@ -68,12 +68,12 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames }:
         setError(null);
 
         try {
-            const updates = flatRowsToMenuUpdates(nextRows, menu.id);
+            const updates = flatRowsToMenuUpdates(nextRows, menu.isShopping);
             await reorderMenuItems(menu.id, updates);
             setRows(applyMenuUpdatesToRows(nextRows, updates));
             router.refresh();
         } catch (err) {
-            setRows(buildFlatRowsFromItems(items, menu.id));
+            setRows(buildFlatRowsFromItems(items, menu.isShopping));
             setError(err instanceof Error ? err.message : 'Failed to save menu order.');
         } finally {
             setSaving(false);
@@ -125,7 +125,7 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames }:
         <div className="space-y-3">
             <p className="text-xs text-[#6e4a34]">
                 Drag rows to reorder. Drop on the top edge to insert before, bottom edge to insert after, or the middle to nest under that item.
-                {usesGlobalMenuDisplayOrder(menu.id) ? ' Order is saved as a single sequence from 1 to n across the whole menu.' : null}
+                {usesGlobalMenuDisplayOrder(menu) ? ' Order is saved as a single sequence from 1 to n across the whole menu.' : null}
                 {saving ? ' Saving…' : null}
             </p>
 

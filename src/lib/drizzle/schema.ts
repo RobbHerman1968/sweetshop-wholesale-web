@@ -50,7 +50,7 @@ export const account = pgTable("account", {
 	contactState: text(),
 	contactZipCode: text(),
 	contactEmail: text(),
-	menuId: integer().default(0).notNull(),
+	menuId: integer().default(3).notNull(),
 });
 
 export const productGroupProduct = pgTable("productGroupProduct", {
@@ -134,27 +134,6 @@ export const cart = pgTable("cart", {
 		}),
 ]);
 
-export const cartItem = pgTable("cartItem", {
-	id: serial().primaryKey().notNull(),
-	cartId: integer().default(0).notNull(),
-	productId: integer().notNull(),
-	quantity: integer().default(0).notNull(),
-	lineTotal: numeric({ precision: 10, scale:  2 }).default('0').notNull(),
-	createDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	modifiedDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	foreignKey({
-			columns: [table.productId],
-			foreignColumns: [product.id],
-			name: "cartItem_product_id_fk"
-		}),
-	foreignKey({
-			columns: [table.cartId],
-			foreignColumns: [cart.id],
-			name: "cartItem_cart_id_fk"
-		}),
-]);
-
 export const menuItem = pgTable("menuItem", {
 	id: serial().primaryKey().notNull(),
 	menuId: integer().notNull(),
@@ -211,10 +190,32 @@ export const orderItem = pgTable("orderItem", {
 	timeStamp: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
 });
 
+export const cartItem = pgTable("cartItem", {
+	id: serial().primaryKey().notNull(),
+	cartId: integer().default(0).notNull(),
+	productId: integer().notNull(),
+	quantity: integer().default(0).notNull(),
+	lineTotal: numeric({ precision: 10, scale:  2 }).default('0').notNull(),
+	createDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	modifiedDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.productId],
+			foreignColumns: [product.id],
+			name: "cartItem_product_id_fk"
+		}),
+	foreignKey({
+			columns: [table.cartId],
+			foreignColumns: [cart.id],
+			name: "cartItem_cart_id_fk"
+		}),
+]);
+
 export const menu = pgTable("menu", {
 	id: serial().primaryKey().notNull(),
 	name: text().notNull(),
 	description: text(),
+	isShopping: boolean().default(false).notNull(),
 });
 
 export const category = pgTable("category", {

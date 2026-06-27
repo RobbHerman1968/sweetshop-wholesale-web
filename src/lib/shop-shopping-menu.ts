@@ -1,8 +1,9 @@
+import { cache } from 'react';
 import { getServerSession } from 'next-auth';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/auth';
 import { db } from '@/lib/db-pg';
-import { account } from '@/lib/drizzle/schema';
+import { account, menu } from '@/lib/drizzle/schema';
 import { WHOLESALE_SHOPPING_MENU_ID } from '@/lib/menu-manage-utils';
 import { getEffectiveWholesaleAccountIdForShopCatalog } from '@/lib/wholesale-account-switcher-actions';
 import { parseUserId } from '@/lib/user-id';
@@ -12,7 +13,26 @@ export function isHebAccountMateId(accountMateId: string | null | undefined): bo
     return Boolean(id?.startsWith('HEB'));
 }
 
-export async function getShoppingMenuIdForAccount(accountId: number): Promise<number> {
+/** Ensure menuId refers to an existing shopping menu; otherwise fall back to the default wholesale menu. */
+export const resolveValidShoppingMenuId = cache(async (menuId: number): Promise<number> => {
+    if (!Number.isFinite(menuId) || menuId <= 0) {
+        return WHOLESALE_SHOPPING_MENU_ID;
+    }
+
+    const [row] = await db
+        .select({ id: menu.id, isShopping: menu.isShopping })
+        .from(menu)
+        .where(eq(menu.id, menuId))
+        .limit(1);
+
+    if (row?.isShopping) {
+        return row.id;
+    }
+
+    return WHOLESALE_SHOPPING_MENU_ID;
+});
+
+export const getShoppingMenuIdForAccount = cache(async (accountId: number): Promise<number> => {
     if (!Number.isFinite(accountId) || accountId <= 0) {
         return WHOLESALE_SHOPPING_MENU_ID;
     }
@@ -23,11 +43,10 @@ export async function getShoppingMenuIdForAccount(accountId: number): Promise<nu
         .where(eq(account.id, accountId))
         .limit(1);
 
-    const menuId = row?.menuId ?? 0;
-    return menuId > 0 ? menuId : WHOLESALE_SHOPPING_MENU_ID;
-}
+    return resolveValidShoppingMenuId(row?.menuId ?? 0);
+});
 
-export async function getShoppingMenuIdFromSession(): Promise<number> {
+export const getShoppingMenuIdFromSession = cache(async (): Promise<number> => {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
         return WHOLESALE_SHOPPING_MENU_ID;
@@ -44,4 +63,4 @@ export async function getShoppingMenuIdFromSession(): Promise<number> {
     }
 
     return getShoppingMenuIdForAccount(accountId);
-}
+});

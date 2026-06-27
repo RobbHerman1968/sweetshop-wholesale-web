@@ -45,9 +45,17 @@ export function MenuItemsContent({ menu, items, categoryNames, pageNames, search
                     <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">{menu.name}</h1>
                     {usage ? <p className="text-xs text-[#6e4a34]">{usage}</p> : null}
                 </div>
-                <Link href={`/manage/menus/${menu.id}/items/new`} className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}>
-                    Add menu item
-                </Link>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                        href={`/manage/menus/${menu.id}/edit`}
+                        className={cn(buttonVariants({ variant: 'outline' }), 'text-[11px]')}
+                    >
+                        Edit menu
+                    </Link>
+                    <Link href={`/manage/menus/${menu.id}/items/new`} className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}>
+                        Add menu item
+                    </Link>
+                </div>
             </header>
 
             <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">

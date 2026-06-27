@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { product, productGroupProduct, productGroup, productImage, vercelImage, account, cart, cartItem, category, menuItem, page } from "./schema";
+import { product, productGroupProduct, productGroup, productImage, vercelImage, account, cart, category, menuItem, page, cartItem } from "./schema";
 
 export const productGroupProductRelations = relations(productGroupProduct, ({one}) => ({
 	product: one(product, {
@@ -49,17 +49,6 @@ export const accountRelations = relations(account, ({many}) => ({
 	carts: many(cart),
 }));
 
-export const cartItemRelations = relations(cartItem, ({one}) => ({
-	product: one(product, {
-		fields: [cartItem.productId],
-		references: [product.id]
-	}),
-	cart: one(cart, {
-		fields: [cartItem.cartId],
-		references: [cart.id]
-	}),
-}));
-
 export const menuItemRelations = relations(menuItem, ({one}) => ({
 	category: one(category, {
 		fields: [menuItem.categoryId],
@@ -77,4 +66,15 @@ export const categoryRelations = relations(category, ({many}) => ({
 
 export const pageRelations = relations(page, ({many}) => ({
 	menuItems: many(menuItem),
+}));
+
+export const cartItemRelations = relations(cartItem, ({one}) => ({
+	product: one(product, {
+		fields: [cartItem.productId],
+		references: [product.id]
+	}),
+	cart: one(cart, {
+		fields: [cartItem.cartId],
+		references: [cart.id]
+	}),
 }));

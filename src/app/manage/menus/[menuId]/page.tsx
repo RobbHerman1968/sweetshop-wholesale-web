@@ -26,7 +26,7 @@ export default async function ManageMenuItemsPage({ params, searchParams }: Prop
     const trimmedName = searchName.trim();
     const items = await getMenuItemsForManage(menuId, trimmedName || undefined);
     const { categoryNames, pageNames } = await getMenuItemNameMaps(items);
-    const usage = getMenuUsageDescription(menu.id);
+    const usage = getMenuUsageDescription(menu);
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">

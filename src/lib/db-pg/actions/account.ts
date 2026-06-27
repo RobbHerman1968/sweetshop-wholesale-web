@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db-pg';
 import { getAccountOldFromSweetshopOld } from '@/lib/db-sweetshop-old';
-import { mapSignInLocationIdToMenuId } from '@/lib/menu-manage-utils';
+import { mapSignInLocationIdToMenuId, WHOLESALE_SHOPPING_MENU_ID } from '@/lib/menu-manage-utils';
 import { account, user } from '@/lib/drizzle/schema';
 import { and, asc, eq, ilike, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -47,7 +47,8 @@ function readCheckbox(formData: FormData, name: string): boolean {
 
 function readMenuId(formData: FormData): number {
     const raw = Number(formData.get('menuId'));
-    return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : 0;
+    const menuId = Number.isFinite(raw) && raw > 0 ? Math.trunc(raw) : WHOLESALE_SHOPPING_MENU_ID;
+    return menuId;
 }
 
 export async function getAccountByIdForManage(accountId: number): Promise<ManageAccount | null> {
@@ -119,7 +120,7 @@ export async function updateAccountFromForm(formData: FormData) {
 
     revalidatePath('/manage/accounts');
     revalidatePath(`/manage/accounts/${id}`);
-    revalidatePath('/shop');
+    revalidatePath('/shop', 'layout');
 }
 
 export async function reloadAccountFromAccountMate(

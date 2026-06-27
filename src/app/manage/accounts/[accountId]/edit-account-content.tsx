@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { updateAccountFromForm, reloadAccountFromAccountMate } from '@/lib/db-pg/actions/account';
 import type { ManageAccount } from '@/lib/db-pg/actions/account';
 import type { ManageMenu } from '@/lib/db-pg/actions/menu';
-import { formatManageMenuLabel } from '@/lib/menu-manage-utils';
+import { formatManageMenuLabel, resolveAccountMenuId } from '@/lib/menu-manage-utils';
 
 type Props = {
     account: ManageAccount;
@@ -100,6 +100,8 @@ export function EditAccountContent({ account, menus, backHref }: Props) {
         router.refresh();
     }
 
+    const selectedMenuId = resolveAccountMenuId(accountFields.menuId ?? 0, menus);
+
     return (
         <form key={buildAccountFormKey(accountFields)} onSubmit={handleSubmit} className="space-y-8">
             <input type="hidden" name="id" value={accountFields.id} readOnly />
@@ -119,10 +121,9 @@ export function EditAccountContent({ account, menus, backHref }: Props) {
                     <select
                         id="edit-account-menuId"
                         name="menuId"
-                        defaultValue={String(accountFields.menuId ?? 0)}
+                        defaultValue={String(selectedMenuId)}
                         className="flex h-9 w-full rounded-md border border-[#c49a78] bg-[#fdf7ef] px-3 py-1 text-xs text-[#4a2518] shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#6e4a34]"
                     >
-                        <option value="0">Default (Wholesale shopping)</option>
                         {menus.map((menuOption) => (
                             <option key={menuOption.id} value={menuOption.id}>
                                 {formatManageMenuLabel(menuOption)}

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { getAccountReloadBatch, reloadAccountFromAccountMate, revalidateManageAccountsAfterBulkReload } from '@/lib/db-pg/actions/account';
 import { toast } from '@/hooks/use-toast';
+import { WHOLESALE_SHOPPING_MENU_ID } from '@/lib/menu-manage-utils';
 import { cn } from '@/lib/utils';
 import type { ManageMenu } from '@/lib/db-pg/actions/menu';
 
@@ -49,12 +50,9 @@ function buildQuery(params: { page?: number; name?: string; accountMateId?: stri
 }
 
 function resolveAccountMenuName(menuId: number, menus: ManageMenu[]): string {
-    if (!menuId) {
-        return 'Wholesale shopping';
-    }
-
-    const match = menus.find((menu) => menu.id === menuId);
-    return match?.name?.trim() || `Menu ${menuId}`;
+    const effectiveMenuId = menuId > 0 ? menuId : WHOLESALE_SHOPPING_MENU_ID;
+    const match = menus.find((menu) => menu.id === effectiveMenuId);
+    return match?.name?.trim() || `Menu ${effectiveMenuId}`;
 }
 
 export function AccountsContent({ data, menus, pagination, searchName, searchAccountMateId }: AccountsContentProps) {

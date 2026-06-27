@@ -23,6 +23,7 @@ export type ManageMenu = {
     id: number;
     name: string;
     description: string;
+    isShopping: boolean;
     itemCount: number;
 };
 
@@ -69,10 +70,26 @@ function mapMenuItemRow(match: {
 
 export async function getMenusFromDB(): Promise<ManageMenu[]> {
     const menus = await db
-        .select({ id: menu.id, name: menu.name, description: menu.description })
+        .select({ id: menu.id, name: menu.name, description: menu.description, isShopping: menu.isShopping })
         .from(menu)
         .orderBy(asc(menu.id));
 
+    return mapMenusWithItemCounts(menus);
+}
+
+export async function getShoppingMenusFromDB(): Promise<ManageMenu[]> {
+    const menus = await db
+        .select({ id: menu.id, name: menu.name, description: menu.description, isShopping: menu.isShopping })
+        .from(menu)
+        .where(eq(menu.isShopping, true))
+        .orderBy(asc(menu.id));
+
+    return mapMenusWithItemCounts(menus);
+}
+
+async function mapMenusWithItemCounts(
+    menus: { id: number; name: string | null; description: string | null; isShopping: boolean | null }[],
+): Promise<ManageMenu[]> {
     const counts = await db
         .select({
             menuId: menuItem.menuId,
@@ -87,6 +104,7 @@ export async function getMenusFromDB(): Promise<ManageMenu[]> {
         id: row.id,
         name: row.name?.trim() || `Menu ${row.id}`,
         description: row.description?.trim() || '',
+        isShopping: row.isShopping ?? false,
         itemCount: countByMenuId.get(row.id) ?? 0,
     }));
 }
@@ -95,7 +113,7 @@ export async function getMenuByIdForManage(menuId: number): Promise<ManageMenu |
     if (!Number.isFinite(menuId) || menuId <= 0) return null;
 
     const row = await db
-        .select({ id: menu.id, name: menu.name, description: menu.description })
+        .select({ id: menu.id, name: menu.name, description: menu.description, isShopping: menu.isShopping })
         .from(menu)
         .where(eq(menu.id, menuId))
         .limit(1);
@@ -111,6 +129,7 @@ export async function getMenuByIdForManage(menuId: number): Promise<ManageMenu |
         id: match.id,
         name: match.name?.trim() || `Menu ${match.id}`,
         description: match.description?.trim() || '',
+        isShopping: match.isShopping ?? false,
         itemCount: Number(count),
     };
 }

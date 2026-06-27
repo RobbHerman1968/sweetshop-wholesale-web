@@ -1,5 +1,4 @@
 import type { ManageMenuItem } from '@/lib/db-pg/actions/menu';
-import { usesGlobalMenuDisplayOrder } from '@/lib/menu-manage-utils';
 import { buildMenuItemTree, flattenMenuItemTree, type MenuItemTreeNode } from '@/lib/menu-item-tree';
 
 export type FlatMenuItemRow = ManageMenuItem & {
@@ -89,8 +88,8 @@ export function reorderFlatMenuRows(
     return [...remaining.slice(0, insertIdx), ...adjustedBlock, ...remaining.slice(insertIdx)];
 }
 
-export function flatRowsToMenuUpdates(flatRows: FlatMenuItemRow[], menuId?: number): MenuItemReorderUpdate[] {
-    const useGlobalOrder = menuId != null && usesGlobalMenuDisplayOrder(menuId);
+export function flatRowsToMenuUpdates(flatRows: FlatMenuItemRow[], isShopping = false): MenuItemReorderUpdate[] {
+    const useGlobalOrder = isShopping;
     const siblingCounts = new Map<number, number>();
     const parentStack: Array<{ id: number; depth: number }> = [{ id: 0, depth: -1 }];
     const updates: MenuItemReorderUpdate[] = [];
@@ -134,8 +133,8 @@ export function applyMenuUpdatesToRows(flatRows: FlatMenuItemRow[], updates: Men
     });
 }
 
-export function buildFlatRowsFromItems(items: ManageMenuItem[], menuId?: number): FlatMenuItemRow[] {
-    if (menuId != null && usesGlobalMenuDisplayOrder(menuId)) {
+export function buildFlatRowsFromItems(items: ManageMenuItem[], isShopping = false): FlatMenuItemRow[] {
+    if (isShopping) {
         return buildFlatRowsFromGlobalDisplayOrder(items);
     }
 
@@ -185,9 +184,9 @@ export function isValidMenuOutline(flatRows: FlatMenuItemRow[]): boolean {
 
 export function getNextMenuItemPlacement(
     items: ManageMenuItem[],
-    menuId: number,
+    isShopping: boolean,
 ): { parentMenuItemId: number; displayOrder: number } {
-    const useGlobalOrder = usesGlobalMenuDisplayOrder(menuId);
+    const useGlobalOrder = isShopping;
 
     if (useGlobalOrder) {
         const maxOrder = items.reduce((max, item) => Math.max(max, item.displayOrder), 0);

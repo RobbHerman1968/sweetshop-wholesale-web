@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db-pg';
-import { menuItem } from '@/lib/drizzle/schema';
+import { menu, menuItem } from '@/lib/drizzle/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { getMenuByIdForManage, getMenuItemByIdForManage, getMenuItemsForManage } from '@/lib/db-pg/actions/menu';
 import { getNextMenuItemPlacement } from '@/lib/menu-item-reorder';
@@ -20,6 +20,107 @@ async function syncMenuItemIdSequence() {
     `);
 }
 
+async function syncMenuIdSequence() {
+    await db.execute(sql`
+        SELECT setval(
+            pg_get_serial_sequence('"menu"', 'id'),
+            (SELECT COALESCE(MAX(id), 0) FROM "menu")
+        )
+    `);
+}
+
+export async function createMenuFromForm(formData: FormData): Promise<FormResult> {
+    const name = (formData.get('name') as string)?.trim();
+    if (!name) {
+        return { ok: false, error: 'Menu name is required.' };
+    }
+
+    const description = (formData.get('description') as string)?.trim() || null;
+    const isShopping = parseIsShopping(formData);
+
+    try {
+        await syncMenuIdSequence();
+
+        const [created] = await db
+            .insert(menu)
+            .values({
+                name,
+                description,
+                isShopping,
+            })
+            .returning({ id: menu.id });
+
+        revalidatePath('/manage/menus');
+        if (isShopping) {
+            revalidatePath('/shop', 'layout');
+        }
+        redirect(`/manage/menus/${created.id}`);
+    } catch (err) {
+        if (typeof err === 'object' && err != null && 'digest' in err) {
+            const digest = String((err as { digest?: string }).digest ?? '');
+            if (digest.startsWith('NEXT_REDIRECT')) {
+                throw err;
+            }
+        }
+        console.error('[createMenuFromForm]', err);
+        return {
+            ok: false,
+            error: err instanceof Error ? err.message : 'Failed to create menu.',
+        };
+    }
+}
+
+export async function updateMenuFromForm(formData: FormData): Promise<FormResult> {
+    const menuId = Number(formData.get('menuId'));
+    if (!Number.isFinite(menuId) || menuId <= 0) {
+        return { ok: false, error: 'Invalid menu.' };
+    }
+
+    const name = (formData.get('name') as string)?.trim();
+    if (!name) {
+        return { ok: false, error: 'Menu name is required.' };
+    }
+
+    const description = (formData.get('description') as string)?.trim() || null;
+    const isShopping = parseIsShopping(formData);
+
+    try {
+        const updated = await db
+            .update(menu)
+            .set({
+                name,
+                description,
+                isShopping,
+            })
+            .where(eq(menu.id, menuId))
+            .returning({ id: menu.id });
+
+        if (updated.length === 0) {
+            return { ok: false, error: 'Menu not found.' };
+        }
+
+        revalidatePath('/manage/menus');
+        revalidatePath(`/manage/menus/${menuId}`);
+        revalidatePath(`/manage/menus/${menuId}/edit`);
+        if (isShopping) {
+            revalidatePath('/shop', 'layout');
+        }
+        redirect(`/manage/menus/${menuId}`);
+    } catch (err) {
+        if (typeof err === 'object' && err != null && 'digest' in err) {
+            const digest = String((err as { digest?: string }).digest ?? '');
+            if (digest.startsWith('NEXT_REDIRECT')) {
+                throw err;
+            }
+        }
+        console.error('[updateMenuFromForm]', err);
+        return {
+            ok: false,
+            error: err instanceof Error ? err.message : 'Failed to update menu.',
+        };
+    }
+}
+
 function parseOptionalId(value: FormDataEntryValue | null): number | null {
     if (value == null || value === '') return null;
     const parsed = Number(value);
@@ -28,6 +129,11 @@ function parseOptionalId(value: FormDataEntryValue | null): number | null {
 
 function parseIsActive(formData: FormData): boolean {
     const values = formData.getAll('isActive');
+    return values.includes('true') || values.includes('on');
+}
+
+function parseIsShopping(formData: FormData): boolean {
+    const values = formData.getAll('isShopping');
     return values.includes('true') || values.includes('on');
 }
 
@@ -64,7 +170,7 @@ export async function createMenuItemFromForm(formData: FormData): Promise<FormRe
     }
 
     const existingItems = await getMenuItemsForManage(menuId);
-    const placement = getNextMenuItemPlacement(existingItems, menuId);
+    const placement = getNextMenuItemPlacement(existingItems, menu.isShopping);
     const isActive = parseIsActive(formData);
     const linkType = (formData.get('linkType') as string)?.trim() || 'section';
     const { categoryId, pageId, externalUrl } = parseMenuItemLinkFields(formData, linkType);
