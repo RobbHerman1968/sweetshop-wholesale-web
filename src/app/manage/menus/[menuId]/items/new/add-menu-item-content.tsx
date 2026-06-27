@@ -16,12 +16,22 @@ type Props = {
 
 export function AddMenuItemContent({ menu, categories, pages }: Props) {
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [linkType, setLinkType] = useState<'section' | 'category' | 'page' | 'external'>('section');
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         setSaving(true);
-        await createMenuItemFromForm(new FormData(e.currentTarget));
+        setError(null);
+
+        const result = await createMenuItemFromForm(new FormData(e.currentTarget));
+
+        if (!result.ok) {
+            setError(result.error);
+            setSaving(false);
+            return;
+        }
+
         setSaving(false);
     }
 
@@ -34,6 +44,12 @@ export function AddMenuItemContent({ menu, categories, pages }: Props) {
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Add Menu Item</h1>
                 <p className="text-xs text-[#6e4a34]">Creates a new top-level item at the bottom of {menu.name}.</p>
             </header>
+
+            {error ? (
+                <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+                    {error}
+                </p>
+            ) : null}
 
             <section className="space-y-4 rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 sm:p-6">
                 <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Basic info</h2>

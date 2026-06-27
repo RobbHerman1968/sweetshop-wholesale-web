@@ -83,6 +83,17 @@ export async function getProductGroupsWithActiveProducts() {
     return rows;
 }
 
+/** Category ids that have at least one active product assigned. */
+export async function getCategoryIdsWithActiveProducts(): Promise<Set<number>> {
+    const rows = await db
+        .selectDistinct({ categoryId: productCategory.categoryId })
+        .from(productCategory)
+        .innerJoin(product, eq(productCategory.productId, product.id))
+        .where(eq(product.isActive, true));
+
+    return new Set(rows.map((row) => row.categoryId));
+}
+
 export async function getPaginatedProductsFromDB({
     page = 1,
     limit = 10,
@@ -101,7 +112,7 @@ export async function getPaginatedProductsFromDB({
     itemNumber?: string;
     /** Matches product name OR item number (shop search box). Ignores `name` / `itemNumber` when set. */
     search?: string;
-    /** Product must appear in `productGroupProduct` for one of these ids (typically from `accountGroup` for the selected account). */
+    /** Product must appear in `productGroupProduct` for one of these ids. */
     productGroupIds?: number[];
     /** Shop keyword facets: AND across selected facets; within each facet, OR across its search terms (name / description ILIKE). */
     shopFacetIds?: string[];

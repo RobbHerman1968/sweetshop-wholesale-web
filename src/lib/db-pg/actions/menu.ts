@@ -3,8 +3,10 @@ import { db } from '@/lib/db-pg';
 import { category, menu, menuItem, page } from '@/lib/drizzle/schema';
 import { and, asc, eq, ilike, inArray, sql } from 'drizzle-orm';
 import type { BrandBarNavCategory, BrandBarNavLink, BrandBarNavSection } from '@/assets/brand-bar-nav';
+import { getCategoryIdsWithActiveProducts } from '@/lib/db-pg/actions/product';
 import { buildPagePath } from '@/lib/page-path';
 import { buildShopCategoryPath } from '@/lib/shop-category-path';
+import { getShoppingMenuIdFromSession } from '@/lib/shop-shopping-menu';
 import {
     WHOLESALE_BRAND_BAR_MENU_ID,
     WHOLESALE_PAGE_MENU_ID,
@@ -16,6 +18,7 @@ export { WHOLESALE_BRAND_BAR_MENU_ID, WHOLESALE_PAGE_MENU_ID, WHOLESALE_SHOPPING
 export type ManageMenu = {
     id: number;
     name: string;
+    description: string;
     itemCount: number;
 };
 
@@ -61,7 +64,10 @@ function mapMenuItemRow(match: {
 }
 
 export async function getMenusFromDB(): Promise<ManageMenu[]> {
-    const menus = await db.select({ id: menu.id, name: menu.name }).from(menu).orderBy(asc(menu.id));
+    const menus = await db
+        .select({ id: menu.id, name: menu.name, description: menu.description })
+        .from(menu)
+        .orderBy(asc(menu.id));
 
     const counts = await db
         .select({
@@ -76,6 +82,7 @@ export async function getMenusFromDB(): Promise<ManageMenu[]> {
     return menus.map((row) => ({
         id: row.id,
         name: row.name?.trim() || `Menu ${row.id}`,
+        description: row.description?.trim() || '',
         itemCount: countByMenuId.get(row.id) ?? 0,
     }));
 }
@@ -83,7 +90,11 @@ export async function getMenusFromDB(): Promise<ManageMenu[]> {
 export async function getMenuByIdForManage(menuId: number): Promise<ManageMenu | null> {
     if (!Number.isFinite(menuId) || menuId <= 0) return null;
 
-    const row = await db.select({ id: menu.id, name: menu.name }).from(menu).where(eq(menu.id, menuId)).limit(1);
+    const row = await db
+        .select({ id: menu.id, name: menu.name, description: menu.description })
+        .from(menu)
+        .where(eq(menu.id, menuId))
+        .limit(1);
     const match = row[0];
     if (!match) return null;
 
@@ -95,6 +106,7 @@ export async function getMenuByIdForManage(menuId: number): Promise<ManageMenu |
     return {
         id: match.id,
         name: match.name?.trim() || `Menu ${match.id}`,
+        description: match.description?.trim() || '',
         itemCount: Number(count),
     };
 }
@@ -374,6 +386,37 @@ export const getShopMenuCategoryIds = cache(async (menuId = WHOLESALE_SHOPPING_M
     return [...new Set(rows.map((row) => row.categoryId).filter((id): id is number => id != null && id > 0))];
 });
 
+export function remapBrandBarCategoryLinksForShopMenu(
+    categories: BrandBarNavCategory[],
+    shopMenuCategoryIds: number[],
+): BrandBarNavCategory[] {
+    const allowed = new Set(shopMenuCategoryIds);
+
+    return categories.map((group) => ({
+        ...group,
+        sections: group.sections.map((section) => ({
+            ...section,
+            links: section.links.map((link) => {
+                if (link.categoryId == null || link.categoryId <= 0) return link;
+                if (allowed.has(link.categoryId)) return link;
+                return { ...link, href: '/shop' };
+            }),
+        })),
+    }));
+}
+
+export async function getBrandBarNavCategoriesForSiteHeader(
+    menuId = WHOLESALE_BRAND_BAR_MENU_ID,
+): Promise<BrandBarNavCategory[]> {
+    const shoppingMenuId = await getShoppingMenuIdFromSession();
+    const [categories, shopMenuCategoryIds] = await Promise.all([
+        getBrandBarNavCategories(menuId),
+        getShopMenuCategoryIds(shoppingMenuId),
+    ]);
+
+    return remapBrandBarCategoryLinksForShopMenu(categories, shopMenuCategoryIds);
+}
+
 export const getBrandBarNavCategories = cache(async (menuId = WHOLESALE_BRAND_BAR_MENU_ID): Promise<BrandBarNavCategory[]> => {
     const rows = await db
         .select({
@@ -427,4 +470,33 @@ export const getBrandBarNavCategories = cache(async (menuId = WHOLESALE_BRAND_BA
     }
 
     return buildBrandBarNavCategories(rows, categoryNavNames, pageNavNames);
+});
+
+function filterShopNavCategoriesByActiveProducts(
+    categories: BrandBarNavCategory[],
+    activeCategoryIds: Set<number>,
+): BrandBarNavCategory[] {
+    return categories
+        .map((group) => ({
+            ...group,
+            sections: group.sections
+                .map((section) => ({
+                    ...section,
+                    links: section.links.filter((link) => {
+                        if (link.categoryId == null || link.categoryId <= 0) return true;
+                        return activeCategoryIds.has(link.categoryId);
+                    }),
+                }))
+                .filter((section) => section.links.length > 0),
+        }))
+        .filter((group) => group.sections.length > 0);
+}
+
+export const getShopNavCategories = cache(async (menuId = WHOLESALE_SHOPPING_MENU_ID): Promise<BrandBarNavCategory[]> => {
+    const [categories, activeCategoryIds] = await Promise.all([
+        getBrandBarNavCategories(menuId),
+        getCategoryIdsWithActiveProducts(),
+    ]);
+
+    return filterShopNavCategoriesByActiveProducts(categories, activeCategoryIds);
 });

@@ -2,6 +2,7 @@
 
 import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { db } from '@/lib/db-pg';
 import { category } from '@/lib/drizzle/schema';
 import { and, asc, eq, ilike, sql } from 'drizzle-orm';
@@ -14,6 +15,8 @@ export type ShopCategory = {
     navName: string;
     isActive: boolean;
 };
+
+type FormResult = { ok: true } | { ok: false; error: string };
 
 function mapCategoryRow(match: {
     id: number;
@@ -124,28 +127,76 @@ export async function getPaginatedCategoriesFromDB({
     };
 }
 
-export async function updateCategoryFromForm(formData: FormData) {
+function parseCategoryForm(formData: FormData) {
+    const name = String(formData.get('name') ?? '').trim();
+    if (!name) {
+        return { ok: false as const, error: 'Category name is required.' };
+    }
+
+    const navName = slugifyPageNavName(name);
+    if (!navName) {
+        return { ok: false as const, error: 'Enter a valid category name.' };
+    }
+
+    const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true';
+
+    return {
+        ok: true as const,
+        values: {
+            name,
+            navName,
+            isActive,
+        },
+    };
+}
+
+function revalidateCategoryPaths(categoryId: number, navName: string) {
+    revalidatePath('/manage/categories');
+    revalidatePath(`/manage/categories/${categoryId}`);
+    revalidatePath(buildShopCategoryPath(categoryId, navName));
+    revalidatePath('/shop');
+}
+
+export async function createCategoryFromForm(formData: FormData): Promise<FormResult> {
+    const parsed = parseCategoryForm(formData);
+    if (!parsed.ok) return parsed;
+
+    const [created] = await db
+        .insert(category)
+        .values({
+            name: parsed.values.name,
+            navName: parsed.values.navName,
+            isActive: parsed.values.isActive,
+        })
+        .returning({ id: category.id });
+
+    revalidateCategoryPaths(created.id, parsed.values.navName);
+    redirect(`/manage/categories/${created.id}`);
+}
+
+export async function updateCategoryFromForm(formData: FormData): Promise<FormResult> {
     const id = Number(formData.get('id'));
-    if (!id) return;
+    if (!Number.isFinite(id) || id <= 0) {
+        return { ok: false, error: 'Invalid category.' };
+    }
 
     const existing = await getCategoryByIdForManage(id);
-    if (!existing) return;
+    if (!existing) {
+        return { ok: false, error: 'Category not found.' };
+    }
 
-    const name = (formData.get('name') as string)?.trim() ?? existing.name;
-    const navName = slugifyPageNavName(name);
-    const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true';
+    const parsed = parseCategoryForm(formData);
+    if (!parsed.ok) return parsed;
 
     await db
         .update(category)
         .set({
-            name,
-            navName,
-            isActive,
+            name: parsed.values.name,
+            navName: parsed.values.navName,
+            isActive: parsed.values.isActive,
         })
         .where(eq(category.id, id));
 
-    revalidatePath('/manage/categories');
-    revalidatePath(`/manage/categories/${id}`);
-    revalidatePath(buildShopCategoryPath(id, navName));
-    revalidatePath('/shop');
+    revalidateCategoryPaths(id, parsed.values.navName);
+    return { ok: true };
 }

@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Menu, ShoppingCart, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { BrandBar } from '@/components/brand-bar';
@@ -12,6 +12,7 @@ import { UserAccountMenu } from '@/components/user-account-menu';
 import { WholesaleAccountSwitcher } from '@/components/wholesale-account-switcher';
 import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
 import { useShopCartCount } from '@/hooks/use-shop-cart-count';
+import { useShopCartStore } from '@/store/useShopCartStore';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +22,7 @@ const headerNavLinkClass =
 type SiteHeaderProps = {
     onLoginClick: () => void;
     brandBarCategories: BrandBarNavCategory[];
+    initialCartItemCount: number;
 };
 
 type CartNavButtonProps = {
@@ -91,13 +93,20 @@ function CartNavButton({ variant, className, compact, itemCount }: CartNavButton
     );
 }
 
-export function SiteHeader({ onLoginClick, brandBarCategories }: SiteHeaderProps) {
+export function SiteHeader({ onLoginClick, brandBarCategories, initialCartItemCount }: SiteHeaderProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [cartCountHydrated, setCartCountHydrated] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
     const { status } = useSession();
     const isLoggedIn = status === 'authenticated';
-    const { itemCount: cartItemCount } = useShopCartCount();
+    const { itemCount: liveCartItemCount } = useShopCartCount();
+    const cartItemCount = cartCountHydrated ? liveCartItemCount : initialCartItemCount;
+
+    useEffect(() => {
+        useShopCartStore.getState().setItemCount(initialCartItemCount);
+        setCartCountHydrated(true);
+    }, [initialCartItemCount]);
 
     const onShopNavClick = useCallback(
         (e: React.MouseEvent<HTMLAnchorElement>) => {

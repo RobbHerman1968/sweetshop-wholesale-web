@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import moment from 'moment-timezone';
 
 const DATE_INPUT_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -197,18 +198,21 @@ export function OrdersContent({ data, pagination, dateFrom, dateTo }: OrdersCont
                                 const detailHref = `/manage/orders/${o.id}?returnTo=${encodeURIComponent(listHref)}`;
                                 return (
                                     <tr key={o.id} className={isEven ? 'bg-[#fdf7ef] font-mono' : 'bg-[#f8eddf] font-mono'}>
-                                        <td className="px-3 py-2 align-top text-[11px] font-semibold text-center">
+                                        <td className="px-3 py-2 align-middle text-[11px] font-semibold text-center">
                                             <Link href={detailHref} className="text-[#4a2518] underline-offset-2 hover:underline">
                                                 #{o.orderNumber ?? o.id}
                                             </Link>
                                         </td>
-                                        <td className="px-3 py-2 align-top text-[11px] text-center">{o.accountMateOrderNumber ?? 'Unknown'}</td>
-                                        <td className="px-3 py-2 align-top text-[11px] font-sans text-left">{o.customerName?.trim() || '—'}</td>
-                                        <td className="px-3 py-2 align-top font-mono text-[11px] tabular-nums text-center">{dateStr}</td>
-                                        <td className="px-3 py-2 align-top text-right text-[11px] font-semibold">${Number(o.total).toFixed(2)}</td>
-                                        <td className="px-3 py-2 align-top text-[11px] font-mono text-center">{o.shippingCode ?? '—'}</td>
-                                        <td className="px-3 py-2 align-top text-right text-[11px]">
-                                            <Link href={detailHref} className="font-semibold uppercase tracking-[0.12em] text-[#6e4a34] underline-offset-2 hover:underline">
+                                        <td className="px-3 py-2 align-middle text-[11px] text-center">{o.accountMateOrderNumber ?? 'Unknown'}</td>
+                                        <td className="px-3 py-2 align-middle text-[11px] font-sans text-left">{o.customerName?.trim() || '—'}</td>
+                                        <td className="px-3 py-2 align-middle font-mono text-[11px] tabular-nums text-center">{dateStr}</td>
+                                        <td className="px-3 py-2 align-middle text-right text-[11px] font-semibold">${Number(o.total).toFixed(2)}</td>
+                                        <td className="px-3 py-2 align-middle text-[11px] font-mono text-center">{o.shippingCode ?? '—'}</td>
+                                        <td className="px-3 py-2 align-middle text-right text-[11px]">
+                                            <Link
+                                                href={detailHref}
+                                                className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
+                                            >
                                                 View
                                             </Link>
                                         </td>

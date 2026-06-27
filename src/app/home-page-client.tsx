@@ -14,14 +14,19 @@ const heroVideoSrc = 'https://tk1qsvgip35suuxh.public.blob.vercel-storage.com/vi
 
 type HomePageClientProps = {
     brandBarCategories: BrandBarNavCategory[];
+    initialCartItemCount: number;
 };
 
-export function HomePageClient({ brandBarCategories }: HomePageClientProps) {
+export function HomePageClient({ brandBarCategories, initialCartItemCount }: HomePageClientProps) {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
 
     return (
         <div className="min-h-screen bg-white text-[#3c251a] font-sans">
-            <SiteHeader onLoginClick={() => setIsLoginOpen(true)} brandBarCategories={brandBarCategories} />
+            <SiteHeader
+                onLoginClick={() => setIsLoginOpen(true)}
+                brandBarCategories={brandBarCategories}
+                initialCartItemCount={initialCartItemCount}
+            />
 
             <main id={SITE_MAIN_ID} tabIndex={-1} className={cn('mx-auto flex max-w-6xl flex-col gap-10 px-3 pb-14 pt-1 sm:px-4 sm:pb-16 sm:pt-1', SITE_MAIN_FOCUS_CLASS)}>
                 {/* Hero banner */}

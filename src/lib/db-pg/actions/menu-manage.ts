@@ -4,10 +4,21 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db-pg';
 import { menuItem } from '@/lib/drizzle/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { getMenuByIdForManage, getMenuItemByIdForManage, getMenuItemsForManage } from '@/lib/db-pg/actions/menu';
 import { getNextMenuItemPlacement } from '@/lib/menu-item-reorder';
 import type { MenuItemReorderUpdate } from '@/lib/menu-item-reorder';
+
+type FormResult = { ok: true } | { ok: false; error: string };
+
+async function syncMenuItemIdSequence() {
+    await db.execute(sql`
+        SELECT setval(
+            pg_get_serial_sequence('"menuItem"', 'id'),
+            (SELECT COALESCE(MAX(id), 0) FROM "menuItem")
+        )
+    `);
+}
 
 function parseOptionalId(value: FormDataEntryValue | null): number | null {
     if (value == null || value === '') return null;
@@ -36,15 +47,21 @@ function parseMenuItemLinkFields(formData: FormData, linkType: string) {
     return { categoryId, pageId, externalUrl };
 }
 
-export async function createMenuItemFromForm(formData: FormData) {
+export async function createMenuItemFromForm(formData: FormData): Promise<FormResult> {
     const menuId = Number(formData.get('menuId'));
-    if (!menuId) return;
+    if (!Number.isFinite(menuId) || menuId <= 0) {
+        return { ok: false, error: 'Invalid menu.' };
+    }
 
     const menu = await getMenuByIdForManage(menuId);
-    if (!menu) return;
+    if (!menu) {
+        return { ok: false, error: 'Menu not found.' };
+    }
 
     const name = (formData.get('name') as string)?.trim();
-    if (!name) return;
+    if (!name) {
+        return { ok: false, error: 'Menu item label is required.' };
+    }
 
     const existingItems = await getMenuItemsForManage(menuId);
     const placement = getNextMenuItemPlacement(existingItems, menuId);
@@ -52,16 +69,38 @@ export async function createMenuItemFromForm(formData: FormData) {
     const linkType = (formData.get('linkType') as string)?.trim() || 'section';
     const { categoryId, pageId, externalUrl } = parseMenuItemLinkFields(formData, linkType);
 
-    await db.insert(menuItem).values({
-        menuId,
-        name,
-        parentMenuItemId: placement.parentMenuItemId,
-        displayOrder: placement.displayOrder,
-        isActive,
-        categoryId,
-        pageId,
-        externalUrl,
-    });
+    if (linkType === 'category' && categoryId == null) {
+        return { ok: false, error: 'Select a category for this menu item.' };
+    }
+
+    if (linkType === 'page' && pageId == null) {
+        return { ok: false, error: 'Select a page for this menu item.' };
+    }
+
+    if (linkType === 'external' && !externalUrl) {
+        return { ok: false, error: 'Enter an external URL for this menu item.' };
+    }
+
+    try {
+        await syncMenuItemIdSequence();
+
+        await db.insert(menuItem).values({
+            menuId,
+            name,
+            parentMenuItemId: placement.parentMenuItemId,
+            displayOrder: placement.displayOrder,
+            isActive,
+            categoryId,
+            pageId,
+            externalUrl,
+        });
+    } catch (err) {
+        console.error('[createMenuItemFromForm]', err);
+        return {
+            ok: false,
+            error: err instanceof Error ? err.message : 'Failed to create menu item.',
+        };
+    }
 
     revalidatePath('/manage/menus');
     revalidatePath(`/manage/menus/${menuId}`);

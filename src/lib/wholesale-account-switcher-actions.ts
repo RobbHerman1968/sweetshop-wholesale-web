@@ -4,11 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { and, asc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm';
+import { asc, eq, ilike, or } from 'drizzle-orm';
 import { authOptions } from '@/auth';
 import { db } from '@/lib/db-pg';
-import { getShopProductGroupIdsForUserAccount, getUserAccounts, verifyUserOwnsAccount, accountExists, canAccessAccountForShop } from '@/lib/db-pg/actions/account';
-import { account, accountGroup, product, productGroupProduct, user } from '@/lib/drizzle/schema';
+import { getUserAccounts, verifyUserOwnsAccount, accountExists, canAccessAccountForShop } from '@/lib/db-pg/actions/account';
+import { account, user } from '@/lib/drizzle/schema';
 import { WHOLESALE_ADMIN_SHOP_AS_COOKIE, WHOLESALE_SELECTED_ACCOUNT_COOKIE } from '@/lib/wholesale-account-cookie';
 import { parseUserId } from '@/lib/user-id';
 
@@ -357,86 +357,6 @@ export async function resetAdminShopAs(): Promise<{ ok: boolean }> {
 
     revalidateShopAccountPaths();
     return { ok: true };
-}
-
-const ACCOUNT_CHANGE_DEBUG_PRODUCT_LIMIT = 50;
-
-export type WholesaleAccountCatalogDebug = {
-    accountId: number;
-    /** Rows in `accountGroup` for this account (links account → productGroup). */
-    accountGroupLinks: Array<{ accountGroupId: number; productGroupId: number }>;
-    /** Distinct product group ids used for this account’s shop scope. */
-    productGroupIds: number[];
-    /** Active products in those groups (same rule as shop grid), first N rows. */
-    activeProductsSample: Array<{ id: number; name: string | null; itemNumber: string | null }>;
-    activeProductsShown: number;
-    /** Total active products across those groups (may exceed sample size). */
-    activeProductTotal: number;
-};
-
-/** For debugging: accountGroup rows and products tied via productGroupProduct (requires ownership). */
-export async function getWholesaleAccountCatalogDebug(
-    accountId: number,
-): Promise<{ ok: false } | ({ ok: true } & WholesaleAccountCatalogDebug)> {
-    const session = await getServerSession(authOptions);
-    const userId = parseUserId(session?.user?.id);
-    const isAdmin = session?.user?.isAdmin ?? false;
-    if (userId == null) return { ok: false };
-
-    const canAccess = await canAccessAccountForShop(userId, accountId, isAdmin);
-    if (!canAccess) return { ok: false };
-
-    const linkRows = await db
-        .select({
-            accountGroupId: accountGroup.id,
-            productGroupId: accountGroup.productGroupId,
-        })
-        .from(accountGroup)
-        .where(and(eq(accountGroup.accountId, accountId), isNotNull(accountGroup.accountId)));
-
-    const accountGroupLinks = linkRows.map((r) => ({
-        accountGroupId: r.accountGroupId,
-        productGroupId: r.productGroupId,
-    }));
-
-    const productGroupIds = await getShopProductGroupIdsForUserAccount(userId, accountId, isAdmin);
-
-    let activeProductsSample: WholesaleAccountCatalogDebug['activeProductsSample'] = [];
-    let activeProductTotal = 0;
-
-    if (productGroupIds.length > 0) {
-        const [countRow] = await db
-            .select({
-                total: sql<number>`cast(count(distinct ${product.id}) as int)`,
-            })
-            .from(product)
-            .innerJoin(productGroupProduct, eq(productGroupProduct.productId, product.id))
-            .where(and(inArray(productGroupProduct.productGroupId, productGroupIds), eq(product.isActive, true)));
-
-        activeProductTotal = Number(countRow?.total ?? 0);
-
-        activeProductsSample = await db
-            .selectDistinct({
-                id: product.id,
-                name: product.name,
-                itemNumber: product.itemNumber,
-            })
-            .from(product)
-            .innerJoin(productGroupProduct, eq(productGroupProduct.productId, product.id))
-            .where(and(inArray(productGroupProduct.productGroupId, productGroupIds), eq(product.isActive, true)))
-            .orderBy(asc(product.name))
-            .limit(ACCOUNT_CHANGE_DEBUG_PRODUCT_LIMIT);
-    }
-
-    return {
-        ok: true,
-        accountId,
-        accountGroupLinks,
-        productGroupIds,
-        activeProductsSample,
-        activeProductsShown: activeProductsSample.length,
-        activeProductTotal,
-    };
 }
 
 const ADMIN_ACCOUNT_SEARCH_LIMIT = 25;

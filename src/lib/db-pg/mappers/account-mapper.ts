@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use server';
 
-import { Account, AccountGroup } from '../entities/account-entity';
+import { Account } from '../entities/account-entity';
 
 export async function accountMapper(data: any) {
     const account: Account = {} as Account;
@@ -24,13 +24,4 @@ export async function accountMapper(data: any) {
     account.contactZipCode = data.contactZipCode?.trim() ?? '';
 
     return account;
-}
-
-export async function accountGroupMapper(data: any) {
-    const accountGroup: AccountGroup = {} as AccountGroup;
-    accountGroup.id = data.id;
-    accountGroup.accountId = data.accountId ?? 0;
-    accountGroup.productGroupId = data.productGroupId;
-
-    return accountGroup;
 }

@@ -50,24 +50,8 @@ export const account = pgTable("account", {
 	contactState: text(),
 	contactZipCode: text(),
 	contactEmail: text(),
+	menuId: integer().default(0).notNull(),
 });
-
-export const accountGroup = pgTable("accountGroup", {
-	id: serial().primaryKey().notNull(),
-	accountId: integer(),
-	productGroupId: integer().notNull(),
-}, (table) => [
-	foreignKey({
-			columns: [table.productGroupId],
-			foreignColumns: [productGroup.id],
-			name: "accountGroup_productGroup_id_fk"
-		}),
-	foreignKey({
-			columns: [table.accountId],
-			foreignColumns: [account.id],
-			name: "accountGroup_account_id_fk"
-		}),
-]);
 
 export const productGroupProduct = pgTable("productGroupProduct", {
 	id: serial().primaryKey().notNull(),
@@ -226,6 +210,7 @@ export const orderItem = pgTable("orderItem", {
 export const menu = pgTable("menu", {
 	id: serial().primaryKey().notNull(),
 	name: text().notNull(),
+	description: text(),
 });
 
 export const category = pgTable("category", {
@@ -233,13 +218,6 @@ export const category = pgTable("category", {
 	name: text().notNull(),
 	navName: text().notNull(),
 	isActive: boolean().notNull(),
-});
-
-export const stateShippingTaxRate = pgTable("stateShippingTaxRate", {
-	id: serial().primaryKey().notNull(),
-	stateAbbr: text().notNull(),
-	shippingRate: numeric({ precision: 10, scale:  2 }).notNull(),
-	taxRate: numeric({ precision: 10, scale:  4 }).default('0').notNull(),
 });
 
 export const productCategory = pgTable("productCategory", {
@@ -264,6 +242,14 @@ export const vercelImage = pgTable("vercelImage", {
 	path: text().notNull(),
 	name: text(),
 	isProductImage: boolean().default(false).notNull(),
+});
+
+export const stateShippingTaxRate = pgTable("stateShippingTaxRate", {
+	id: serial().primaryKey().notNull(),
+	stateAbbr: text().notNull(),
+	shippingRate: numeric({ precision: 10, scale:  2 }).notNull(),
+	taxRate: numeric({ precision: 10, scale:  4 }).default('0').notNull(),
+	stateName: text(),
 });
 
 export const xrefImage = pgTable("xrefImage", {
@@ -318,4 +304,10 @@ export const userAddress = pgTable("userAddress", {
 	county: text(),
 	emailAddress: text(),
 	phoneNumber: text(),
+});
+
+export const siteSetting = pgTable("siteSetting", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	value: numeric({ precision: 10, scale:  2 }).notNull(),
 });

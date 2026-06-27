@@ -26,9 +26,7 @@ export async function getCartByAccountId(accountId: number) {
         },
     });
     if (data) {
-        const cart = await cartMapper(data);
-        cart.cartItems.sort((a, b) => (a.product.name.toLowerCase() > b.product.name.toLowerCase() ? 1 : -1));
-        return cart;
+        return cartMapper(data);
     }
     return null;
 }

@@ -17,9 +17,3 @@ export type Account = {
     contactState: string;
     contactZipCode: string;
 }
-
-export type AccountGroup = {
-    id: number;
-    accountId: number;
-    productGroupId: number;
-}

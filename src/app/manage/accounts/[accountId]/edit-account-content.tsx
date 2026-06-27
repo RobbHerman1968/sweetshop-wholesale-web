@@ -8,9 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { updateAccountFromForm, reloadAccountFromAccountMate } from '@/lib/db-pg/actions/account';
 import type { ManageAccount } from '@/lib/db-pg/actions/account';
+import type { ManageMenu } from '@/lib/db-pg/actions/menu';
+import { formatManageMenuLabel } from '@/lib/menu-manage-utils';
 
 type Props = {
     account: ManageAccount;
+    menus: ManageMenu[];
     backHref: string;
 };
 
@@ -31,10 +34,11 @@ function buildAccountFormKey(account: ManageAccount) {
         contactZipCode: account.contactZipCode,
         terms: account.terms,
         isTerms: account.isTerms,
+        menuId: account.menuId,
     });
 }
 
-export function EditAccountContent({ account, backHref }: Props) {
+export function EditAccountContent({ account, menus, backHref }: Props) {
     const router = useRouter();
     const accountMateIdRef = useRef<HTMLInputElement>(null);
     const [accountFields, setAccountFields] = useState(account);
@@ -104,6 +108,29 @@ export function EditAccountContent({ account, backHref }: Props) {
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Edit Account</h1>
                 <p className="text-xs text-[#6e4a34]">Update wholesale account details, contact info, and shipping or billing flags.</p>
             </header>
+
+            <section className="space-y-4 rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 sm:p-6">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Shopping menu</h2>
+                <p className="text-xs text-[#6e4a34]">Choose which shop catalog menu this account sees when signed in.</p>
+                <div className="space-y-2">
+                    <Label htmlFor="edit-account-menuId" className={fieldLabelClass}>
+                        Menu
+                    </Label>
+                    <select
+                        id="edit-account-menuId"
+                        name="menuId"
+                        defaultValue={String(accountFields.menuId ?? 0)}
+                        className="flex h-9 w-full rounded-md border border-[#c49a78] bg-[#fdf7ef] px-3 py-1 text-xs text-[#4a2518] shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#6e4a34]"
+                    >
+                        <option value="0">Default (Wholesale shopping)</option>
+                        {menus.map((menuOption) => (
+                            <option key={menuOption.id} value={menuOption.id}>
+                                {formatManageMenuLabel(menuOption)}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </section>
 
             <section className="space-y-4 rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 sm:p-6">
                 <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Basic info</h2>

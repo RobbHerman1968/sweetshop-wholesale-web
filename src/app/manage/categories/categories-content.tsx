@@ -2,12 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink } from 'lucide-react';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { buildShopCategoryPath } from '@/lib/shop-category-path';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import type { ShopCategory } from '@/lib/db-pg/actions/category';
 
@@ -54,24 +52,29 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
         <div className="mx-auto max-w-7xl space-y-6">
             <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Categories</h1>
 
-            <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
-                <label className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
-                    <Input
-                        name="name"
-                        type="search"
-                        placeholder="Search by name"
-                        defaultValue={searchName}
-                        className="w-48 min-w-0 sm:w-56"
-                        onChange={(e) =>
-                            reloadOnSearchClear(e, searchName, () => router.push(`/manage/categories${buildQuery({ page: 1 })}`))
-                        }
-                    />
-                </label>
-                <Button type="submit" variant="sweet" className="shrink-0">
-                    Search
-                </Button>
-            </form>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
+                    <label className="flex flex-col gap-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
+                        <Input
+                            name="name"
+                            type="search"
+                            placeholder="Search by name"
+                            defaultValue={searchName}
+                            className="w-48 min-w-0 sm:w-56"
+                            onChange={(e) =>
+                                reloadOnSearchClear(e, searchName, () => router.push(`/manage/categories${buildQuery({ page: 1 })}`))
+                            }
+                        />
+                    </label>
+                    <Button type="submit" variant="sweet" className="shrink-0">
+                        Search
+                    </Button>
+                </form>
+                <Link href="/manage/categories/new" className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}>
+                    Add category
+                </Link>
+            </div>
 
             <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
                 <p className="w-64">
@@ -109,40 +112,57 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
             {data.length === 0 ? (
                 <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No categories found.</p>
             ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {data.map((c) => (
-                        <li key={c.id}>
-                            <article className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 transition-colors">
-                                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{c.name || '—'}</p>
-                                <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{c.navName ? `/shop/${c.id}/${c.navName}` : '—'}</p>
-                                <div className="mt-1 flex flex-wrap gap-1.5">
-                                    {!c.isActive && <span className="rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>}
-                                </div>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    <Link href={`/manage/categories/${c.id}`} className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}>
-                                        Edit
-                                    </Link>
-                                    <Link href={`/manage/categories/${c.id}/products`} className={cn(buttonVariants({ variant: 'outline' }), 'text-[11px]')}>
-                                        All products
-                                    </Link>
-                                    {c.isActive && c.navName ? (
-                                        <Link
-                                            href={buildShopCategoryPath(c.id, c.navName)}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            title="Opens the live shop category in a new tab"
-                                            aria-label={`View live category ${c.name || ''} in a new tab`}
-                                            className={cn(buttonVariants({ variant: 'outline' }), 'inline-flex items-center gap-1.5 text-[11px]')}
-                                        >
-                                            View live
-                                            <ExternalLink className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                                        </Link>
-                                    ) : null}
-                                </div>
-                            </article>
-                        </li>
-                    ))}
-                </ul>
+                <div className="overflow-x-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
+                    <table className="min-w-full border-collapse text-xs text-[#4a2518]">
+                        <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
+                            <tr>
+                                <th className="px-3 py-2 text-left min-w-40">Name</th>
+                                <th className="px-3 py-2 text-left min-w-48">Path</th>
+                                <th className="px-3 py-2 text-left w-28">Status</th>
+                                <th className="px-3 py-2 text-right min-w-56"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.map((c, idx) => {
+                                const isEven = idx % 2 === 0;
+
+                                return (
+                                    <tr key={c.id} className={isEven ? 'bg-[#fdf7ef]' : 'bg-[#f8eddf]'}>
+                                        <td className="px-3 py-2 align-middle text-[11px] font-semibold">{c.name || '—'}</td>
+                                        <td className="px-3 py-2 align-middle text-[11px] text-[#6e4a34]">
+                                            {c.navName ? `/shop/${c.id}/${c.navName}` : '—'}
+                                        </td>
+                                        <td className="px-3 py-2 align-middle text-[11px]">
+                                            {c.isActive ? (
+                                                <span className="text-[#4a2518]">Active</span>
+                                            ) : (
+                                                <span className="rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">
+                                                    Inactive
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2 align-middle text-right text-[11px]">
+                                            <div className="flex flex-wrap justify-end gap-2">
+                                                <Link
+                                                    href={`/manage/categories/${c.id}`}
+                                                    className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
+                                                >
+                                                    Edit
+                                                </Link>
+                                                <Link
+                                                    href={`/manage/categories/${c.id}/products`}
+                                                    className={cn(buttonVariants({ variant: 'outline' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
+                                                >
+                                                    All products
+                                                </Link>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             )}
         </div>
     );

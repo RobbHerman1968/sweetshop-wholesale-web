@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { PublicSiteShell } from '@/components/public-site-shell';
 import { getShopCategoryById } from '@/lib/db-pg/actions/category';
+import { getShopMenuCategoryIds } from '@/lib/db-pg/actions/menu';
 import { ShopCatalogAside } from '@/components/shop-catalog-aside';
 import { ShopCatalogPagination } from '@/components/shop-catalog-pagination';
 import { getPaginatedProductsFromDB } from '@/lib/db-pg/actions/product';
@@ -11,6 +12,7 @@ import { ShopProductCatalogGrid } from '@/components/shop-product-catalog-grid';
 import { ShopStripQueryAfterChromeNav } from '@/components/shop-strip-query-after-chrome-nav';
 import { parseShopFacetParams } from '@/lib/shop-product-facets';
 import { buildShopCategoryPath, buildShopCategoryQuery, shopCategoryNavNamesMatch } from '@/lib/shop-category-path';
+import { getShoppingMenuIdFromSession } from '@/lib/shop-shopping-menu';
 import { SITE_MAIN_FOCUS_CLASS, SITE_MAIN_ID } from '@/lib/site-main';
 import { getEffectiveWholesaleAccountIdForShopCatalog } from '@/lib/wholesale-account-switcher-actions';
 import { parseUserId } from '@/lib/user-id';
@@ -61,6 +63,12 @@ export default async function ShopCategoryPage({ params, searchParams }: Props) 
 
     if (!shopCategoryNavNamesMatch(routeParams.navName, category.navName)) {
         permanentRedirect(buildShopCategoryPath(category.id, category.navName));
+    }
+
+    const shoppingMenuId = await getShoppingMenuIdFromSession();
+    const shopMenuCategoryIds = await getShopMenuCategoryIds(shoppingMenuId);
+    if (!shopMenuCategoryIds.includes(category.id)) {
+        permanentRedirect('/shop');
     }
 
     const [session] = await Promise.all([getServerSession(authOptions)]);

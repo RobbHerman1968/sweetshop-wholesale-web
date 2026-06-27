@@ -9,6 +9,7 @@ import { user } from '@/lib/drizzle/schema';
 import { loginSchema } from '@/lib/validations/auth';
 import { parseUserId } from '@/lib/user-id';
 import { syncUserAccountFromAccountMate } from '@/lib/db-pg/actions/account';
+import { isHebAccountMateId } from '@/lib/shop-shopping-menu';
 
 export { loginSchema } from '@/lib/validations/auth';
 
@@ -57,6 +58,7 @@ const authOptions = {
                     email: found.userName,
                     name: [found.firstName, found.lastName].filter(Boolean).join(' ') || found.userName,
                     isAdmin: found.isAdmin,
+                    isHEB: isHebAccountMateId(found.accountMateId),
                 };
             },
         }),
@@ -65,7 +67,13 @@ const authOptions = {
         strategy: 'jwt' as const,
     },
     callbacks: {
-        async jwt({ token, user }: { token: JWT; user?: { id: string; email?: string | null; name?: string | null; isAdmin?: boolean } }) {
+        async jwt({
+            token,
+            user,
+        }: {
+            token: JWT;
+            user?: { id: string; email?: string | null; name?: string | null; isAdmin?: boolean; isHEB?: boolean };
+        }) {
             if (user) {
                 const userId = parseUserId(user.id);
                 if (userId != null) {
@@ -74,6 +82,7 @@ const authOptions = {
                 token.email = user.email ?? undefined;
                 token.name = user.name ?? undefined;
                 token.isAdmin = user.isAdmin;
+                token.isHEB = user.isHEB ?? false;
             }
             return token;
         },
@@ -83,6 +92,7 @@ const authOptions = {
                 session.user.email = token.email ?? undefined;
                 session.user.name = token.name ?? undefined;
                 session.user.isAdmin = token.isAdmin;
+                session.user.isHEB = token.isHEB ?? false;
             }
             return session;
         },

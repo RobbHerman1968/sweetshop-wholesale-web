@@ -76,19 +76,21 @@ async function resolveShopCartContext(): Promise<ShopCartContext> {
 }
 
 function mapCartToView(cartData: NonNullable<Awaited<ReturnType<typeof getCartByAccountId>>>): ShopCartView {
-    const items: ShopCartLine[] = cartData.cartItems.map((item) => {
-        const unitPrice = item.quantity > 0 ? item.lineTotal / item.quantity : Number(item.product.price);
-        return {
-            id: item.id,
-            productId: item.productId,
-            productName: stripHtml(item.product.name ?? '') || `Product ${item.productId}`,
-            itemNumber: item.product.itemNumber ?? '',
-            imagePath: item.product.productImages?.[0]?.vercelImage?.path ?? null,
-            unitPrice: formatMoney(unitPrice),
-            quantity: item.quantity,
-            lineTotal: formatMoney(item.lineTotal),
-        };
-    });
+    const items: ShopCartLine[] = cartData.cartItems
+        .map((item) => {
+            const unitPrice = item.quantity > 0 ? item.lineTotal / item.quantity : Number(item.product.price);
+            return {
+                id: item.id,
+                productId: item.productId,
+                productName: stripHtml(item.product.name ?? '') || `Product ${item.productId}`,
+                itemNumber: item.product.itemNumber ?? '',
+                imagePath: item.product.productImages?.[0]?.vercelImage?.path ?? null,
+                unitPrice: formatMoney(unitPrice),
+                quantity: item.quantity,
+                lineTotal: formatMoney(item.lineTotal),
+            };
+        })
+        .sort((a, b) => a.productName.localeCompare(b.productName, undefined, { sensitivity: 'base' }));
 
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
     const accountName = (cartData.account?.name ?? '').trim();

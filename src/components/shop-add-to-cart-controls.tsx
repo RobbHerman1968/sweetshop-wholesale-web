@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/hooks/use-toast';
 import { addProductToShopCart } from '@/lib/shop-cart-actions';
 import { useShopCartStore } from '@/store/useShopCartStore';
 import { cn } from '@/lib/utils';
@@ -94,8 +95,6 @@ function QuantityStepper({ id, value, disabled, onChange }: QuantityStepperProps
 export function ShopAddToCartControls({ productId, className, variant = 'grid' }: Props) {
     const [quantity, setQuantity] = useState('1');
     const [submitting, setSubmitting] = useState(false);
-    const [feedback, setFeedback] = useState<string | null>(null);
-    const [feedbackIsError, setFeedbackIsError] = useState(false);
 
     const stopCardActivation = (e: React.SyntheticEvent) => {
         e.stopPropagation();
@@ -104,27 +103,33 @@ export function ShopAddToCartControls({ productId, className, variant = 'grid' }
     const handleAdd = async () => {
         const parsed = parsePositiveQuantity(quantity);
         if (parsed == null) {
-            setFeedback('Quantity must be greater than zero.');
-            setFeedbackIsError(true);
+            toast({
+                variant: 'destructive',
+                title: 'Invalid quantity',
+                description: 'Quantity must be greater than zero.',
+            });
             return;
         }
 
         setSubmitting(true);
-        setFeedback(null);
 
         const result = await addProductToShopCart(productId, parsed);
         setSubmitting(false);
 
         if (result.ok) {
             useShopCartStore.getState().setItemCount(result.itemCount);
-            setFeedback('Added to cart');
-            setFeedbackIsError(false);
+            toast({
+                title: 'Added to cart',
+            });
             setQuantity('1');
             return;
         }
 
-        setFeedback(result.error);
-        setFeedbackIsError(true);
+        toast({
+            variant: 'destructive',
+            title: 'Could not add to cart',
+            description: result.error,
+        });
     };
 
     const isDetail = variant === 'detail';
@@ -162,18 +167,6 @@ export function ShopAddToCartControls({ productId, className, variant = 'grid' }
                     {submitting ? 'Adding…' : 'Add to cart'}
                 </Button>
             </div>
-            {feedback ? (
-                <p
-                    className={cn(
-                        'text-[10px] font-medium uppercase tracking-[0.16em]',
-                        isDetail ? 'text-right' : 'text-center',
-                        feedbackIsError ? 'text-[#8b2e2e]' : 'text-[#3d6b3d]',
-                    )}
-                    role={feedbackIsError ? 'alert' : 'status'}
-                >
-                    {feedback}
-                </p>
-            ) : null}
         </div>
     );
 }

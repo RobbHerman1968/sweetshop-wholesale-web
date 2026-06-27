@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { PublicSiteShell } from '@/components/public-site-shell';
 import { ShopCartContent } from '@/components/shop-cart-content';
+import { getSiteSettingByIdForManage } from '@/lib/db-pg/actions/site-setting';
 import { getShopCart } from '@/lib/shop-cart-actions';
 import { SITE_MAIN_FOCUS_CLASS, SITE_MAIN_ID } from '@/lib/site-main';
 import { cn } from '@/lib/utils';
@@ -10,7 +11,9 @@ import { cn } from '@/lib/utils';
 export default async function CartPage() {
     const session = await getServerSession(authOptions);
     const isLoggedIn = Boolean(session?.user);
-    const cartResult = isLoggedIn ? await getShopCart() : null;
+    const [cartResult, minimumOrderSetting] = isLoggedIn
+        ? await Promise.all([getShopCart(), getSiteSettingByIdForManage(2)])
+        : [null, null];
 
     return (
         <PublicSiteShell>
@@ -45,7 +48,10 @@ export default async function CartPage() {
                         </Link>
                     </div>
                 ) : cartResult?.ok ? (
-                    <ShopCartContent initialCart={cartResult.cart} />
+                    <ShopCartContent
+                        initialCart={cartResult.cart}
+                        minimumOrderAmount={minimumOrderSetting?.value ?? null}
+                    />
                 ) : null}
             </main>
         </PublicSiteShell>

@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getAccountByIdForManage } from '@/lib/db-pg/actions/account';
+import { isAccountShoppingMenuId } from '@/lib/menu-manage-utils';
+import { getMenusFromDB } from '@/lib/db-pg/actions/menu';
 import { EditAccountContent } from './edit-account-content';
 
 type Props = {
@@ -19,7 +21,11 @@ export default async function ManageEditAccountPage({ params, searchParams }: Pr
     const { accountId: accountIdParam } = await params;
     const { returnTo } = await searchParams;
     const accountId = parseInt(accountIdParam, 10);
-    const manageAccount = Number.isFinite(accountId) ? await getAccountByIdForManage(accountId) : null;
+    const [manageAccount, menus] = await Promise.all([
+        Number.isFinite(accountId) ? getAccountByIdForManage(accountId) : Promise.resolve(null),
+        getMenusFromDB(),
+    ]);
+    const shoppingMenus = menus.filter((menu) => isAccountShoppingMenuId(menu.id));
 
     if (!manageAccount) {
         notFound();
@@ -34,7 +40,7 @@ export default async function ManageEditAccountPage({ params, searchParams }: Pr
                     ← Back to accounts
                 </Link>
             </div>
-            <EditAccountContent account={manageAccount} backHref={backHref} />
+            <EditAccountContent account={manageAccount} menus={shoppingMenus} backHref={backHref} />
         </div>
     );
 }

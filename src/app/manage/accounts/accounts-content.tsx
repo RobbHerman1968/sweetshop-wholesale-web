@@ -7,6 +7,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
+import type { ManageMenu } from '@/lib/db-pg/actions/menu';
 
 type AccountRow = {
     id: number;
@@ -16,10 +17,12 @@ type AccountRow = {
     contactLastName: string | null;
     contactEmail: string | null;
     contactPhone: string | null;
+    menuId: number;
 };
 
 type AccountsContentProps = {
     data: AccountRow[];
+    menus: ManageMenu[];
     pagination: { total: number; page: number; limit: number; totalPages: number };
     searchName: string;
     searchAccountMateId: string;
@@ -33,7 +36,16 @@ function buildQuery(params: { page?: number; name?: string; accountMateId?: stri
     return q.toString() ? `?${q.toString()}` : '';
 }
 
-export function AccountsContent({ data, pagination, searchName, searchAccountMateId }: AccountsContentProps) {
+function resolveAccountMenuName(menuId: number, menus: ManageMenu[]): string {
+    if (!menuId) {
+        return 'Wholesale shopping';
+    }
+
+    const match = menus.find((menu) => menu.id === menuId);
+    return match?.name?.trim() || `Menu ${menuId}`;
+}
+
+export function AccountsContent({ data, menus, pagination, searchName, searchAccountMateId }: AccountsContentProps) {
     const router = useRouter();
 
     const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -148,6 +160,7 @@ export function AccountsContent({ data, pagination, searchName, searchAccountMat
                                 <p className="mt-1 truncate text-[11px] text-[#6e4a34]">{[acc.contactFirstName, acc.contactLastName].filter(Boolean).join(' ') || '—'}</p>
                                 {acc.contactEmail && <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{acc.contactEmail}</p>}
                                 {acc.contactPhone && <p className="mt-0.5 text-[11px] text-[#6e4a34]">{acc.contactPhone}</p>}
+                                <p className="mt-3 truncate text-[11px] text-[#6e4a34]">{resolveAccountMenuName(acc.menuId ?? 0, menus)}</p>
                                 <div className="mt-3 flex flex-wrap gap-2">
                                     <Link
                                         href={`/manage/accounts/${acc.id}?returnTo=${encodeURIComponent(listHref)}`}

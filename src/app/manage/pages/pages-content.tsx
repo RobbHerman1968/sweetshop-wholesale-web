@@ -108,34 +108,61 @@ export function PagesContent({ data, pagination, searchName }: PagesContentProps
             {data.length === 0 ? (
                 <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No pages found.</p>
             ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {data.map((p) => (
-                        <li key={p.id}>
-                            <article className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 transition-colors">
-                                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{p.name || '—'}</p>
-                                <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{p.navName ? `/${p.navName}` : '—'}</p>
-                                <div className="mt-1 flex flex-wrap gap-1.5">
-                                    {!p.isActive && <span className="rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>}
-                                </div>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    <Link href={`/manage/pages/${p.id}`} className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}>
-                                        Edit
-                                    </Link>
-                                    {p.isActive && p.navName ? (
-                                        <Link
-                                            href={buildPagePath(p.id, p.navName)}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className={cn(buttonVariants({ variant: 'outline' }), 'text-[11px]')}
-                                        >
-                                            View
-                                        </Link>
-                                    ) : null}
-                                </div>
-                            </article>
-                        </li>
-                    ))}
-                </ul>
+                <div className="overflow-x-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
+                    <table className="min-w-full border-collapse text-xs text-[#4a2518]">
+                        <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
+                            <tr>
+                                <th className="px-3 py-2 text-left min-w-40">Name</th>
+                                <th className="px-3 py-2 text-left min-w-48">Path</th>
+                                <th className="px-3 py-2 text-left w-28">Status</th>
+                                <th className="px-3 py-2 text-right w-40"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.map((p, idx) => {
+                                const isEven = idx % 2 === 0;
+
+                                return (
+                                    <tr key={p.id} className={isEven ? 'bg-[#fdf7ef]' : 'bg-[#f8eddf]'}>
+                                        <td className="px-3 py-2 align-middle text-[11px] font-semibold">{p.name || '—'}</td>
+                                        <td className="px-3 py-2 align-middle text-[11px] text-[#6e4a34]">
+                                            {p.navName ? `/${p.navName}` : '—'}
+                                        </td>
+                                        <td className="px-3 py-2 align-middle text-[11px]">
+                                            {p.isActive ? (
+                                                <span className="text-[#4a2518]">Active</span>
+                                            ) : (
+                                                <span className="rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">
+                                                    Inactive
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2 align-middle text-right text-[11px]">
+                                            <div className="flex flex-wrap justify-end gap-2">
+                                                <Link
+                                                    href={`/manage/pages/${p.id}`}
+                                                    className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
+                                                >
+                                                    Edit
+                                                </Link>
+                                                {p.isActive && p.navName ? (
+                                                    <Link
+                                                        href={buildPagePath(p.id, p.navName)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className={cn(buttonVariants({ variant: 'outline' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
+                                                    >
+                                                        View
+                                                    </Link>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             )}
         </div>
     );

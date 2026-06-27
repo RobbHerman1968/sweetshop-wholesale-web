@@ -1,9 +1,28 @@
 export const WHOLESALE_BRAND_BAR_MENU_ID = 1;
 export const WHOLESALE_PAGE_MENU_ID = 2;
 export const WHOLESALE_SHOPPING_MENU_ID = 3;
+export const HEB_SHOPPING_MENU_ID = 4;
+
+/** Legacy `SignInLocation` values mapped to wholesale `account.menuId`. */
+export function mapSignInLocationIdToMenuId(signInLocationId: number): number {
+    switch (signInLocationId) {
+        case 0:
+            return WHOLESALE_SHOPPING_MENU_ID;
+        case 1:
+            return 5;
+        case 2:
+            return 6;
+        case 3:
+            return HEB_SHOPPING_MENU_ID;
+        case 4:
+            return 7;
+        default:
+            return 0;
+    }
+}
 
 export function usesGlobalMenuDisplayOrder(menuId: number): boolean {
-    return menuId === WHOLESALE_SHOPPING_MENU_ID;
+    return menuId === WHOLESALE_SHOPPING_MENU_ID || menuId === HEB_SHOPPING_MENU_ID;
 }
 
 export type ManageMenuItemTarget = {
@@ -11,6 +30,16 @@ export type ManageMenuItemTarget = {
     pageId: number | null;
     externalUrl: string | null;
 };
+
+export function formatManageMenuLabel(menu: { id: number; name: string | null | undefined }): string {
+    const name = menu.name?.trim() || `Menu ${menu.id}`;
+    const usage = getMenuUsageDescription(menu.id);
+    return usage ? `${name} — ${usage}` : name;
+}
+
+export function isAccountShoppingMenuId(menuId: number): boolean {
+    return menuId >= WHOLESALE_SHOPPING_MENU_ID;
+}
 
 export function getMenuUsageDescription(menuId: number): string | null {
     switch (menuId) {
@@ -20,6 +49,8 @@ export function getMenuUsageDescription(menuId: number): string | null {
             return 'Left sidebar on Pages Menu';
         case WHOLESALE_SHOPPING_MENU_ID:
             return 'Left sidebar in the Shopping Menu';
+        case HEB_SHOPPING_MENU_ID:
+            return 'Left sidebar in the HEB Shopping Menu';
         default:
             return null;
     }

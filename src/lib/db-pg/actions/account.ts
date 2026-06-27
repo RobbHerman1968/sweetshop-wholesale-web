@@ -2,11 +2,12 @@
 
 import { db } from '@/lib/db-pg';
 import { getAccountOldFromSweetshopOld } from '@/lib/db-sweetshop-old';
-import { account, accountGroup, user } from '@/lib/drizzle/schema';
-import { and, asc, eq, ilike, isNotNull, or, sql } from 'drizzle-orm';
+import { mapSignInLocationIdToMenuId } from '@/lib/menu-manage-utils';
+import { account, user } from '@/lib/drizzle/schema';
+import { and, asc, eq, ilike, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { Account, AccountGroup } from '../entities/account-entity';
-import { accountGroupMapper, accountMapper } from '../mappers/account-mapper';
+import { Account } from '../entities/account-entity';
+import { accountMapper } from '../mappers/account-mapper';
 import { mapAccountMateRowToAccountFields } from '@/lib/account-mate-account-map';
 import { fetchWholesaleAccount } from '@/lib/wholesale-api';
 
@@ -28,6 +29,7 @@ export type ManageAccount = {
     contactState: string | null;
     contactZipCode: string | null;
     contactEmail: string | null;
+    menuId: number;
 };
 
 function trimFormValue(value: FormDataEntryValue | null): string | null {
@@ -41,6 +43,11 @@ function trimFormValue(value: FormDataEntryValue | null): string | null {
 function readCheckbox(formData: FormData, name: string): boolean {
     const value = formData.get(name);
     return value === 'on' || value === 'true';
+}
+
+function readMenuId(formData: FormData): number {
+    const raw = Number(formData.get('menuId'));
+    return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : 0;
 }
 
 export async function getAccountByIdForManage(accountId: number): Promise<ManageAccount | null> {
@@ -67,6 +74,7 @@ export async function getAccountByIdForManage(accountId: number): Promise<Manage
             contactState: account.contactState,
             contactZipCode: account.contactZipCode,
             contactEmail: account.contactEmail,
+            menuId: account.menuId,
         })
         .from(account)
         .where(eq(account.id, accountId))
@@ -105,11 +113,13 @@ export async function updateAccountFromForm(formData: FormData) {
             contactState: trimFormValue(formData.get('contactState')),
             contactZipCode: trimFormValue(formData.get('contactZipCode')),
             contactEmail: trimFormValue(formData.get('contactEmail'))?.toLowerCase() ?? null,
+            menuId: readMenuId(formData),
         })
         .where(eq(account.id, id));
 
     revalidatePath('/manage/accounts');
     revalidatePath(`/manage/accounts/${id}`);
+    revalidatePath('/shop');
 }
 
 export async function reloadAccountFromAccountMate(accountId: number, accountMateId: string) {
@@ -288,6 +298,7 @@ export async function getPaginatedAccountsFromDB({
             contactLastName: account.contactLastName,
             contactEmail: account.contactEmail,
             contactPhone: account.contactPhone,
+            menuId: account.menuId,
         })
         .from(account)
         .where(whereClause)
@@ -337,18 +348,6 @@ export async function getAccountsBySearch(name: string | undefined, accountMateI
         out.push(await accountMapper(a));
     }
 
-    return out;
-}
-
-export async function getAccountGroupsByAccountId(accountId: number) {
-    const accountGroups = await db.query.accountGroup.findMany({
-        where: eq(accountGroup.accountId, accountId),
-    });
-
-    const out: AccountGroup[] = [];
-    accountGroups?.map(async (a) => {
-        out.push(await accountGroupMapper(a));
-    });
     return out;
 }
 
@@ -444,44 +443,6 @@ export async function getAccountOwnerUserDisplayName(accountId: number): Promise
     return formatUserDisplayName(owner);
 }
 
-/** DB/driver may return INTEGER columns as number, string, or bigint — normalize for catalog filtering. */
-function collectDistinctProductGroupIds(rows: { productGroupId: unknown }[]): number[] {
-    const out: number[] = [];
-    for (const r of rows) {
-        const v = r.productGroupId;
-        let n: number | null = null;
-        if (typeof v === 'number' && Number.isFinite(v)) n = v;
-        else if (typeof v === 'bigint') {
-            const x = Number(v);
-            n = Number.isFinite(x) ? x : null;
-        } else if (typeof v === 'string') {
-            const x = Number.parseInt(v, 10);
-            n = Number.isFinite(x) ? x : null;
-        }
-        if (n != null && n > 0) out.push(n);
-    }
-    return [...new Set(out)];
-}
-
-/**
- * Wholesale shop catalog scope:
- * `user` → `account` (via contactEmail / accountMateId) → `accountGroup` → product groups.
- */
-
-/** Distinct product group ids linked to any account belonging to this user. */
-export async function getShopProductGroupIdsForUser(userId: number): Promise<number[]> {
-    const keys = await getUserAccountLinkKeys(userId);
-    if (!keys) return [];
-
-    const rows = await db
-        .selectDistinct({ productGroupId: accountGroup.productGroupId })
-        .from(accountGroup)
-        .innerJoin(account, eq(accountGroup.accountId, account.id))
-        .where(and(accountLinkedToUserCondition(keys), isNotNull(accountGroup.accountId)));
-
-    return collectDistinctProductGroupIds(rows);
-}
-
 export async function verifyUserOwnsAccount(userId: number, accountId: number): Promise<boolean> {
     const keys = await getUserAccountLinkKeys(userId);
     if (!keys) return false;
@@ -513,37 +474,6 @@ export async function canAccessAccountForShop(userId: number, accountId: number,
     return verifyUserOwnsAccount(userId, accountId);
 }
 
-/** Product groups linked to a specific account (after verifying the account belongs to the user). */
-export async function getShopProductGroupIdsForUserAccount(
-    userId: number,
-    accountId: number,
-    isAdmin = false,
-): Promise<number[]> {
-    const ok = await canAccessAccountForShop(userId, accountId, isAdmin);
-    if (!ok) return [];
-
-    const rows = await db
-        .selectDistinct({ productGroupId: accountGroup.productGroupId })
-        .from(accountGroup)
-        .where(and(eq(accountGroup.accountId, accountId), isNotNull(accountGroup.accountId)));
-
-    return collectDistinctProductGroupIds(rows);
-}
-
-/**
- * Resolves product group ids for the shop grid for the selected wholesale account.
- * Prefers groups from that account’s `accountGroup` row(s); if none, unions groups from all of the user’s accounts.
- */
-export async function resolveShopCatalogProductGroupIds(
-    userId: number,
-    selectedAccountId: number,
-    isAdmin = false,
-): Promise<number[]> {
-    const scoped = await getShopProductGroupIdsForUserAccount(userId, selectedAccountId, isAdmin);
-    if (scoped.length > 0) return scoped;
-    return getShopProductGroupIdsForUser(userId);
-}
-
 function trimOrNull(value: unknown): string | null {
     if (value == null) {
         return null;
@@ -569,6 +499,10 @@ function sqlBoolValue(value: boolean): string {
     return value ? 'true' : 'false';
 }
 
+function sqlIntValue(value: number): string {
+    return Number.isFinite(value) ? String(Math.trunc(value)) : '0';
+}
+
 async function bulkUpdateAccountsFromLegacy(
     updates: Array<{ id: number; fields: ReturnType<typeof mapLegacyAccountFields> }>,
 ) {
@@ -580,6 +514,8 @@ async function bulkUpdateAccountsFromLegacy(
         updates.map(({ id, fields }) => `WHEN ${id} THEN ${sqlTextValue(pick(fields))}`).join(' ');
     const caseBool = (pick: (fields: ReturnType<typeof mapLegacyAccountFields>) => boolean) =>
         updates.map(({ id, fields }) => `WHEN ${id} THEN ${sqlBoolValue(pick(fields))}`).join(' ');
+    const caseInt = (pick: (fields: ReturnType<typeof mapLegacyAccountFields>) => number) =>
+        updates.map(({ id, fields }) => `WHEN ${id} THEN ${sqlIntValue(pick(fields))}`).join(' ');
     const idList = updates.map(({ id }) => id).join(', ');
 
     await db.execute(
@@ -601,7 +537,8 @@ async function bulkUpdateAccountsFromLegacy(
                 "contactCity" = CASE id ${caseText((fields) => fields.contactCity)} END,
                 "contactState" = CASE id ${caseText((fields) => fields.contactState)} END,
                 "contactZipCode" = CASE id ${caseText((fields) => fields.contactZipCode)} END,
-                "contactEmail" = CASE id ${caseText((fields) => fields.contactEmail)} END
+                "contactEmail" = CASE id ${caseText((fields) => fields.contactEmail)} END,
+                "menuId" = CASE id ${caseInt((fields) => fields.menuId)} END
             WHERE id IN (${idList})
         `),
     );
@@ -627,8 +564,19 @@ function resolveLegacyAccountMateId(row: any): string | null {
     return readLegacyOldAccountId(row) ?? readLegacyUsername(row);
 }
 
+function readLegacySignInLocationId(row: any): number | null {
+    const raw = row.SignInLocation ?? row.signInLocation ?? row.SignInLocationId ?? row.signInLocationId;
+    if (raw == null) {
+        return null;
+    }
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapLegacyAccountFields(row: any) {
+    const signInLocationId = readLegacySignInLocationId(row);
+
     return {
         accountMateId: resolveLegacyAccountMateId(row),
         isSkipTax: Boolean(row.IsSkipTax ?? row.isSkipTax),
@@ -646,6 +594,7 @@ function mapLegacyAccountFields(row: any) {
         contactState: trimOrNull(row.State ?? row.ContactState ?? row.contactState),
         contactZipCode: trimOrNull(row.ZipCode ?? row.ContactZipCode ?? row.Zip ?? row.contactZipCode),
         contactEmail: trimOrNull(row.EmailAddress ?? row.ContactEmail ?? row.contactEmail)?.toLowerCase() ?? null,
+        menuId: signInLocationId == null ? 0 : mapSignInLocationIdToMenuId(signInLocationId),
     };
 }
 

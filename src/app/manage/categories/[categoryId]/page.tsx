@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getCategoryByIdForManage } from '@/lib/db-pg/actions/category';
-import { EditCategoryContent } from './edit-category-content';
+import { CategoryForm } from '../category-form';
 
 type Props = {
     params: Promise<{ categoryId: string }>;
@@ -23,7 +23,7 @@ export default async function ManageEditCategoryPage({ params }: Props) {
                     ← Back to categories
                 </Link>
             </div>
-            <EditCategoryContent category={shopCategory} />
+            <CategoryForm mode="edit" category={shopCategory} />
         </div>
     );
 }

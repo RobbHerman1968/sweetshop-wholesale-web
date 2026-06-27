@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import './globals.css';
 import { authOptions } from '@/auth';
 import { AuthSessionProvider } from '@/components/providers/session-provider';
+import { Toaster } from '@/components/ui/toaster';
 import { SITE_MAIN_ID } from '@/lib/site-main';
 
 const geistSans = Geist({
@@ -36,6 +37,7 @@ export default async function RootLayout({
                         Skip to main content
                     </a>
                     {children}
+                    <Toaster />
                 </AuthSessionProvider>
             </body>
         </html>

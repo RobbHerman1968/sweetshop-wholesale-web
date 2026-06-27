@@ -1,5 +1,7 @@
 import { Suspense } from 'react';
 import { getPaginatedAccountsFromDB } from '@/lib/db-pg/actions/account';
+import { getMenusFromDB } from '@/lib/db-pg/actions/menu';
+import { isAccountShoppingMenuId } from '@/lib/menu-manage-utils';
 import { AccountsContent } from './accounts-content';
 
 const PER_PAGE = 50;
@@ -20,11 +22,13 @@ export default async function ManageAccountsPage({ searchParams }: Props) {
         name: name || undefined,
         accountMateId: accountMateId || undefined,
     });
+    const menus = (await getMenusFromDB()).filter((menu) => isAccountShoppingMenuId(menu.id));
 
     return (
         <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading accounts…</div>}>
             <AccountsContent
                 data={result.data}
+                menus={menus}
                 pagination={result.pagination}
                 searchName={name}
                 searchAccountMateId={accountMateId}

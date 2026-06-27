@@ -12,6 +12,7 @@ import { parseShopFacetParams } from '@/lib/shop-product-facets';
 import { SITE_MAIN_FOCUS_CLASS, SITE_MAIN_ID } from '@/lib/site-main';
 import { getEffectiveWholesaleAccountIdForShopCatalog } from '@/lib/wholesale-account-switcher-actions';
 import { parseUserId } from '@/lib/user-id';
+import { getShoppingMenuIdFromSession } from '@/lib/shop-shopping-menu';
 import { cn } from '@/lib/utils';
 
 const PER_PAGE = 24;
@@ -65,7 +66,8 @@ export default async function ShopPage({ searchParams }: Props) {
     const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1);
     const search = params.search?.trim() ?? '';
     const facetIds = parseShopFacetParams(params.facet);
-    const menuCategoryIds = await getShopMenuCategoryIds();
+    const shoppingMenuId = await getShoppingMenuIdFromSession();
+    const menuCategoryIds = await getShopMenuCategoryIds(shoppingMenuId);
 
     const result = await getPaginatedProductsFromDB({
         page,

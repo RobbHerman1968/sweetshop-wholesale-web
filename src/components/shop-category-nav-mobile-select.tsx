@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { ExternalLink } from 'lucide-react';
 import type { BrandBarNavCategory, BrandBarNavLink } from '@/assets/brand-bar-nav';
 import {
     Select,
@@ -97,7 +98,7 @@ function buildSelectGroups(
                     type: 'link',
                     value: link.href,
                     label: link.title,
-                    external: Boolean(link.externalUrl?.trim()),
+                    external: Boolean(link.opensInNewWindow),
                 });
             }
         }
@@ -207,7 +208,15 @@ export function ShopCategoryNavMobileSelect({
                                         </SelectLabel>
                                     ) : (
                                         <SelectItem key={`${group.key}-${row.value}`} value={row.value}>
-                                            {row.label}
+                                            {row.external ? (
+                                                <span className="inline-flex items-center gap-2">
+                                                    {row.label}
+                                                    <ExternalLink className="size-3 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
+                                                    <span className="sr-only"> (opens in new tab)</span>
+                                                </span>
+                                            ) : (
+                                                row.label
+                                            )}
                                         </SelectItem>
                                     ),
                                 )}

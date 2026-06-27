@@ -13,8 +13,12 @@ type NavItem = NavLink | NavDivider;
 const baseNavItems: NavItem[] = [
     { type: 'link', href: '/manage', label: 'Dashboard' },
     { type: 'link', href: '/manage/orders', label: 'Orders' },
+    { type: 'divider' },
     { type: 'link', href: '/manage/users', label: 'User Accounts' },
     { type: 'link', href: '/manage/accounts', label: 'AccountMate Accounts' },
+    { type: 'divider' },
+    { type: 'link', href: '/manage/state-shipping-tax-rates', label: 'State Rates' },
+    { type: 'link', href: '/manage/site-settings', label: 'Site Settings' },
     { type: 'divider' },
     { type: 'link', href: '/manage/products', label: 'Products' },
     { type: 'link', href: '/manage/images', label: 'Images' },
