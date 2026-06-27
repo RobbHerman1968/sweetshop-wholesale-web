@@ -171,46 +171,75 @@ function CartLineRow({ item, busy, onUpdated }: CartLineRowProps) {
     const isDisabled = busy || rowBusy;
 
     return (
-        <li className="grid gap-3 border-b border-[#d1b79a]/40 py-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center">
-            <div className="relative aspect-square w-20 overflow-hidden rounded-md border border-[#b89572]/60 bg-white sm:w-full">
-                {item.imagePath ? (
-                    <RemoteImage src={item.imagePath} alt={item.productName} sizes="80px" />
-                ) : (
-                    <div className="flex h-full items-center justify-center text-[10px] font-medium uppercase tracking-wider text-[#8b6b4a]">
-                        No image
-                    </div>
-                )}
-            </div>
-
-            <div className="min-w-0 space-y-1">
-                <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-[#4a2518]">{item.productName}</h2>
-                <p className="text-[11px] text-[#6e4a34]">{item.itemNumber ? `Item #${item.itemNumber}` : '—'}</p>
-                <p className="text-sm font-semibold text-[#4a2518]">{formatCurrency(item.unitPrice)} each</p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:items-end">
-                <QuantityStepper
-                    id={`cart-qty-${item.id}`}
-                    value={quantity}
-                    disabled={isDisabled}
-                    onChange={setDraftQuantity}
-                    onCommit={(value) => void persistQuantity(value)}
-                />
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <button
-                        type="button"
-                        disabled={isDisabled}
-                        aria-label={`Remove ${item.productName}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#c49a78] px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a2818] transition-colors hover:bg-[#fde8e0] disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={() => void handleRemove()}
-                    >
-                        <Trash2 className="size-3.5" aria-hidden />
-                        Remove
-                    </button>
+        <li className="border-b border-[#d1b79a]/40 py-3">
+            <div className="flex items-start gap-3">
+                <div className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-md border border-[#b89572]/60 bg-white">
+                    {item.imagePath ? (
+                        <RemoteImage src={item.imagePath} alt={item.productName} sizes="80px" />
+                    ) : (
+                        <div className="flex h-full items-center justify-center text-[10px] font-medium uppercase tracking-wider text-[#8b6b4a]">
+                            No image
+                        </div>
+                    )}
                 </div>
-                <p className="text-sm font-semibold tabular-nums text-[#4a2518] sm:text-right">
-                    Line total: {formatCurrency(item.lineTotal)}
-                </p>
+
+                <div className="min-w-0 flex-1 space-y-2">
+                    <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-[#4a2518] sm:hidden">
+                        {item.productName}
+                    </h2>
+
+                    <div className="hidden items-start gap-3 sm:flex">
+                        <h2 className="min-w-0 flex-1 text-sm font-bold uppercase tracking-[0.12em] text-[#4a2518]">
+                            {item.productName}
+                        </h2>
+                        <QuantityStepper
+                            id={`cart-qty-${item.id}`}
+                            value={quantity}
+                            disabled={isDisabled}
+                            onChange={setDraftQuantity}
+                            onCommit={(value) => void persistQuantity(value)}
+                        />
+                        <button
+                            type="button"
+                            disabled={isDisabled}
+                            aria-label={`Remove ${item.productName}`}
+                            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-[#c49a78] px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a2818] transition-colors hover:bg-[#fde8e0] disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => void handleRemove()}
+                        >
+                            <Trash2 className="size-3.5" aria-hidden />
+                            Remove
+                        </button>
+                    </div>
+
+                    <p className="text-[11px] text-[#6e4a34]">{item.itemNumber ? `Item #${item.itemNumber}` : '—'}</p>
+
+                    <div className="flex items-center justify-between gap-3 sm:hidden">
+                        <QuantityStepper
+                            id={`cart-qty-mobile-${item.id}`}
+                            value={quantity}
+                            disabled={isDisabled}
+                            onChange={setDraftQuantity}
+                            onCommit={(value) => void persistQuantity(value)}
+                        />
+                        <button
+                            type="button"
+                            disabled={isDisabled}
+                            aria-label={`Remove ${item.productName}`}
+                            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-[#c49a78] px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a2818] transition-colors hover:bg-[#fde8e0] disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => void handleRemove()}
+                        >
+                            <Trash2 className="size-3.5" aria-hidden />
+                            Remove
+                        </button>
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between gap-3 border-t border-[#d1b79a]/40 pt-2">
+                        <p className="text-sm font-semibold text-[#4a2518]">{formatCurrency(item.unitPrice)} each</p>
+                        <p className="shrink-0 text-right text-sm font-semibold tabular-nums text-[#4a2518]">
+                            Line total: {formatCurrency(item.lineTotal)}
+                        </p>
+                    </div>
+                </div>
             </div>
         </li>
     );

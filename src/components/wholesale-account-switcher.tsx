@@ -17,12 +17,21 @@ import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
 import { useShopCartStore } from '@/store/useShopCartStore';
 import { cn } from '@/lib/utils';
 
-const triggerButtonClass =
-    'inline-flex w-full max-w-56 min-w-0 shrink items-center justify-between gap-2 rounded-md border border-[#c4a88a] bg-white/70 px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5c4032] shadow-sm transition-colors hover:bg-[#f3e0cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f6ebdd]';
+const switcherWidthClass = 'w-[250px]';
+
+function buildTriggerButtonClass(widthClass: string) {
+    return cn(
+        'inline-flex shrink-0 items-center justify-between gap-2 rounded-md border border-[#c4a88a] bg-white/70 px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5c4032] shadow-sm transition-colors hover:bg-[#f3e0cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f6ebdd]',
+        widthClass,
+    );
+}
 
 export type WholesaleAccountSwitcherProps = {
     /** e.g. collapse mobile header menu after choosing an account */
     onAccountSelected?: () => void;
+    /** Full width below md; fixed 250px from md up (below-header row). */
+    fullWidthOnMobile?: boolean;
+    className?: string;
 };
 
 function isNextRedirectError(error: unknown): boolean {
@@ -34,7 +43,11 @@ function isNextRedirectError(error: unknown): boolean {
     );
 }
 
-export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccountSwitcherProps) {
+export function WholesaleAccountSwitcher({
+    onAccountSelected,
+    fullWidthOnMobile = false,
+    className,
+}: WholesaleAccountSwitcherProps) {
     const router = useRouter();
     const pathname = usePathname();
     const { status } = useSession();
@@ -183,6 +196,19 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
 
     const exitShopAsLabel = hasOwnedAccounts ? 'Back to my account' : 'Exit shop-as';
 
+    const widthClass = fullWidthOnMobile
+        ? 'w-full min-w-0 flex-1 md:w-[250px] md:flex-none'
+        : switcherWidthClass;
+    const triggerButtonClass = buildTriggerButtonClass(widthClass);
+    const popoverContentClass = cn(
+        fullWidthOnMobile
+            ? 'w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] md:w-[250px] md:max-w-none'
+            : switcherWidthClass,
+        'overflow-hidden rounded-lg border border-[#e6e1db] bg-white p-1 shadow-[0_12px_48px_-12px_rgba(24,18,12,0.22)]',
+    );
+    const popoverAlign = fullWidthOnMobile ? 'center' : 'end';
+    const shellClass = cn('inline-flex items-stretch', fullWidthOnMobile && 'w-full md:w-auto', className);
+
     if (status !== 'authenticated' || (!loading && accounts.length === 0 && !canShopAsAnyAccount)) {
         return null;
     }
@@ -193,7 +219,7 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
     if (!showAccountPicker && !loading) {
         return (
             <div
-                className={cn(triggerButtonClass, 'cursor-default', loading && 'opacity-70')}
+                className={cn(triggerButtonClass, 'cursor-default', className, loading && 'opacity-70')}
                 title={loading ? undefined : selectedLabel}
                 aria-label={loading ? 'Account' : `Account: ${selectedLabel}`}
             >
@@ -221,7 +247,7 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
         cn(triggerButtonClass, isAdminShopAs && 'rounded-r-none border-[#b8860b] bg-[#fff8e7]', extra);
 
     const accountSwitcherShell = (trigger: ReactNode, content: ReactNode) => (
-        <div className="inline-flex max-w-full items-stretch">
+        <div className={shellClass}>
             <Popover open={open} onOpenChange={setOpen}>
                 {trigger}
                 {content}
@@ -236,9 +262,9 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
             <div className="px-1 pb-1">
                 <Input
                     value={adminSearch}
-                    onChange={(e) => setAdminSearch(e.target.value)}
+                    onChange={(e) => setAdminSearch(e.target.value.toUpperCase())}
                     placeholder="Search name or AccountMate ID"
-                    className="h-8 border-[#e6e1db] text-[12px]"
+                    className="h-8 border-[#e6e1db] text-[12px] uppercase"
                 />
             </div>
             {adminSearchLoading ? <p className="px-2 pb-2 text-[11px] text-[#6b6560]">Searching…</p> : null}
@@ -263,9 +289,6 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
         </div>
     ) : null;
 
-    const popoverContentClass =
-        'w-56 overflow-hidden rounded-lg border border-[#e6e1db] bg-white p-1 shadow-[0_12px_48px_-12px_rgba(24,18,12,0.22)]';
-
     if (!loading && accounts.length === 0 && canShopAsAnyAccount) {
         const emptyAdminLabel = isAdminShopAs ? selectedLabel : 'Shop as account';
 
@@ -282,7 +305,7 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
                     <ChevronDown className="size-3.5 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
                 </button>
             </PopoverTrigger>,
-            <PopoverContent align="end" sideOffset={8} className={popoverContentClass}>
+            <PopoverContent align={popoverAlign} sideOffset={8} className={popoverContentClass}>
                 {adminSearchSection}
             </PopoverContent>,
         );
@@ -302,7 +325,7 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
                 <ChevronDown className="size-3.5 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
             </button>
         </PopoverTrigger>,
-        <PopoverContent align="end" sideOffset={8} className={popoverContentClass}>
+        <PopoverContent align={popoverAlign} sideOffset={8} className={popoverContentClass}>
             <p className="border-b border-[#ebe6e1] px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6b6560]">
                 Wholesale account
             </p>

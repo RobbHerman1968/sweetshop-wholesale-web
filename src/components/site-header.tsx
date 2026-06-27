@@ -174,7 +174,9 @@ export function SiteHeader({
                         <div className="hidden items-center gap-3 md:flex">
                             {isLoggedIn ? (
                                 <>
-                                    <WholesaleAccountSwitcher onAccountSelected={() => setIsMenuOpen(false)} />
+                                    <div className="hidden lg:block">
+                                        <WholesaleAccountSwitcher onAccountSelected={() => setIsMenuOpen(false)} />
+                                    </div>
                                     <CartNavButton variant="ghost" itemCount={cartItemCount} />
                                     <UserAccountMenu onNavigate={() => setIsMenuOpen(false)} />
                                 </>
@@ -216,8 +218,11 @@ export function SiteHeader({
                     </div>
 
                     {isLoggedIn ? (
-                        <div className="flex justify-end pb-0.5 md:hidden">
-                            <WholesaleAccountSwitcher onAccountSelected={() => setIsMenuOpen(false)} />
+                        <div className="flex w-full justify-center border-t border-[#d4c4b0]/60 pt-2 lg:hidden">
+                            <WholesaleAccountSwitcher
+                                fullWidthOnMobile
+                                onAccountSelected={() => setIsMenuOpen(false)}
+                            />
                         </div>
                     ) : null}
 

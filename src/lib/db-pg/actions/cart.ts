@@ -9,6 +9,7 @@ export type ManageActiveCartListRow = {
     id: number;
     accountId: number;
     accountMateId: string | null;
+    accountName: string | null;
     contactFirstName: string | null;
     contactLastName: string | null;
     totalProducts: number;
@@ -25,6 +26,7 @@ export async function getPaginatedActiveCartsFromDB({ page = 1, limit = 50 }: { 
             id: cart.id,
             accountId: cart.accountId,
             accountMateId: account.accountMateId,
+            accountName: account.name,
             contactFirstName: account.contactFirstName,
             contactLastName: account.contactLastName,
             total: cart.total,
@@ -39,6 +41,7 @@ export async function getPaginatedActiveCartsFromDB({ page = 1, limit = 50 }: { 
             cart.id,
             cart.accountId,
             account.accountMateId,
+            account.name,
             account.contactFirstName,
             account.contactLastName,
             cart.total,

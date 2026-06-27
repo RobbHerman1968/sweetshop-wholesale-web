@@ -86,7 +86,7 @@ export function ActiveCartsContent({ data, pagination }: ActiveCartsContentProps
                     <table className="min-w-full border-collapse text-xs text-[#4a2518]">
                         <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
                             <tr>
-                                <th className="px-3 py-2 text-left min-w-40">AccountMate ID</th>
+                                <th className="px-3 py-2 text-left min-w-40">Account</th>
                                 <th className="px-3 py-2 text-center w-32 whitespace-nowrap">Total Products</th>
                                 <th className="px-3 py-2 text-right w-32">Total Price</th>
                                 <th className="px-3 py-2 text-center w-44 whitespace-nowrap">Create Date</th>
@@ -102,19 +102,23 @@ export function ActiveCartsContent({ data, pagination }: ActiveCartsContentProps
                                     : `/manage/accounts`;
                                 const detailHref = `/manage/orders/active-carts/${row.id}?returnTo=${encodeURIComponent(listHref)}`;
                                 const contactName = formatContactName(row.contactFirstName, row.contactLastName);
+                                const accountName = row.accountName?.trim() || null;
 
                                 return (
                                     <tr key={row.id} className={isEven ? 'bg-[#fdf7ef] font-mono' : 'bg-[#f8eddf] font-mono'}>
                                         <td className="px-3 py-2 align-middle text-[11px] font-sans text-left">
-                                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                                                {row.accountMateId?.trim() ? (
-                                                    <Link href={accountHref} className="font-mono text-[#4a2518] underline-offset-2 hover:underline">
-                                                        {row.accountMateId.trim()}
-                                                    </Link>
-                                                ) : (
-                                                    <span className="font-mono">—</span>
-                                                )}
-                                                {contactName ? <span className="text-[#6e4a34]">{contactName}</span> : null}
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                                    {row.accountMateId?.trim() ? (
+                                                        <Link href={accountHref} className="font-mono text-[#4a2518] underline-offset-2 hover:underline">
+                                                            {row.accountMateId.trim()}
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="font-mono">—</span>
+                                                    )}
+                                                    {contactName ? <span className="text-[#6e4a34]">{contactName}</span> : null}
+                                                </div>
+                                                {accountName ? <span className="text-[#6e4a34]">{accountName}</span> : null}
                                             </div>
                                         </td>
                                         <td className="px-3 py-2 align-middle text-center text-[11px] tabular-nums">{row.totalProducts}</td>
