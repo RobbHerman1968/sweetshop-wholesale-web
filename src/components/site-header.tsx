@@ -23,6 +23,7 @@ type SiteHeaderProps = {
     onLoginClick: () => void;
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
+    initialAccountDisplayName?: string | null;
 };
 
 type CartNavButtonProps = {
@@ -93,7 +94,12 @@ function CartNavButton({ variant, className, compact, itemCount }: CartNavButton
     );
 }
 
-export function SiteHeader({ onLoginClick, brandBarCategories, initialCartItemCount }: SiteHeaderProps) {
+export function SiteHeader({
+    onLoginClick,
+    brandBarCategories,
+    initialCartItemCount,
+    initialAccountDisplayName = null,
+}: SiteHeaderProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [cartCountHydrated, setCartCountHydrated] = useState(false);
     const pathname = usePathname();
@@ -107,6 +113,10 @@ export function SiteHeader({ onLoginClick, brandBarCategories, initialCartItemCo
         useShopCartStore.getState().setItemCount(initialCartItemCount);
         setCartCountHydrated(true);
     }, [initialCartItemCount]);
+
+    useEffect(() => {
+        useShopCartStore.getState().setAccountDisplayName(initialAccountDisplayName?.trim() || null);
+    }, [initialAccountDisplayName]);
 
     const onShopNavClick = useCallback(
         (e: React.MouseEvent<HTMLAnchorElement>) => {

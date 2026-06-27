@@ -12,9 +12,14 @@ import type { BrandBarNavCategory } from '@/assets/brand-bar-nav';
 type AccountPageClientProps = {
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
+    initialAccountDisplayName?: string | null;
 };
 
-export function AccountPageClient({ brandBarCategories, initialCartItemCount }: AccountPageClientProps) {
+export function AccountPageClient({
+    brandBarCategories,
+    initialCartItemCount,
+    initialAccountDisplayName = null,
+}: AccountPageClientProps) {
     const router = useRouter();
     const { data: session, status } = useSession();
 
@@ -30,6 +35,7 @@ export function AccountPageClient({ brandBarCategories, initialCartItemCount }: 
                 onLoginClick={() => router.push('/')}
                 brandBarCategories={brandBarCategories}
                 initialCartItemCount={initialCartItemCount}
+                initialAccountDisplayName={initialAccountDisplayName}
             />
 
             <main id={SITE_MAIN_ID} tabIndex={-1} className={cn('mx-auto max-w-6xl px-3 pt-1 pb-8 sm:px-4 sm:pt-1 sm:pb-10', SITE_MAIN_FOCUS_CLASS)}>

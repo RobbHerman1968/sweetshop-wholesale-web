@@ -7,6 +7,10 @@ import { getCategoryIdsWithActiveProducts } from '@/lib/db-pg/actions/product';
 import { buildPagePath } from '@/lib/page-path';
 import { buildShopCategoryPath } from '@/lib/shop-category-path';
 import { getShoppingMenuIdFromSession } from '@/lib/shop-shopping-menu';
+import { applyShopByLocationAccountName } from '@/lib/brand-bar-shop-by-location';
+import { getWholesaleAccountSwitcherState } from '@/lib/wholesale-account-switcher-actions';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/auth';
 import {
     WHOLESALE_BRAND_BAR_MENU_ID,
     WHOLESALE_PAGE_MENU_ID,
@@ -409,12 +413,15 @@ export async function getBrandBarNavCategoriesForSiteHeader(
     menuId = WHOLESALE_BRAND_BAR_MENU_ID,
 ): Promise<BrandBarNavCategory[]> {
     const shoppingMenuId = await getShoppingMenuIdFromSession();
-    const [categories, shopMenuCategoryIds] = await Promise.all([
+    const session = await getServerSession(authOptions);
+    const [categories, shopMenuCategoryIds, switcherState] = await Promise.all([
         getBrandBarNavCategories(menuId),
         getShopMenuCategoryIds(shoppingMenuId),
+        session?.user ? getWholesaleAccountSwitcherState() : Promise.resolve(null),
     ]);
 
-    return remapBrandBarCategoryLinksForShopMenu(categories, shopMenuCategoryIds);
+    const remapped = remapBrandBarCategoryLinksForShopMenu(categories, shopMenuCategoryIds);
+    return applyShopByLocationAccountName(remapped, switcherState?.selectedAccountDisplayName);
 }
 
 export const getBrandBarNavCategories = cache(async (menuId = WHOLESALE_BRAND_BAR_MENU_ID): Promise<BrandBarNavCategory[]> => {

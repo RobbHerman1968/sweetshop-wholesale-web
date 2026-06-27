@@ -97,7 +97,7 @@ export default async function ShopPage({ searchParams }: Props) {
 
                 <section className="space-y-8">
                     <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-                        <ShopCatalogAside />
+                        <ShopCatalogAside key={shoppingAccountId ?? 'guest'} />
 
                         <div className="min-w-0 flex-1 space-y-6">
                                 <form

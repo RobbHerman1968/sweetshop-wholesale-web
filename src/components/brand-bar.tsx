@@ -1,9 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject, type TouchEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject, type TouchEvent } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { BrandBarNavCategory } from '@/assets/brand-bar-nav';
+import { applyShopByLocationAccountName, isShopByLocationBrandBarCategory } from '@/lib/brand-bar-shop-by-location';
 import { MenuNavLink } from '@/components/menu-nav-link';
+import { useShopCartStore } from '@/store/useShopCartStore';
 import { cn } from '@/lib/utils';
 import {
     NavigationMenu,
@@ -149,6 +151,28 @@ function HorizontalScrollHints({
     );
 }
 
+function categoryShowsAccountNameOnTrigger(cat: BrandBarNavCategory) {
+    return (
+        isShopByLocationBrandBarCategory(cat.label) &&
+        cat.description.trim().toLowerCase() !== cat.label.trim().toLowerCase()
+    );
+}
+
+function BrandBarCategoryTriggerLabel({ cat }: { cat: BrandBarNavCategory }) {
+    if (!categoryShowsAccountNameOnTrigger(cat)) {
+        return cat.label;
+    }
+
+    return (
+        <span className="flex flex-col items-start leading-tight">
+            <span>{cat.label}</span>
+            <span className="max-w-[12rem] truncate text-[10px] font-normal normal-case tracking-normal text-[#8b6b4a]">
+                {cat.description}
+            </span>
+        </span>
+    );
+}
+
 function CategoryMegaMenuPanel({ cat }: { cat: BrandBarNavCategory }) {
     const showDescription = categoryShowsDescription(cat);
 
@@ -248,7 +272,7 @@ function MobileBrandBar({ categories }: BrandBarProps) {
                                 )}
                                 onClick={() => onCategoryClick(cat.label, isOpen)}
                             >
-                                {cat.label}{' '}
+                                <BrandBarCategoryTriggerLabel cat={cat} />{' '}
                                 <ChevronDown
                                     className={cn(
                                         'relative top-px ml-0.5 h-3 w-3 transition duration-200',
@@ -282,7 +306,7 @@ function DesktopBrandBar({ categories }: BrandBarProps) {
                     {categories.map((cat) => (
                         <NavigationMenuItem key={cat.label}>
                             <NavigationMenuTrigger className="data-[state=open]:bg-[#ede0d4]">
-                                {cat.label}
+                                <BrandBarCategoryTriggerLabel cat={cat} />
                             </NavigationMenuTrigger>
                             <NavigationMenuContent className="max-w-[min(100vw-2rem,560px)]">
                                 <CategoryMegaMenuPanel cat={cat} />
@@ -296,13 +320,19 @@ function DesktopBrandBar({ categories }: BrandBarProps) {
 }
 
 export function BrandBar({ categories }: BrandBarProps) {
-    if (categories.length === 0) return null;
+    const accountDisplayName = useShopCartStore((state) => state.accountDisplayName);
+    const displayCategories = useMemo(
+        () => applyShopByLocationAccountName(categories, accountDisplayName),
+        [categories, accountDisplayName],
+    );
+
+    if (displayCategories.length === 0) return null;
 
     return (
         <nav className="w-full min-w-0 py-0" aria-label="Product categories">
             <div className="mx-auto w-full min-w-0 max-w-6xl sm:px-4">
-                <MobileBrandBar categories={categories} />
-                <DesktopBrandBar categories={categories} />
+                <MobileBrandBar categories={displayCategories} />
+                <DesktopBrandBar categories={displayCategories} />
             </div>
         </nav>
     );

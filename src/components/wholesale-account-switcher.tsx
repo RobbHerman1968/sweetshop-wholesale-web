@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -25,8 +25,18 @@ export type WholesaleAccountSwitcherProps = {
     onAccountSelected?: () => void;
 };
 
+function isNextRedirectError(error: unknown): boolean {
+    return (
+        typeof error === 'object' &&
+        error != null &&
+        'digest' in error &&
+        String((error as { digest?: string }).digest ?? '').startsWith('NEXT_REDIRECT')
+    );
+}
+
 export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccountSwitcherProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const { status } = useSession();
     const [accounts, setAccounts] = useState<WholesaleAccountSwitcherOption[]>([]);
     const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
@@ -54,6 +64,7 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
             setCanShopAsAnyAccount(next.canShopAsAnyAccount);
             setHasOwnedAccounts(next.hasOwnedAccounts);
             useShopCartStore.getState().setAccountId(next.selectedAccountId);
+            useShopCartStore.getState().setAccountDisplayName(next.selectedAccountDisplayName);
         } finally {
             setLoading(false);
         }
@@ -121,23 +132,34 @@ export function WholesaleAccountSwitcher({ onAccountSelected }: WholesaleAccount
         if (picked) {
             setSelectedAccountId(accountId);
             setSelectedAccountDisplayName(picked.displayName);
+            useShopCartStore.getState().setAccountId(accountId);
+            useShopCartStore.getState().setAccountDisplayName(picked.displayName);
         }
+
+        const onShopHome = pathname === '/shop';
 
         try {
             const { ok } = await setWholesaleSelectedAccount(accountId, {
                 adminShopAs: adminShopAs ? true : undefined,
-                redirectToShop: true,
+                // Same-route redirect to `/shop` can leave cached RSC payload; refresh client-side instead.
+                redirectToShop: !onShopHome,
             });
             if (!ok) {
+                void refreshState();
+                return;
+            }
+
+            if (onShopHome) {
+                router.replace('/shop', { scroll: false });
+                router.refresh();
                 void refreshState();
             }
         } catch (error) {
             // redirect() throws; Next.js handles navigation from the server action response.
-            if (typeof error === 'object' && error != null && 'digest' in error) {
-                const digest = String((error as { digest?: string }).digest ?? '');
-                if (digest.startsWith('NEXT_REDIRECT')) {
-                    return;
-                }
+            if (isNextRedirectError(error)) {
+                router.refresh();
+                void refreshState();
+                return;
             }
             console.error('[Wholesale account change]', error);
             void refreshState();

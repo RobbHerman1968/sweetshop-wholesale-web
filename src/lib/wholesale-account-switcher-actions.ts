@@ -28,8 +28,8 @@ function wholesaleAccountCookieOptions() {
 }
 
 function revalidateShopAccountPaths() {
-    revalidatePath('/shop');
-    revalidatePath('/cart');
+    revalidatePath('/shop', 'layout');
+    revalidatePath('/cart', 'layout');
 }
 
 async function resolveIsAdminShopAs(

@@ -10,12 +10,14 @@ type PublicSiteShellClientProps = {
     children: ReactNode;
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
+    initialAccountDisplayName?: string | null;
 };
 
 export function PublicSiteShellClient({
     children,
     brandBarCategories,
     initialCartItemCount,
+    initialAccountDisplayName = null,
 }: PublicSiteShellClientProps) {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
 
@@ -25,6 +27,7 @@ export function PublicSiteShellClient({
                 onLoginClick={() => setIsLoginOpen(true)}
                 brandBarCategories={brandBarCategories}
                 initialCartItemCount={initialCartItemCount}
+                initialAccountDisplayName={initialAccountDisplayName}
             />
             {children}
             <SiteFooter />

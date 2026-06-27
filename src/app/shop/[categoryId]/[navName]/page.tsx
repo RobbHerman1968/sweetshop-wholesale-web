@@ -109,7 +109,7 @@ export default async function ShopCategoryPage({ params, searchParams }: Props) 
 
                 <section className="space-y-8">
                     <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-                        <ShopCatalogAside selectedCategoryId={category.id} />
+                        <ShopCatalogAside key={shoppingAccountId ?? 'guest'} selectedCategoryId={category.id} />
 
                         <div className="min-w-0 flex-1 space-y-6">
                             <form
