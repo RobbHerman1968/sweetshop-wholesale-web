@@ -160,18 +160,8 @@ export function ShopProductCatalogGrid({ products, isLoggedIn, shoppingAccountId
                                     <p className="mt-1 text-[11px] text-[#6e4a34]">{p.itemNumber ? `Item #${p.itemNumber}` : '—'}</p>
                                     {isLoggedIn ? (
                                         <p className="mt-auto pt-3 text-sm font-semibold text-[#4a2518]">${Number(p.price).toFixed(2)}</p>
-                                    ) : (
-                                        <p className="mt-auto pt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8b6b4a]">
-                                            Sign in for wholesale pricing
-                                        </p>
-                                    )}
-                                    {shoppingAccountId != null ? (
-                                        <ShopAddToCartControls productId={p.id} />
-                                    ) : (
-                                        <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[#8b6b4a]">
-                                            Add to cart coming soon
-                                        </p>
-                                    )}
+                                    ) : null}
+                                    {shoppingAccountId != null ? <ShopAddToCartControls productId={p.id} /> : null}
                                 </div>
                             </article>
                         </li>
