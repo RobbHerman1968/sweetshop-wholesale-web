@@ -1,4 +1,4 @@
-import { VercelImage } from '../server';
+import { VercelImage } from './vercel-entity';
 
 export type ProductImage = {
     id: number;

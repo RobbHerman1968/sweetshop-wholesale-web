@@ -4,7 +4,7 @@ import { getMenusFromDB } from '@/lib/db-pg/actions/menu';
 import { isAccountShoppingMenuId } from '@/lib/menu-manage-utils';
 import { AccountsContent } from './accounts-content';
 
-const PER_PAGE = 50;
+const PER_PAGE = 96;
 
 type Props = {
     searchParams: Promise<{ page?: string; name?: string; accountMateId?: string }>;

@@ -124,6 +124,8 @@ export const cart = pgTable("cart", {
 	tax: numeric({ precision: 10, scale:  2 }).default('0').notNull(),
 	discounts: numeric({ precision: 10, scale:  2 }).default('0').notNull(),
 	total: numeric({ precision: 10, scale:  2 }).default('0').notNull(),
+	createDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	modifiedDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.accountId],
@@ -138,6 +140,8 @@ export const cartItem = pgTable("cartItem", {
 	productId: integer().notNull(),
 	quantity: integer().default(0).notNull(),
 	lineTotal: numeric({ precision: 10, scale:  2 }).default('0').notNull(),
+	createDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	modifiedDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.productId],

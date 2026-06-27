@@ -14,6 +14,8 @@ export async function cartMapper(data: any) {
     cart.tax = Number(data.tax);
     cart.discounts = Number(data.discounts);
     cart.total = Number(data.total);
+    cart.createDate = data.createDate ?? '';
+    cart.modifiedDate = data.modifiedDate ?? '';
     cart.cartItems = [];
 
     if (data.account) {
@@ -37,6 +39,8 @@ export async function cartItemMapper(data: any) {
     cartItem.productId = data.productId;
     cartItem.quantity = data.quantity;
     cartItem.lineTotal = Number(data.lineTotal);
+    cartItem.createDate = data.createDate ?? '';
+    cartItem.modifiedDate = data.modifiedDate ?? '';
 
     if (data.product) {
         cartItem.product = await productMapper(data.product);

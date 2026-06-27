@@ -122,7 +122,11 @@ export async function updateAccountFromForm(formData: FormData) {
     revalidatePath('/shop');
 }
 
-export async function reloadAccountFromAccountMate(accountId: number, accountMateId: string) {
+export async function reloadAccountFromAccountMate(
+    accountId: number,
+    accountMateId: string,
+    skipRevalidate = false,
+) {
     if (!Number.isFinite(accountId) || accountId <= 0) {
         return { ok: false as const, error: 'Invalid account' };
     }
@@ -163,8 +167,10 @@ export async function reloadAccountFromAccountMate(accountId: number, accountMat
             })
             .where(eq(account.id, accountId));
 
-        revalidatePath('/manage/accounts');
-        revalidatePath(`/manage/accounts/${accountId}`);
+        if (!skipRevalidate) {
+            revalidatePath('/manage/accounts');
+            revalidatePath(`/manage/accounts/${accountId}`);
+        }
 
         console.log('[reload account]', {
             accountId,
@@ -181,6 +187,49 @@ export async function reloadAccountFromAccountMate(accountId: number, accountMat
             error: err instanceof Error ? err.message : 'Failed to reload account',
         };
     }
+}
+
+export type AccountReloadRow = {
+    id: number;
+    accountMateId: string;
+};
+
+const accountHasAccountMateId = sql`nullif(trim(coalesce(${account.accountMateId}, '')), '') is not null`;
+const accountMissingName = sql`nullif(trim(coalesce(${account.name}, '')), '') is null`;
+const accountReloadBatchWhere = and(accountHasAccountMateId, accountMissingName);
+
+export async function getAccountReloadBatch({
+    offset = 0,
+    limit = 200,
+}: {
+    offset?: number;
+    limit?: number;
+}): Promise<{ accounts: AccountReloadRow[]; total: number }> {
+    const rows = await db
+        .select({
+            id: account.id,
+            accountMateId: account.accountMateId,
+        })
+        .from(account)
+        .where(accountReloadBatchWhere)
+        .orderBy(asc(account.id))
+        .limit(limit)
+        .offset(offset);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(account).where(accountReloadBatchWhere);
+
+    return {
+        accounts: rows.map((row) => ({
+            id: row.id,
+            accountMateId: row.accountMateId!.trim(),
+        })),
+        total: Number(count ?? 0),
+    };
+}
+
+export async function revalidateManageAccountsAfterBulkReload() {
+    revalidatePath('/manage/accounts');
+    revalidatePath('/shop');
 }
 
 /** Syncs linked wholesale account(s) from AccountMate when the user has an accountMateId. */

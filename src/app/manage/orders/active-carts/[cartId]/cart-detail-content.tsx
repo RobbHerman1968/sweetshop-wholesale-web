@@ -2,18 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { RemoteImage } from '@/components/remote-image';
-import { refreshShopCartCount } from '@/lib/shop-cart-count-client';
 import {
-    removeShopCartItem,
-    updateShopCartItemQuantity,
-} from '@/lib/shop-cart-actions';
+    removeManageCartItem,
+    updateManageCartItemQuantity,
+} from '@/lib/manage-cart-actions';
 import type { ShopCartView } from '@/lib/shop-cart-view';
 import { toast } from '@/hooks/use-toast';
-import { useShopCartStore } from '@/store/useShopCartStore';
-import { cn } from '@/lib/utils';
 
 function parsePositiveQuantity(value: string): number | null {
     const parsed = parseInt(value.trim(), 10);
@@ -94,12 +92,13 @@ function QuantityStepper({ id, value, disabled, onChange, onCommit }: QuantitySt
 }
 
 type CartLineRowProps = {
+    cartId: number;
     item: ShopCartView['items'][number];
     busy: boolean;
-    onUpdated: (cart: ShopCartView, itemCount: number) => void;
+    onUpdated: (cart: ShopCartView) => void;
 };
 
-function CartLineRow({ item, busy, onUpdated }: CartLineRowProps) {
+function CartLineRow({ cartId, item, busy, onUpdated }: CartLineRowProps) {
     const [draftQuantity, setDraftQuantity] = useState<string | null>(null);
     const [rowBusy, setRowBusy] = useState(false);
     const quantity = draftQuantity ?? String(item.quantity);
@@ -127,7 +126,7 @@ function CartLineRow({ item, busy, onUpdated }: CartLineRowProps) {
             }
 
             setRowBusy(true);
-            const result = await updateShopCartItemQuantity(item.id, parsed);
+            const result = await updateManageCartItemQuantity(cartId, item.id, parsed);
             setRowBusy(false);
 
             if (!result.ok) {
@@ -141,16 +140,15 @@ function CartLineRow({ item, busy, onUpdated }: CartLineRowProps) {
             }
 
             setDraftQuantity(null);
-            useShopCartStore.getState().setItemCount(result.itemCount);
-            onUpdated(result.cart, result.itemCount);
+            onUpdated(result.cart);
             toast({ title: 'Cart updated' });
         },
-        [item.id, item.quantity, onUpdated],
+        [cartId, item.id, item.quantity, onUpdated],
     );
 
     const handleRemove = async () => {
         setRowBusy(true);
-        const result = await removeShopCartItem(item.id);
+        const result = await removeManageCartItem(cartId, item.id);
         setRowBusy(false);
 
         if (!result.ok) {
@@ -162,85 +160,99 @@ function CartLineRow({ item, busy, onUpdated }: CartLineRowProps) {
             return;
         }
 
-        useShopCartStore.getState().setItemCount(result.itemCount);
-        void refreshShopCartCount();
-        onUpdated(result.cart, result.itemCount);
-        toast({ title: 'Item removed' });
+        onUpdated(result.cart);
+        if (result.cart.items.length > 0) {
+            toast({ title: 'Item removed' });
+        }
     };
 
     const isDisabled = busy || rowBusy;
 
     return (
-        <li className="grid gap-3 border-b border-[#d1b79a]/40 py-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center">
-            <div className="relative aspect-square w-20 overflow-hidden rounded-md border border-[#b89572]/60 bg-white sm:w-full">
-                {item.imagePath ? (
-                    <RemoteImage src={item.imagePath} alt={item.productName} sizes="80px" />
-                ) : (
-                    <div className="flex h-full items-center justify-center text-[10px] font-medium uppercase tracking-wider text-[#8b6b4a]">
-                        No image
-                    </div>
-                )}
-            </div>
-
-            <div className="min-w-0 space-y-1">
-                <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-[#4a2518]">{item.productName}</h2>
-                <p className="text-[11px] text-[#6e4a34]">{item.itemNumber ? `Item #${item.itemNumber}` : '—'}</p>
-                <p className="text-sm font-semibold text-[#4a2518]">{formatCurrency(item.unitPrice)} each</p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:items-end">
+        <tr className="border-b border-[#d1b79a]/40">
+            <td className="px-3 py-3 align-middle">
+                <div className="relative aspect-square w-16 overflow-hidden rounded-md border border-[#b89572]/60 bg-white">
+                    {item.imagePath ? (
+                        <RemoteImage src={item.imagePath} alt={item.productName} sizes="64px" />
+                    ) : (
+                        <div className="flex h-full items-center justify-center text-[9px] font-medium uppercase tracking-wider text-[#8b6b4a]">
+                            No image
+                        </div>
+                    )}
+                </div>
+            </td>
+            <td className="px-3 py-3 align-middle text-left">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#4a2518]">{item.productName}</p>
+                <p className="mt-0.5 text-[10px] text-[#6e4a34]">{item.itemNumber ? `Item #${item.itemNumber}` : '—'}</p>
+            </td>
+            <td className="px-3 py-3 align-middle text-right text-[11px] tabular-nums">{formatCurrency(item.unitPrice)}</td>
+            <td className="px-3 py-3 align-middle">
                 <QuantityStepper
-                    id={`cart-qty-${item.id}`}
+                    id={`manage-cart-qty-${item.id}`}
                     value={quantity}
                     disabled={isDisabled}
                     onChange={setDraftQuantity}
                     onCommit={(value) => void persistQuantity(value)}
                 />
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <button
-                        type="button"
-                        disabled={isDisabled}
-                        aria-label={`Remove ${item.productName}`}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#c49a78] px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a2818] transition-colors hover:bg-[#fde8e0] disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={() => void handleRemove()}
-                    >
-                        <Trash2 className="size-3.5" aria-hidden />
-                        Remove
-                    </button>
-                </div>
-                <p className="text-sm font-semibold tabular-nums text-[#4a2518] sm:text-right">
-                    Line total: {formatCurrency(item.lineTotal)}
-                </p>
-            </div>
-        </li>
+            </td>
+            <td className="px-3 py-3 align-middle text-right text-[11px] font-semibold tabular-nums">{formatCurrency(item.lineTotal)}</td>
+            <td className="px-3 py-3 align-middle text-right">
+                <button
+                    type="button"
+                    disabled={isDisabled}
+                    aria-label={`Remove ${item.productName}`}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#c49a78] px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a2818] transition-colors hover:bg-[#fde8e0] disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => void handleRemove()}
+                >
+                    <Trash2 className="size-3.5" aria-hidden />
+                    Remove
+                </button>
+            </td>
+        </tr>
     );
 }
 
-type Props = {
+type ManageCartDetailContentProps = {
+    cartId: number;
     initialCart: ShopCartView;
+    backHref: string;
     minimumOrderAmount?: number | null;
 };
 
-export function ShopCartContent({ initialCart, minimumOrderAmount = null }: Props) {
+export function ManageCartDetailContent({ cartId, initialCart, backHref, minimumOrderAmount = null }: ManageCartDetailContentProps) {
+    const router = useRouter();
     const [cart, setCart] = useState(initialCart);
 
     useEffect(() => {
         setCart(initialCart);
-        useShopCartStore.getState().setItemCount(initialCart.itemCount);
     }, [initialCart]);
 
-    const handleCartUpdated = useCallback((nextCart: ShopCartView) => {
-        setCart(nextCart);
-        useShopCartStore.getState().setItemCount(nextCart.itemCount);
-    }, []);
+    const handleCartUpdated = useCallback(
+        (nextCart: ShopCartView) => {
+            if (nextCart.items.length === 0) {
+                router.push(backHref);
+                return;
+            }
+            setCart(nextCart);
+        },
+        [router, backHref],
+    );
 
     const isBelowMinimumOrder =
         minimumOrderAmount != null && cart.items.length > 0 && cart.subTotal < minimumOrderAmount;
 
     return (
-        <div className="space-y-6">
-            <div className="rounded-lg border border-[#b89572] bg-[#fdf7ef] p-4 sm:p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Shopping for</p>
+        <div className="mx-auto max-w-7xl space-y-6">
+            <div className="flex flex-wrap items-center gap-3">
+                <Link href={backHref} className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline-offset-4 hover:underline">
+                    ← Back to active carts
+                </Link>
+            </div>
+
+            <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Cart #{cartId}</h1>
+
+            <div className="rounded-lg border border-[#c49a78] bg-[#f8eddf] p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Account</p>
                 <p className="mt-1 text-sm font-semibold text-[#4a2518]">{cart.accountDisplayName}</p>
                 {cart.accountOwnerDisplayName ? (
                     <p className="mt-0.5 text-[11px] text-[#6e4a34]">{cart.accountOwnerDisplayName}</p>
@@ -248,33 +260,36 @@ export function ShopCartContent({ initialCart, minimumOrderAmount = null }: Prop
             </div>
 
             {cart.items.length === 0 ? (
-                <div className="rounded-2xl border border-[#b89572] bg-[#f6ebdd] p-8 text-center">
-                    <p className="text-sm text-[#5c4032]">Your cart is empty.</p>
-                    <Link
-                        href="/shop"
-                        className="mt-4 inline-flex rounded-md bg-[#4a2518] px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#fdf7ef] transition-colors hover:bg-[#3a1b11]"
-                    >
-                        Continue shopping
-                    </Link>
-                </div>
+                <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">This cart is empty.</p>
             ) : (
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-                    <section className="overflow-hidden rounded-lg border border-[#b89572] bg-[#fdf7ef] px-2 sm:px-3">
-                        <ul>
-                            {cart.items.map((item) => (
-                                <CartLineRow
-                                    key={item.id}
-                                    item={item}
-                                    busy={false}
-                                    onUpdated={(nextCart) => handleCartUpdated(nextCart)}
-                                />
-                            ))}
-                        </ul>
-                    </section>
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
+                    <div className="overflow-x-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
+                        <table className="min-w-full border-collapse text-xs text-[#4a2518]">
+                            <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
+                                <tr>
+                                    <th className="px-3 py-2 text-left w-20">Image</th>
+                                    <th className="px-3 py-2 text-left min-w-40">Product</th>
+                                    <th className="px-3 py-2 text-right w-24">Unit Price</th>
+                                    <th className="px-3 py-2 text-left w-36">Quantity</th>
+                                    <th className="px-3 py-2 text-right w-24">Line Total</th>
+                                    <th className="px-3 py-2 text-right w-28"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {cart.items.map((item) => (
+                                    <CartLineRow key={item.id} cartId={cartId} item={item} busy={false} onUpdated={handleCartUpdated} />
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
 
-                    <aside className="rounded-lg border border-[#b89572] bg-[#fdf7ef] p-5">
-                        <h2 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6e4a34]">Order summary</h2>
+                    <aside className="rounded-lg border border-[#c49a78] bg-[#f8eddf] p-5">
+                        <h2 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6e4a34]">Cart summary</h2>
                         <dl className="mt-4 space-y-2 text-sm text-[#4a2518]">
+                            <div className="flex items-center justify-between gap-3">
+                                <dt>Products</dt>
+                                <dd className="font-semibold tabular-nums">{cart.itemCount}</dd>
+                            </div>
                             {cart.discounts > 0 ? (
                                 <div className="flex items-center justify-between gap-3">
                                     <dt>Discounts</dt>
@@ -283,15 +298,15 @@ export function ShopCartContent({ initialCart, minimumOrderAmount = null }: Prop
                             ) : null}
                             <div className="flex items-center justify-between gap-3">
                                 <dt>Shipping</dt>
-                                <dd className="font-semibold uppercase tracking-[0.12em] text-[#6e4a34]">TBD</dd>
+                                <dd className="font-semibold tabular-nums">{formatCurrency(cart.shipping)}</dd>
                             </div>
                             <div className="flex items-center justify-between gap-3">
                                 <dt>Tax</dt>
-                                <dd className="font-semibold uppercase tracking-[0.12em] text-[#6e4a34]">TBD</dd>
+                                <dd className="font-semibold tabular-nums">{formatCurrency(cart.tax)}</dd>
                             </div>
                             <div className="flex items-center justify-between gap-3 border-t border-[#d1b79a] pt-3 text-base">
-                                <dt className="font-bold uppercase tracking-[0.12em]">Subtotal</dt>
-                                <dd className="font-bold tabular-nums text-[#4a2518]">{formatCurrency(cart.subTotal)}</dd>
+                                <dt className="font-bold uppercase tracking-[0.12em]">Total</dt>
+                                <dd className="font-bold tabular-nums text-[#4a2518]">{formatCurrency(cart.total)}</dd>
                             </div>
                         </dl>
                         {isBelowMinimumOrder ? (
@@ -299,37 +314,6 @@ export function ShopCartContent({ initialCart, minimumOrderAmount = null }: Prop
                                 Minimum order is {formatCurrency(minimumOrderAmount)}.
                             </p>
                         ) : null}
-                        <Link
-                            href="/shop"
-                            className={cn(
-                                'mt-5 inline-flex w-full items-center justify-center rounded-md border border-[#c49a78] px-4 py-2.5',
-                                'text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6e4a34] transition-colors hover:bg-[#f3e0cf]',
-                            )}
-                        >
-                            Continue shopping
-                        </Link>
-                        {isBelowMinimumOrder ? (
-                            <button
-                                type="button"
-                                disabled
-                                className={cn(
-                                    'mt-3 inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-[#4a2518] px-4 py-2.5',
-                                    'text-[11px] font-semibold uppercase tracking-[0.18em] text-[#fdf7ef] opacity-50',
-                                )}
-                            >
-                                Checkout
-                            </button>
-                        ) : (
-                            <Link
-                                href="/checkout"
-                                className={cn(
-                                    'mt-3 inline-flex w-full items-center justify-center rounded-md bg-[#4a2518] px-4 py-2.5',
-                                    'text-[11px] font-semibold uppercase tracking-[0.18em] text-[#fdf7ef] transition-colors hover:bg-[#3a1b11]',
-                                )}
-                            >
-                                Checkout
-                            </Link>
-                        )}
                     </aside>
                 </div>
             )}

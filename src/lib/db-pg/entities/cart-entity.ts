@@ -9,6 +9,8 @@ export type Cart = {
     discounts: number
     shipping: number
     total: number
+    createDate: string
+    modifiedDate: string
     cartItems: CartItem[]
     account: Account
 }
@@ -19,5 +21,7 @@ export type CartItem = {
     productId: number
     quantity: number
     lineTotal: number
+    createDate: string
+    modifiedDate: string
     product: Product
 }

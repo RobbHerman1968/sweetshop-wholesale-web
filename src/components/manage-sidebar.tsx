@@ -6,13 +6,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { isLocalhostHostname } from '@/lib/is-localhost';
 
-type NavLink = { type: 'link'; href: string; label: string };
+type NavLink = { type: 'link'; href: string; label: string; isActive?: (pathname: string) => boolean };
 type NavDivider = { type: 'divider' };
 type NavItem = NavLink | NavDivider;
 
 const baseNavItems: NavItem[] = [
     { type: 'link', href: '/manage', label: 'Dashboard' },
-    { type: 'link', href: '/manage/orders', label: 'Orders' },
+    {
+        type: 'link',
+        href: '/manage/orders',
+        label: 'Orders',
+        isActive: (pathname) =>
+            pathname === '/manage/orders' ||
+            (pathname.startsWith('/manage/orders/') && !pathname.startsWith('/manage/orders/active-carts')),
+    },
+    { type: 'link', href: '/manage/orders/active-carts', label: 'Active Carts' },
     { type: 'divider' },
     { type: 'link', href: '/manage/users', label: 'User Accounts' },
     { type: 'link', href: '/manage/accounts', label: 'AccountMate Accounts' },
@@ -33,15 +41,19 @@ const localhostNavItems: NavItem[] = [
     { type: 'link', href: '/manage/sync', label: 'Sync' },
 ];
 
+function isNavLinkActive(pathname: string, href: string) {
+    return pathname === href || (href !== '/manage' && pathname.startsWith(href));
+}
+
 function renderNavItems(items: NavItem[], pathname: string, className: string, dividerClassName: string) {
     return items.map((item, index) => {
         if (item.type === 'divider') {
             return <div key={`divider-${index}`} className={dividerClassName} role="separator" />;
         }
-        const { href, label } = item;
-        const isActive = pathname === href || (href !== '/manage' && pathname.startsWith(href));
+        const { href, label, isActive } = item;
+        const active = isActive ? isActive(pathname) : isNavLinkActive(pathname, href);
         return (
-            <Link key={href} href={href} className={cn(className, isActive ? 'bg-[#f3e0cf] text-[#4a2518]' : 'text-[#6e4a34] hover:bg-[#f3e0cf]')}>
+            <Link key={href} href={href} className={cn(className, active ? 'bg-[#f3e0cf] text-[#4a2518]' : 'text-[#6e4a34] hover:bg-[#f3e0cf]')}>
                 {label}
             </Link>
         );

@@ -2,12 +2,24 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
+import { getAccountReloadBatch, reloadAccountFromAccountMate, revalidateManageAccountsAfterBulkReload } from '@/lib/db-pg/actions/account';
+import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ManageMenu } from '@/lib/db-pg/actions/menu';
+
+const RELOAD_BATCH_SIZE = 1000;
+const RELOAD_DELAY_MS = 5;
+
+function delay(ms: number) {
+    return new Promise<void>((resolve) => {
+        window.setTimeout(resolve, ms);
+    });
+}
 
 type AccountRow = {
     id: number;
@@ -47,6 +59,61 @@ function resolveAccountMenuName(menuId: number, menus: ManageMenu[]): string {
 
 export function AccountsContent({ data, menus, pagination, searchName, searchAccountMateId }: AccountsContentProps) {
     const router = useRouter();
+    const [bulkReloading, setBulkReloading] = useState(false);
+    const [reloadProgress, setReloadProgress] = useState<{ processed: number; batchSize: number; failed: number } | null>(null);
+
+    const handleBulkReload = async () => {
+        const batch = await getAccountReloadBatch({ offset: 0, limit: RELOAD_BATCH_SIZE });
+        if (batch.accounts.length === 0) {
+            toast({
+                title: 'No accounts to reload',
+                description: 'No accounts with an AccountMate ID and a missing name were found.',
+            });
+            return;
+        }
+
+        const batchCount = batch.accounts.length;
+
+        setBulkReloading(true);
+        setReloadProgress({ processed: 0, batchSize: batchCount, failed: 0 });
+
+        let processed = 0;
+        let failed = 0;
+
+        try {
+            for (const row of batch.accounts) {
+                const result = await reloadAccountFromAccountMate(row.id, row.accountMateId, true);
+                processed += 1;
+                if (!result.ok) {
+                    failed += 1;
+                }
+                setReloadProgress({ processed, batchSize: batchCount, failed });
+                await delay(RELOAD_DELAY_MS);
+            }
+
+            await revalidateManageAccountsAfterBulkReload();
+            router.refresh();
+
+            const reloadedOk = processed - failed;
+            const hasMore = batch.total > batchCount;
+            toast({
+                title: 'Batch reload complete',
+                description:
+                    failed > 0
+                        ? `Reloaded ${reloadedOk} of ${processed} missing-name accounts in this batch (${failed} failed).${hasMore ? ` Click again for the next ${RELOAD_BATCH_SIZE}.` : ' No accounts missing a name remain.'}`
+                        : `Reloaded ${processed} account${processed === 1 ? '' : 's'} missing a name.${hasMore ? ` Click again for the next ${RELOAD_BATCH_SIZE}.` : ' No accounts missing a name remain.'}`,
+            });
+        } catch (err) {
+            toast({
+                variant: 'destructive',
+                title: 'Batch reload stopped',
+                description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+            });
+        } finally {
+            setBulkReloading(false);
+            setReloadProgress(null);
+        }
+    };
 
     const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -112,7 +179,17 @@ export function AccountsContent({ data, menus, pagination, searchName, searchAcc
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search
                 </Button>
+                <Button type="button" variant="outline" className="shrink-0" disabled={bulkReloading} onClick={() => void handleBulkReload()}>
+                    {bulkReloading ? 'Reloading batch…' : 'Reload 1000 missing names'}
+                </Button>
             </form>
+
+            {reloadProgress ? (
+                <p className="text-xs text-[#6e4a34]">
+                    Reloading {reloadProgress.processed} of {reloadProgress.batchSize} in this batch
+                    {reloadProgress.failed > 0 ? ` (${reloadProgress.failed} failed)` : ''}…
+                </p>
+            ) : null}
 
             <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
                 <p className="w-64">

@@ -10,9 +10,9 @@ export * from './actions/process-user-addresses';
 export * from './actions/cart';
 export * from './account-mate/service';
 
-export * from './entities/account-entity';
-export * from './entities/vercel-entity';
-export * from './entities/cart-entity';
-export * from './entities/product-entity';
-export * from './entities/user-entity';
-export * from './entities/order-entity';
+export type * from './entities/account-entity';
+export type * from './entities/vercel-entity';
+export type * from './entities/cart-entity';
+export type * from './entities/product-entity';
+export type * from './entities/user-entity';
+export type * from './entities/order-entity';
