@@ -24,6 +24,7 @@ export type ManageMenu = {
     name: string;
     description: string;
     isShopping: boolean;
+    shippingLeadTime: number;
     itemCount: number;
 };
 
@@ -70,7 +71,13 @@ function mapMenuItemRow(match: {
 
 export async function getMenusFromDB(): Promise<ManageMenu[]> {
     const menus = await db
-        .select({ id: menu.id, name: menu.name, description: menu.description, isShopping: menu.isShopping })
+        .select({
+            id: menu.id,
+            name: menu.name,
+            description: menu.description,
+            isShopping: menu.isShopping,
+            shippingLeadTime: menu.shippingLeadTime,
+        })
         .from(menu)
         .orderBy(asc(menu.id));
 
@@ -79,7 +86,13 @@ export async function getMenusFromDB(): Promise<ManageMenu[]> {
 
 export async function getShoppingMenusFromDB(): Promise<ManageMenu[]> {
     const menus = await db
-        .select({ id: menu.id, name: menu.name, description: menu.description, isShopping: menu.isShopping })
+        .select({
+            id: menu.id,
+            name: menu.name,
+            description: menu.description,
+            isShopping: menu.isShopping,
+            shippingLeadTime: menu.shippingLeadTime,
+        })
         .from(menu)
         .where(eq(menu.isShopping, true))
         .orderBy(asc(menu.id));
@@ -88,7 +101,13 @@ export async function getShoppingMenusFromDB(): Promise<ManageMenu[]> {
 }
 
 async function mapMenusWithItemCounts(
-    menus: { id: number; name: string | null; description: string | null; isShopping: boolean | null }[],
+    menus: {
+        id: number;
+        name: string | null;
+        description: string | null;
+        isShopping: boolean | null;
+        shippingLeadTime: number | null;
+    }[],
 ): Promise<ManageMenu[]> {
     const counts = await db
         .select({
@@ -105,6 +124,7 @@ async function mapMenusWithItemCounts(
         name: row.name?.trim() || `Menu ${row.id}`,
         description: row.description?.trim() || '',
         isShopping: row.isShopping ?? false,
+        shippingLeadTime: row.shippingLeadTime ?? 14,
         itemCount: countByMenuId.get(row.id) ?? 0,
     }));
 }
@@ -113,7 +133,13 @@ export async function getMenuByIdForManage(menuId: number): Promise<ManageMenu |
     if (!Number.isFinite(menuId) || menuId <= 0) return null;
 
     const row = await db
-        .select({ id: menu.id, name: menu.name, description: menu.description, isShopping: menu.isShopping })
+        .select({
+            id: menu.id,
+            name: menu.name,
+            description: menu.description,
+            isShopping: menu.isShopping,
+            shippingLeadTime: menu.shippingLeadTime,
+        })
         .from(menu)
         .where(eq(menu.id, menuId))
         .limit(1);
@@ -130,6 +156,7 @@ export async function getMenuByIdForManage(menuId: number): Promise<ManageMenu |
         name: match.name?.trim() || `Menu ${match.id}`,
         description: match.description?.trim() || '',
         isShopping: match.isShopping ?? false,
+        shippingLeadTime: match.shippingLeadTime ?? 14,
         itemCount: Number(count),
     };
 }

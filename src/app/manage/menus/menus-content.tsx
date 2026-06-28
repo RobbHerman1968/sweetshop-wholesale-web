@@ -41,7 +41,8 @@ export function MenusContent({ menus }: MenusContentProps) {
                             <tr>
                                 <th className="px-3 py-2 text-left whitespace-nowrap">Name</th>
                                 <th className="px-3 py-2 text-left whitespace-nowrap">Description</th>
-                                <th className="px-3 py-2 text-right whitespace-nowrap">Items</th>
+                                <th className="px-3 py-2 text-center whitespace-nowrap">Lead Time</th>
+                                <th className="px-3 py-2 text-center whitespace-nowrap">Items</th>
                                 <th className="px-3 py-2 text-right whitespace-nowrap"></th>
                             </tr>
                         </thead>
@@ -55,7 +56,10 @@ export function MenusContent({ menus }: MenusContentProps) {
                                         <td className="max-w-xs truncate px-3 py-2 align-middle whitespace-nowrap text-[11px] text-[#6e4a34]">
                                             {menu.description || '—'}
                                         </td>
-                                        <td className="px-3 py-2 align-middle whitespace-nowrap text-right text-[11px] tabular-nums">
+                                        <td className="px-3 py-2 align-middle whitespace-nowrap text-center text-[11px] tabular-nums">
+                                            {menu.shippingLeadTime} {menu.shippingLeadTime === 1 ? 'day' : 'days'}
+                                        </td>
+                                        <td className="px-3 py-2 align-middle whitespace-nowrap text-center text-[11px] tabular-nums">
                                             {menu.itemCount}
                                         </td>
                                         <td className="px-3 py-2 align-middle whitespace-nowrap text-right text-[11px]">

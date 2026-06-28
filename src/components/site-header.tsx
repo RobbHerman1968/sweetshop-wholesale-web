@@ -12,6 +12,7 @@ import { UserAccountMenu } from '@/components/user-account-menu';
 import { WholesaleAccountSwitcher } from '@/components/wholesale-account-switcher';
 import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
 import { useShopCartCount } from '@/hooks/use-shop-cart-count';
+import { DEFAULT_SHIPPING_LEAD_TIME } from '@/lib/shipping-lead-time-constants';
 import { useShopCartStore } from '@/store/useShopCartStore';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ type SiteHeaderProps = {
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
     initialAccountDisplayName?: string | null;
+    initialAccountShippingLeadTime?: number | null;
 };
 
 type CartNavButtonProps = {
@@ -99,6 +101,7 @@ export function SiteHeader({
     brandBarCategories,
     initialCartItemCount,
     initialAccountDisplayName = null,
+    initialAccountShippingLeadTime = null,
 }: SiteHeaderProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [cartCountHydrated, setCartCountHydrated] = useState(false);
@@ -117,6 +120,10 @@ export function SiteHeader({
     useEffect(() => {
         useShopCartStore.getState().setAccountDisplayName(initialAccountDisplayName?.trim() || null);
     }, [initialAccountDisplayName]);
+
+    useEffect(() => {
+        useShopCartStore.getState().setShippingLeadTime(initialAccountShippingLeadTime ?? DEFAULT_SHIPPING_LEAD_TIME);
+    }, [initialAccountShippingLeadTime]);
 
     const onShopNavClick = useCallback(
         (e: React.MouseEvent<HTMLAnchorElement>) => {

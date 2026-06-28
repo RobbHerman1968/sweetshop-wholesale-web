@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 
 import { db } from '@/lib/db-pg';
 import { getAccountAddressesFromSweetshopOld } from '@/lib/db-sweetshop-old';
-import { userAddress } from '@/lib/drizzle/schema';
+import { accountAddress } from '@/lib/drizzle/schema';
 
 export type UserAddressSyncResult = {
     fetched: number;
@@ -51,9 +51,9 @@ function readLegacyAccountAddressId(row: any): number | null {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function readLegacyAccountAddressUserId(row: any): number | null {
-    const userId = Number(row.AccountId ?? row.accountId);
-    return Number.isFinite(userId) && userId > 0 ? userId : null;
+function readLegacyAccountAddressAccountId(row: any): number | null {
+    const accountId = Number(row.AccountId ?? row.accountId);
+    return Number.isFinite(accountId) && accountId > 0 ? accountId : null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,7 +64,7 @@ function mapLegacyAccountAddressRow(row: any) {
 
     return {
         id: readLegacyAccountAddressId(row)!,
-        userId: readLegacyAccountAddressUserId(row),
+        accountId: readLegacyAccountAddressAccountId(row)!,
         name,
         type,
         companyName,
@@ -83,18 +83,18 @@ function mapLegacyAccountAddressRow(row: any) {
 
 type LegacyUserAddressRow = ReturnType<typeof mapLegacyAccountAddressRow>;
 
-async function upsertUserAddressChunk(chunk: LegacyUserAddressRow[]) {
+async function upsertAccountAddressChunk(chunk: LegacyUserAddressRow[]) {
     if (chunk.length === 0) {
         return;
     }
 
     await db
-        .insert(userAddress)
+        .insert(accountAddress)
         .values(chunk)
         .onConflictDoUpdate({
-            target: userAddress.id,
+            target: accountAddress.id,
             set: {
-                userId: sql`excluded."userId"`,
+                accountId: sql`excluded."accountId"`,
                 name: sql`excluded.name`,
                 type: sql`excluded.type`,
                 companyName: sql`excluded."companyName"`,
@@ -113,13 +113,13 @@ async function upsertUserAddressChunk(chunk: LegacyUserAddressRow[]) {
 }
 
 export async function getMaxUserAddressId(): Promise<number> {
-    const [result] = await db.select({ max: sql<number>`coalesce(max(${userAddress.id}), 0)` }).from(userAddress);
+    const [result] = await db.select({ max: sql<number>`coalesce(max(${accountAddress.id}), 0)` }).from(accountAddress);
     return Number(result?.max ?? 0);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function syncLegacyUserAddressRows(rows: any[]): Promise<UserAddressSyncResult> {
-    const existingRows = await db.select({ id: userAddress.id }).from(userAddress);
+    const existingRows = await db.select({ id: accountAddress.id }).from(accountAddress);
     const existingUserAddressIds = new Set(existingRows.map((row) => row.id));
 
     let inserted = 0;
@@ -136,7 +136,7 @@ async function syncLegacyUserAddressRows(rows: any[]): Promise<UserAddressSyncRe
         }
 
         const chunk = pendingRows.splice(0, pendingRows.length);
-        await upsertUserAddressChunk(chunk);
+        await upsertAccountAddressChunk(chunk);
         console.log(
             `User address sync: upserted ${chunk.length} rows (${updated} updated, ${inserted} inserted, ${skipped} skipped so far)`,
         );

@@ -9,12 +9,14 @@ import { authOptions } from '@/auth';
 import { db } from '@/lib/db-pg';
 import { getUserAccounts, verifyUserOwnsAccount, accountExists, canAccessAccountForShop } from '@/lib/db-pg/actions/account';
 import { account, user } from '@/lib/drizzle/schema';
-import { WHOLESALE_ADMIN_SHOP_AS_COOKIE, WHOLESALE_SELECTED_ACCOUNT_COOKIE } from '@/lib/wholesale-account-cookie';
+import { WHOLESALE_SELECTED_ACCOUNT_COOKIE, WHOLESALE_ADMIN_SHOP_AS_COOKIE } from '@/lib/wholesale-account-cookie';
 import { parseUserId } from '@/lib/user-id';
+import { DEFAULT_SHIPPING_LEAD_TIME, getShippingLeadTimesForAccounts } from '@/lib/account-shipping-lead-time';
 
 export type WholesaleAccountSwitcherOption = {
     id: number;
     displayName: string;
+    shippingLeadTime: number;
 };
 
 function wholesaleAccountCookieOptions() {
@@ -88,19 +90,78 @@ async function resolveSelectedAccountDisplayName(
     return fallback || `Account ${selectedAccountId}`;
 }
 
+function accountMateIdsMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+    const left = (a ?? '').trim().toUpperCase();
+    const right = (b ?? '').trim().toUpperCase();
+    return left.length > 0 && left === right;
+}
+
+function sortAccountLabelRows(rows: AccountLabelRow[]): AccountLabelRow[] {
+    return [...rows].sort((a, b) => {
+        const nameCmp = (a.name ?? '').localeCompare(b.name ?? '');
+        return nameCmp !== 0 ? nameCmp : a.id - b.id;
+    });
+}
+
+async function findAccountRowByAccountMateId(accountMateId: string): Promise<AccountLabelRow | null> {
+    const trimmed = accountMateId.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    const [row] = await db
+        .select({ id: account.id, name: account.name, accountMateId: account.accountMateId })
+        .from(account)
+        .where(eq(account.accountMateId, trimmed))
+        .limit(1);
+
+    return row ?? null;
+}
+
+async function ensureUserAccountMateAccountInRows(
+    rows: AccountLabelRow[],
+    userAccountMateId: string | null,
+): Promise<AccountLabelRow[]> {
+    if (!userAccountMateId || rows.some((row) => accountMateIdsMatch(row.accountMateId, userAccountMateId))) {
+        return rows;
+    }
+
+    const matched = await findAccountRowByAccountMateId(userAccountMateId);
+    if (!matched) {
+        return rows;
+    }
+
+    return sortAccountLabelRows([...rows, matched]);
+}
+
 function resolveSelectedAccountFromCookie(
     sortedAccountIds: number[],
     cookieRaw: string | undefined,
+    rows: AccountLabelRow[],
+    userAccountMateId: string | null,
 ): { selectedAccountId: number | null; shouldPersistCookie: boolean } {
     if (sortedAccountIds.length === 0) {
         return { selectedAccountId: null, shouldPersistCookie: false };
     }
+
     const idSet = new Set(sortedAccountIds);
     const parsed = cookieRaw ? Number.parseInt(cookieRaw, 10) : NaN;
     const cookieValid = Number.isFinite(parsed) && idSet.has(parsed);
+
+    if (cookieValid) {
+        return { selectedAccountId: parsed, shouldPersistCookie: false };
+    }
+
+    if (userAccountMateId) {
+        const preferred = rows.find((row) => accountMateIdsMatch(row.accountMateId, userAccountMateId));
+        if (preferred) {
+            return { selectedAccountId: preferred.id, shouldPersistCookie: true };
+        }
+    }
+
     return {
-        selectedAccountId: cookieValid ? parsed : sortedAccountIds[0],
-        shouldPersistCookie: !cookieValid,
+        selectedAccountId: sortedAccountIds[0],
+        shouldPersistCookie: true,
     };
 }
 
@@ -111,6 +172,7 @@ async function getWholesaleSelectionCore(
     accounts: WholesaleAccountSwitcherOption[];
     selectedAccountId: number | null;
     selectedAccountDisplayName: string | null;
+    selectedAccountShippingLeadTime: number | null;
     shouldPersistCookie: boolean;
     isAdminShopAs: boolean;
     canShopAsAnyAccount: boolean;
@@ -122,6 +184,7 @@ async function getWholesaleSelectionCore(
             accounts: [],
             selectedAccountId: null,
             selectedAccountDisplayName: null,
+            selectedAccountShippingLeadTime: null,
             shouldPersistCookie: false,
             isAdminShopAs: false,
             canShopAsAnyAccount: false,
@@ -137,23 +200,22 @@ async function getWholesaleSelectionCore(
     const userAccountMateId = userRow?.accountMateId?.trim() || null;
 
     const linkedAccounts = await getUserAccounts(userId);
-    const hasOwnedAccounts = linkedAccounts.length > 0;
+    let hasOwnedAccounts = linkedAccounts.length > 0;
     const cookieStore = await cookies();
     const raw = cookieStore.get(WHOLESALE_SELECTED_ACCOUNT_COOKIE)?.value;
     const adminShopAsFlag = cookieStore.get(WHOLESALE_ADMIN_SHOP_AS_COOKIE)?.value === '1';
     const parsedCookieId = raw ? Number.parseInt(raw, 10) : NaN;
 
     type AccountRow = AccountLabelRow;
-    let rows: AccountRow[] = linkedAccounts
-        .map((r) => ({
+    let rows: AccountRow[] = sortAccountLabelRows(
+        linkedAccounts.map((r) => ({
             id: r.id,
             name: r.name?.trim() || null,
             accountMateId: r.accountMateId?.trim() || null,
-        }))
-        .sort((a, b) => {
-            const nameCmp = (a.name ?? '').localeCompare(b.name ?? '');
-            return nameCmp !== 0 ? nameCmp : a.id - b.id;
-        });
+        })),
+    );
+
+    rows = await ensureUserAccountMateAccountInRows(rows, userAccountMateId);
 
     if (isAdmin && Number.isFinite(parsedCookieId) && parsedCookieId > 0 && !rows.some((r) => r.id === parsedCookieId)) {
         const [impersonated] = await db
@@ -162,11 +224,14 @@ async function getWholesaleSelectionCore(
             .where(eq(account.id, parsedCookieId))
             .limit(1);
         if (impersonated) {
-            rows = [...rows, impersonated].sort((a, b) => {
-                const nameCmp = (a.name ?? '').localeCompare(b.name ?? '');
-                return nameCmp !== 0 ? nameCmp : a.id - b.id;
-            });
+            rows = sortAccountLabelRows([...rows, impersonated]);
         }
+    }
+
+    const hasAccountMateLinkedAccount =
+        userAccountMateId != null && rows.some((row) => accountMateIdsMatch(row.accountMateId, userAccountMateId));
+    if (!hasOwnedAccounts && hasAccountMateLinkedAccount) {
+        hasOwnedAccounts = true;
     }
 
     if (rows.length === 0 && !(isAdmin && Number.isFinite(parsedCookieId) && parsedCookieId > 0)) {
@@ -174,6 +239,7 @@ async function getWholesaleSelectionCore(
             accounts: [],
             selectedAccountId: null,
             selectedAccountDisplayName: userAccountMateId,
+            selectedAccountShippingLeadTime: null,
             shouldPersistCookie: false,
             isAdminShopAs: false,
             canShopAsAnyAccount: isAdmin,
@@ -181,13 +247,27 @@ async function getWholesaleSelectionCore(
         };
     }
 
+    const sortedAccountIds = rows.map((r) => r.id);
+    let { selectedAccountId, shouldPersistCookie } = resolveSelectedAccountFromCookie(
+        sortedAccountIds,
+        raw,
+        rows,
+        userAccountMateId,
+    );
+
+    const accountIdsForLeadTime = new Set(sortedAccountIds);
+
+    if (isAdmin && selectedAccountId == null && Number.isFinite(parsedCookieId) && parsedCookieId > 0) {
+        accountIdsForLeadTime.add(parsedCookieId);
+    }
+
+    const shippingLeadTimesByAccountId = await getShippingLeadTimesForAccounts([...accountIdsForLeadTime]);
+
     const accounts: WholesaleAccountSwitcherOption[] = rows.map((r) => ({
         id: r.id,
         displayName: formatAccountDisplayName(r, userAccountMateId),
+        shippingLeadTime: shippingLeadTimesByAccountId.get(r.id) ?? DEFAULT_SHIPPING_LEAD_TIME,
     }));
-
-    const sortedAccountIds = rows.map((r) => r.id);
-    let { selectedAccountId, shouldPersistCookie } = resolveSelectedAccountFromCookie(sortedAccountIds, raw);
 
     if (isAdmin && selectedAccountId == null && Number.isFinite(parsedCookieId) && parsedCookieId > 0) {
         const exists = await accountExists(parsedCookieId);
@@ -201,7 +281,11 @@ async function getWholesaleSelectionCore(
                     .where(eq(account.id, parsedCookieId))
                     .limit(1);
                 if (impersonated) {
-                    accounts.push({ id: impersonated.id, displayName: formatAccountDisplayName(impersonated, userAccountMateId) });
+                    accounts.push({
+                        id: impersonated.id,
+                        displayName: formatAccountDisplayName(impersonated, userAccountMateId),
+                        shippingLeadTime: shippingLeadTimesByAccountId.get(impersonated.id) ?? DEFAULT_SHIPPING_LEAD_TIME,
+                    });
                 }
             }
         }
@@ -213,11 +297,16 @@ async function getWholesaleSelectionCore(
         rows,
         userAccountMateId,
     );
+    const selectedAccountShippingLeadTime =
+        selectedAccountId == null
+            ? null
+            : shippingLeadTimesByAccountId.get(selectedAccountId) ?? DEFAULT_SHIPPING_LEAD_TIME;
 
     return {
         accounts,
         selectedAccountId,
         selectedAccountDisplayName,
+        selectedAccountShippingLeadTime,
         shouldPersistCookie,
         isAdminShopAs,
         canShopAsAnyAccount: isAdmin,
@@ -228,6 +317,21 @@ async function getWholesaleSelectionCore(
 /** Effective wholesale account for shop catalog: valid cookie, else first account (by name, then id). */
 export async function getEffectiveWholesaleAccountIdForShopCatalog(userId: number, isAdmin = false): Promise<number | null> {
     const { selectedAccountId } = await getWholesaleSelectionCore(userId, isAdmin);
+    return selectedAccountId;
+}
+
+/**
+ * Selected wholesale account for shopping menu resolution only.
+ * Uses a persisted selection cookie — no auto-pick fallback (first account / AccountMate match).
+ */
+export async function getWholesaleSelectedAccountIdForShoppingMenu(
+    userId: number,
+    isAdmin = false,
+): Promise<number | null> {
+    const { selectedAccountId, shouldPersistCookie } = await getWholesaleSelectionCore(userId, isAdmin);
+    if (selectedAccountId == null || shouldPersistCookie) {
+        return null;
+    }
     return selectedAccountId;
 }
 
@@ -245,6 +349,7 @@ export async function getWholesaleAccountSwitcherState(): Promise<{
     accounts: WholesaleAccountSwitcherOption[];
     selectedAccountId: number | null;
     selectedAccountDisplayName: string | null;
+    selectedAccountShippingLeadTime: number | null;
     shouldPersistCookie: boolean;
     isAdminShopAs: boolean;
     canShopAsAnyAccount: boolean;
@@ -258,6 +363,7 @@ export async function getWholesaleAccountSwitcherState(): Promise<{
             accounts: [],
             selectedAccountId: null,
             selectedAccountDisplayName: null,
+            selectedAccountShippingLeadTime: null,
             shouldPersistCookie: false,
             isAdminShopAs: false,
             canShopAsAnyAccount: false,
@@ -381,8 +487,11 @@ export async function searchWholesaleAccountsForAdmin(query: string): Promise<Wh
         .orderBy(asc(account.name))
         .limit(ADMIN_ACCOUNT_SEARCH_LIMIT);
 
+    const shippingLeadTimesByAccountId = await getShippingLeadTimesForAccounts(rows.map((row) => row.id));
+
     return rows.map((r) => ({
         id: r.id,
         displayName: formatAccountDisplayName(r),
+        shippingLeadTime: shippingLeadTimesByAccountId.get(r.id) ?? DEFAULT_SHIPPING_LEAD_TIME,
     }));
 }

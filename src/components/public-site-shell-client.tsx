@@ -11,6 +11,7 @@ type PublicSiteShellClientProps = {
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
     initialAccountDisplayName?: string | null;
+    initialAccountShippingLeadTime?: number | null;
 };
 
 export function PublicSiteShellClient({
@@ -18,6 +19,7 @@ export function PublicSiteShellClient({
     brandBarCategories,
     initialCartItemCount,
     initialAccountDisplayName = null,
+    initialAccountShippingLeadTime = null,
 }: PublicSiteShellClientProps) {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
 
@@ -28,6 +30,7 @@ export function PublicSiteShellClient({
                 brandBarCategories={brandBarCategories}
                 initialCartItemCount={initialCartItemCount}
                 initialAccountDisplayName={initialAccountDisplayName}
+                initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />
             {children}
             <SiteFooter />

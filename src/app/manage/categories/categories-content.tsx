@@ -118,7 +118,7 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
                             <tr>
                                 <th className="px-3 py-2 text-left min-w-40">Name</th>
                                 <th className="px-3 py-2 text-left min-w-48">Path</th>
-                                <th className="px-3 py-2 text-left w-28">Status</th>
+                                <th className="w-28 px-3 py-2 text-center">Status</th>
                                 <th className="px-3 py-2 text-right min-w-56"></th>
                             </tr>
                         </thead>
@@ -132,11 +132,11 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
                                         <td className="px-3 py-2 align-middle text-[11px] text-[#6e4a34]">
                                             {c.navName ? `/shop/${c.id}/${c.navName}` : '—'}
                                         </td>
-                                        <td className="px-3 py-2 align-middle text-[11px]">
+                                        <td className="px-3 py-2 align-middle text-center text-[11px]">
                                             {c.isActive ? (
                                                 <span className="text-[#4a2518]">Active</span>
                                             ) : (
-                                                <span className="rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">
+                                                <span className="inline-block rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">
                                                     Inactive
                                                 </span>
                                             )}

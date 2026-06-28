@@ -84,11 +84,11 @@ export function StateShippingTaxRatesContent({ data, searchState }: StateShippin
                     <table className="min-w-full border-collapse text-xs text-[#4a2518]">
                         <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
                             <tr>
-                                <th className="px-3 py-2 text-left w-24">State</th>
-                                <th className="px-3 py-2 text-left min-w-40">State name</th>
-                                <th className="px-3 py-2 text-right w-36">Shipping rate</th>
-                                <th className="px-3 py-2 text-right w-36">Tax rate</th>
-                                <th className="px-3 py-2 text-right w-20"></th>
+                                <th className="w-24 px-3 py-2 text-center">State</th>
+                                <th className="min-w-40 px-3 py-2 text-left">State name</th>
+                                <th className="w-36 px-3 py-2 text-center">Shipping rate</th>
+                                <th className="w-36 px-3 py-2 text-center">Tax rate</th>
+                                <th className="w-20 px-3 py-2 text-center"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -97,15 +97,17 @@ export function StateShippingTaxRatesContent({ data, searchState }: StateShippin
 
                                 return (
                                     <tr key={row.id} className={isEven ? 'bg-[#fdf7ef]' : 'bg-[#f8eddf]'}>
-                                        <td className="px-3 py-2 align-middle text-[11px] font-semibold uppercase">{row.stateAbbr || '—'}</td>
+                                        <td className="px-3 py-2 align-middle text-center text-[11px] font-semibold uppercase">
+                                            {row.stateAbbr || '—'}
+                                        </td>
                                         <td className="px-3 py-2 align-middle text-[11px]">{row.stateName || '—'}</td>
-                                        <td className="px-3 py-2 align-middle text-right text-[11px] tabular-nums">
+                                        <td className="px-3 py-2 align-middle text-center text-[11px] tabular-nums">
                                             {formatShippingRate(row.shippingRate)}
                                         </td>
-                                        <td className="px-3 py-2 align-middle text-right text-[11px] tabular-nums">
+                                        <td className="px-3 py-2 align-middle text-center text-[11px] tabular-nums">
                                             {formatTaxRate(row.taxRate)}
                                         </td>
-                                        <td className="px-3 py-2 align-middle text-right text-[11px]">
+                                        <td className="px-3 py-2 align-middle text-center text-[11px]">
                                             <Link
                                                 href={`/manage/state-shipping-tax-rates/${row.id}`}
                                                 className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}

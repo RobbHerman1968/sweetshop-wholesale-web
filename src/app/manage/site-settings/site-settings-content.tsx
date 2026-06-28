@@ -39,7 +39,7 @@ export function SiteSettingsContent({ data }: SiteSettingsContentProps) {
                         <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
                             <tr>
                                 <th className="px-3 py-2 text-left min-w-48">Setting</th>
-                                <th className="px-3 py-2 text-left min-w-48">Value</th>
+                                <th className="w-32 px-3 py-2 text-left">Value</th>
                                 <th className="px-3 py-2 text-right w-28"></th>
                             </tr>
                         </thead>
@@ -113,7 +113,7 @@ function SiteSettingRowForm({ row, isEven, onSaved }: SiteSettingRowFormProps) {
                         step="0.01"
                         value={value}
                         onChange={(e) => setValue(e.target.value)}
-                        className="w-full max-w-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        className="h-8 w-28 tabular-nums text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         required
                         aria-label={`Value for ${row.name}`}
                     />

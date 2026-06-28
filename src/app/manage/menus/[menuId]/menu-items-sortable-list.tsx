@@ -138,7 +138,7 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames }:
                             <th className="w-10 px-2 py-2" aria-label="Reorder" />
                             <th className="px-4 py-2">Name</th>
                             <th className="px-4 py-2">Target</th>
-                            <th className="px-4 py-2">Order</th>
+                            <th className="px-4 py-2 text-center">Order</th>
                             <th className="px-4 py-2">Status</th>
                             <th className="px-4 py-2">Actions</th>
                         </tr>
@@ -181,7 +181,7 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames }:
                                         </span>
                                     </td>
                                     <td className="px-4 py-1.5">{describeMenuItemTarget(item, categoryNameMap, pageNameMap)}</td>
-                                    <td className="px-4 py-1.5">{item.displayOrder}</td>
+                                    <td className="px-4 py-1.5 text-center tabular-nums">{item.displayOrder}</td>
                                     <td className="px-4 py-1.5">
                                         <div className="flex flex-wrap gap-1.5">
                                             {item.parentMenuItemId === 0 ? (

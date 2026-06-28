@@ -8,13 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { updateUserFromForm } from '@/lib/db-pg/actions/users';
 import type { ManageUser } from '@/lib/db-pg/actions/users';
+import type { ManageAccountLink } from '@/lib/db-pg/actions/account';
 
 type Props = {
     user: ManageUser;
+    linkedAccount: ManageAccountLink | null;
     backHref: string;
 };
 
-export function EditUserContent({ user, backHref }: Props) {
+export function EditUserContent({ user, linkedAccount, backHref }: Props) {
     const router = useRouter();
     const [saving, setSaving] = useState(false);
 
@@ -52,6 +54,18 @@ export function EditUserContent({ user, backHref }: Props) {
                         <Input id="edit-user-accountMateId" name="accountMateId" defaultValue={user.accountMateId ?? ''} className="w-full" />
                     </div>
                 </div>
+
+                {linkedAccount ? (
+                    <p className="text-[11px] text-[#6e4a34]">
+                        Wholesale account:{' '}
+                        <Link
+                            href={`/manage/accounts/${linkedAccount.id}?returnTo=${encodeURIComponent(`/manage/users/${user.id}`)}`}
+                            className="font-semibold text-[#4a2518] underline-offset-4 hover:underline"
+                        >
+                            {linkedAccount.name?.trim() || linkedAccount.accountMateId}
+                        </Link>
+                    </p>
+                ) : null}
 
                 <p className="text-[11px] text-[#6e4a34]">User ID: {user.id}</p>
             </section>

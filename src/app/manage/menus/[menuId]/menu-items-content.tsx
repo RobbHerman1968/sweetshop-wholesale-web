@@ -100,7 +100,7 @@ export function MenuItemsContent({ menu, items, categoryNames, pageNames, search
                             <tr>
                                 <th className="px-4 py-2">Name</th>
                                 <th className="px-4 py-2">Target</th>
-                                <th className="px-4 py-2">Order</th>
+                                <th className="px-4 py-2 text-center">Order</th>
                                 <th className="px-4 py-2">Status</th>
                                 <th className="px-4 py-2">Actions</th>
                             </tr>
@@ -110,7 +110,7 @@ export function MenuItemsContent({ menu, items, categoryNames, pageNames, search
                                 <tr key={item.id} className="border-b border-[#e3cbb0]/80 last:border-b-0">
                                     <td className="px-4 py-1.5 font-semibold text-[#4a2518]">{item.name || '—'}</td>
                                     <td className="px-4 py-1.5">{describeMenuItemTarget(item, categoryNameMap, pageNameMap)}</td>
-                                    <td className="px-4 py-1.5">{item.displayOrder}</td>
+                                    <td className="px-4 py-1.5 text-center tabular-nums">{item.displayOrder}</td>
                                     <td className="px-4 py-1.5">
                                         <div className="flex flex-wrap gap-1.5">
                                             {!item.isActive && (

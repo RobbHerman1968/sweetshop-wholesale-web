@@ -4,12 +4,73 @@ import { db } from '@/lib/db-pg';
 import { getAccountOldFromSweetshopOld } from '@/lib/db-sweetshop-old';
 import { mapSignInLocationIdToMenuId, WHOLESALE_SHOPPING_MENU_ID } from '@/lib/menu-manage-utils';
 import { account, user } from '@/lib/drizzle/schema';
-import { and, asc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { Account } from '../entities/account-entity';
 import { accountMapper } from '../mappers/account-mapper';
 import { mapAccountMateRowToAccountFields } from '@/lib/account-mate-account-map';
-import { fetchWholesaleAccount } from '@/lib/wholesale-api';
+import { fetchWholesaleAccount, parseAccountMateId } from '@/lib/wholesale-api';
+
+export type ManageAccountLink = {
+    id: number;
+    name: string | null;
+    accountMateId: string;
+};
+
+/** Wholesale account row matching a valid AccountMate id (for manage UI links). */
+export async function getManageAccountLinkForAccountMateId(
+    accountMateId: string | null | undefined,
+): Promise<ManageAccountLink | null> {
+    const parsed = parseAccountMateId(accountMateId ?? undefined);
+    if (!parsed) {
+        return null;
+    }
+
+    const [row] = await db
+        .select({ id: account.id, name: account.name, accountMateId: account.accountMateId })
+        .from(account)
+        .where(eq(account.accountMateId, parsed))
+        .limit(1);
+
+    const mateId = row?.accountMateId?.trim();
+    if (!row || !mateId) {
+        return null;
+    }
+
+    return { id: row.id, name: row.name, accountMateId: mateId };
+}
+
+/** Batch lookup for manage user lists keyed by AccountMate id. */
+export async function getManageAccountLinksForAccountMateIds(
+    accountMateIds: Array<string | null | undefined>,
+): Promise<Map<string, ManageAccountLink>> {
+    const parsedIds = [
+        ...new Set(
+            accountMateIds
+                .map((id) => parseAccountMateId(id ?? undefined))
+                .filter((id): id is string => id != null),
+        ),
+    ];
+    if (parsedIds.length === 0) {
+        return new Map();
+    }
+
+    const rows = await db
+        .select({ id: account.id, name: account.name, accountMateId: account.accountMateId })
+        .from(account)
+        .where(inArray(account.accountMateId, parsedIds));
+
+    const links = new Map<string, ManageAccountLink>();
+    for (const row of rows) {
+        const mateId = row.accountMateId?.trim();
+        if (!mateId) {
+            continue;
+        }
+        links.set(mateId, { id: row.id, name: row.name, accountMateId: mateId });
+    }
+
+    return links;
+}
 
 export type ManageAccount = {
     id: number;

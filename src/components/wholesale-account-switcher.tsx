@@ -14,6 +14,7 @@ import {
 } from '@/lib/wholesale-account-switcher-actions';
 import { Input } from '@/components/ui/input';
 import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
+import { DEFAULT_SHIPPING_LEAD_TIME } from '@/lib/shipping-lead-time-constants';
 import { useShopCartStore } from '@/store/useShopCartStore';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +79,9 @@ export function WholesaleAccountSwitcher({
             setHasOwnedAccounts(next.hasOwnedAccounts);
             useShopCartStore.getState().setAccountId(next.selectedAccountId);
             useShopCartStore.getState().setAccountDisplayName(next.selectedAccountDisplayName);
+            useShopCartStore.getState().setShippingLeadTime(
+                next.selectedAccountShippingLeadTime ?? DEFAULT_SHIPPING_LEAD_TIME,
+            );
         } finally {
             setLoading(false);
         }
@@ -147,6 +151,7 @@ export function WholesaleAccountSwitcher({
             setSelectedAccountDisplayName(picked.displayName);
             useShopCartStore.getState().setAccountId(accountId);
             useShopCartStore.getState().setAccountDisplayName(picked.displayName);
+            useShopCartStore.getState().setShippingLeadTime(picked.shippingLeadTime);
         }
 
         const onShopHome = pathname === '/shop';

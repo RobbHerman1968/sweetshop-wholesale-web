@@ -7,14 +7,17 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
+import type { ManageAccountLink } from '@/lib/db-pg/actions/account';
 
 type UserRow = {
     id: number;
     userName: string;
     firstName: string | null;
     lastName: string | null;
+    accountMateId: string | null;
     isActive: boolean;
     isAdmin: boolean;
+    linkedAccount: ManageAccountLink | null;
 };
 
 type UsersContentProps = {
@@ -152,6 +155,19 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                             <article className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 transition-colors">
                                 <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{u.userName}</p>
                                 <p className="mt-0.5 text-[11px] text-[#6e4a34]">{[u.firstName, u.lastName].filter(Boolean).join(' ') || '—'}</p>
+                                {u.linkedAccount ? (
+                                    <p className="mt-1 truncate text-[11px] text-[#6e4a34]">
+                                        Account:{' '}
+                                        <Link
+                                            href={`/manage/accounts/${u.linkedAccount.id}?returnTo=${encodeURIComponent(listHref)}`}
+                                            className="font-semibold text-[#4a2518] underline-offset-4 hover:underline"
+                                        >
+                                            {u.linkedAccount.name?.trim() || u.linkedAccount.accountMateId}
+                                        </Link>
+                                    </p>
+                                ) : u.accountMateId?.trim() ? (
+                                    <p className="mt-1 truncate text-[11px] text-[#6e4a34]">AccountMate ID: {u.accountMateId.trim()}</p>
+                                ) : null}
                                 <div className="mt-1 flex gap-1.5">
                                     {u.isAdmin && <span className="rounded bg-[#4a2518] px-1.5 py-0.5 text-[10px] uppercase text-[#fdf7ef]">Admin</span>}
                                     {!u.isActive && <span className="rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>}

@@ -1,5 +1,7 @@
 import { Suspense } from 'react';
+import { getManageAccountLinksForAccountMateIds } from '@/lib/db-pg/actions/account';
 import { getPaginatedUsersFromDB } from '@/lib/db-pg/actions/users';
+import { parseAccountMateId } from '@/lib/wholesale-api';
 import { UsersContent } from './users-content';
 
 const PER_PAGE = 50;
@@ -21,10 +23,17 @@ export default async function ManageUsersPage({ searchParams }: Props) {
         lastName: lastName || undefined,
     });
 
+    const accountLinksByMateId = await getManageAccountLinksForAccountMateIds(result.data.map((row) => row.accountMateId));
+    const data = result.data.map((row) => {
+        const parsedAccountMateId = parseAccountMateId(row.accountMateId ?? undefined);
+        const linkedAccount = parsedAccountMateId ? accountLinksByMateId.get(parsedAccountMateId) ?? null : null;
+        return { ...row, linkedAccount };
+    });
+
     return (
         <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading users…</div>}>
             <UsersContent
-                data={result.data}
+                data={data}
                 pagination={result.pagination}
                 searchUserName={userName}
                 searchLastName={lastName}

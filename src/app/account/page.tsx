@@ -18,6 +18,7 @@ export default async function AccountPage() {
             brandBarCategories={brandBarCategories}
             initialCartItemCount={initialCartItemCount}
             initialAccountDisplayName={switcherState.selectedAccountDisplayName}
+            initialAccountShippingLeadTime={switcherState.selectedAccountShippingLeadTime}
         />
     );
 }

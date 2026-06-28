@@ -16,12 +16,14 @@ type HomePageClientProps = {
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
     initialAccountDisplayName?: string | null;
+    initialAccountShippingLeadTime?: number | null;
 };
 
 export function HomePageClient({
     brandBarCategories,
     initialCartItemCount,
     initialAccountDisplayName = null,
+    initialAccountShippingLeadTime = null,
 }: HomePageClientProps) {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
 
@@ -32,6 +34,7 @@ export function HomePageClient({
                 brandBarCategories={brandBarCategories}
                 initialCartItemCount={initialCartItemCount}
                 initialAccountDisplayName={initialAccountDisplayName}
+                initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />
 
             <main id={SITE_MAIN_ID} tabIndex={-1} className={cn('mx-auto flex max-w-6xl flex-col gap-10 px-3 pb-14 pt-1 sm:px-4 sm:pb-16 sm:pt-1', SITE_MAIN_FOCUS_CLASS)}>

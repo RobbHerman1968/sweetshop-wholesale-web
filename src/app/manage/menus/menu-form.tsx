@@ -83,6 +83,25 @@ export function MenuForm({ mode = 'create', menu, backHref = '/manage/menus' }: 
                     />
                 </div>
 
+                <div className="space-y-2">
+                    <Label htmlFor="menu-shippingLeadTime" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                        Shipping lead time (days)
+                    </Label>
+                    <Input
+                        id="menu-shippingLeadTime"
+                        name="shippingLeadTime"
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="w-full max-w-[8rem]"
+                        required
+                        defaultValue={menu?.shippingLeadTime ?? 14}
+                    />
+                </div>
+                <p className="text-[11px] text-[#6e4a34]">
+                    Default number of days added when calculating ship dates for orders on this menu.
+                </p>
+
                 <div className="flex items-center gap-2 pt-1">
                     <input
                         type="checkbox"

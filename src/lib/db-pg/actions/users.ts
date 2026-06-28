@@ -219,6 +219,7 @@ export async function getPaginatedUsersFromDB({ page = 1, limit = 50, userName, 
             userName: user.userName,
             firstName: user.firstName,
             lastName: user.lastName,
+            accountMateId: user.accountMateId,
             isActive: user.isActive,
             isAdmin: user.isAdmin,
         })

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getManageAccountLinkForAccountMateId } from '@/lib/db-pg/actions/account';
 import { getUserByIdForManage } from '@/lib/db-pg/actions/users';
 import { EditUserContent } from './edit-user-content';
 
@@ -25,6 +26,7 @@ export default async function ManageEditUserPage({ params, searchParams }: Props
         notFound();
     }
 
+    const linkedAccount = await getManageAccountLinkForAccountMateId(manageUser.accountMateId);
     const backHref = resolveBackHref(returnTo);
 
     return (
@@ -34,7 +36,7 @@ export default async function ManageEditUserPage({ params, searchParams }: Props
                     ← Back to users
                 </Link>
             </div>
-            <EditUserContent user={manageUser} backHref={backHref} />
+            <EditUserContent user={manageUser} linkedAccount={linkedAccount} backHref={backHref} />
         </div>
     );
 }

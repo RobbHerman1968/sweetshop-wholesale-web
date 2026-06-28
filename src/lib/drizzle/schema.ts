@@ -190,6 +190,14 @@ export const orderItem = pgTable("orderItem", {
 	timeStamp: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
 });
 
+export const menu = pgTable("menu", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	description: text(),
+	isShopping: boolean().default(false).notNull(),
+	shippingLeadTime: integer().default(14).notNull(),
+});
+
 export const cartItem = pgTable("cartItem", {
 	id: serial().primaryKey().notNull(),
 	cartId: integer().default(0).notNull(),
@@ -210,13 +218,6 @@ export const cartItem = pgTable("cartItem", {
 			name: "cartItem_cart_id_fk"
 		}),
 ]);
-
-export const menu = pgTable("menu", {
-	id: serial().primaryKey().notNull(),
-	name: text().notNull(),
-	description: text(),
-	isShopping: boolean().default(false).notNull(),
-});
 
 export const category = pgTable("category", {
 	id: serial().primaryKey().notNull(),
@@ -293,9 +294,15 @@ export const productOld = pgTable("productOld", {
 	shippingBoxFactor: numeric({ precision: 10, scale:  3 }),
 });
 
-export const userAddress = pgTable("userAddress", {
+export const siteSetting = pgTable("siteSetting", {
 	id: serial().primaryKey().notNull(),
-	userId: integer(),
+	name: text().notNull(),
+	value: numeric({ precision: 10, scale:  2 }).notNull(),
+});
+
+export const accountAddress = pgTable("accountAddress", {
+	id: serial().primaryKey().notNull(),
+	accountId: integer().notNull(),
 	name: text(),
 	type: text(),
 	companyName: text(),
@@ -309,10 +316,4 @@ export const userAddress = pgTable("userAddress", {
 	county: text(),
 	emailAddress: text(),
 	phoneNumber: text(),
-});
-
-export const siteSetting = pgTable("siteSetting", {
-	id: serial().primaryKey().notNull(),
-	name: text().notNull(),
-	value: numeric({ precision: 10, scale:  2 }).notNull(),
 });

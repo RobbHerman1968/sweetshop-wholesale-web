@@ -23,6 +23,7 @@ export async function PublicSiteShell({ children }: PublicSiteShellProps) {
             brandBarCategories={brandBarCategories}
             initialCartItemCount={initialCartItemCount}
             initialAccountDisplayName={switcherState.selectedAccountDisplayName}
+            initialAccountShippingLeadTime={switcherState.selectedAccountShippingLeadTime}
         >
             {children}
         </PublicSiteShellClient>

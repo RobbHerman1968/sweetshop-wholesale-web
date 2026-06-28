@@ -37,6 +37,7 @@ export async function createMenuFromForm(formData: FormData): Promise<FormResult
 
     const description = (formData.get('description') as string)?.trim() || null;
     const isShopping = parseIsShopping(formData);
+    const shippingLeadTime = parseShippingLeadTime(formData);
 
     try {
         await syncMenuIdSequence();
@@ -47,6 +48,7 @@ export async function createMenuFromForm(formData: FormData): Promise<FormResult
                 name,
                 description,
                 isShopping,
+                shippingLeadTime,
             })
             .returning({ id: menu.id });
 
@@ -83,6 +85,7 @@ export async function updateMenuFromForm(formData: FormData): Promise<FormResult
 
     const description = (formData.get('description') as string)?.trim() || null;
     const isShopping = parseIsShopping(formData);
+    const shippingLeadTime = parseShippingLeadTime(formData);
 
     try {
         const updated = await db
@@ -91,6 +94,7 @@ export async function updateMenuFromForm(formData: FormData): Promise<FormResult
                 name,
                 description,
                 isShopping,
+                shippingLeadTime,
             })
             .where(eq(menu.id, menuId))
             .returning({ id: menu.id });
@@ -135,6 +139,15 @@ function parseIsActive(formData: FormData): boolean {
 function parseIsShopping(formData: FormData): boolean {
     const values = formData.getAll('isShopping');
     return values.includes('true') || values.includes('on');
+}
+
+function parseShippingLeadTime(formData: FormData): number {
+    const raw = (formData.get('shippingLeadTime') as string)?.trim();
+    const parsed = raw ? Number(raw) : NaN;
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return 14;
+    }
+    return Math.round(parsed);
 }
 
 function parseMenuItemLinkFields(formData: FormData, linkType: string) {
