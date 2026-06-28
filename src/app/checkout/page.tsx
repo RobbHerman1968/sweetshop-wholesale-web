@@ -85,7 +85,7 @@ export default async function CheckoutPage() {
             <main
                 id={SITE_MAIN_ID}
                 tabIndex={-1}
-                className={cn('mx-auto max-w-6xl px-3 pb-14 pt-2 sm:px-4 sm:pb-16 sm:pt-3', SITE_MAIN_FOCUS_CLASS)}
+                className={cn('mx-auto min-w-0 max-w-6xl px-3 pb-14 pt-2 sm:px-4 sm:pb-16 sm:pt-3', SITE_MAIN_FOCUS_CLASS)}
             >
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold uppercase tracking-[0.14em] text-[#4a2518]">Checkout</h1>

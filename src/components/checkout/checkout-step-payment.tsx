@@ -38,7 +38,7 @@ export function CheckoutStepPayment({ form, accountIsTerms, accountTerms, onChan
 
     if (accountIsTerms) {
         return (
-            <div className="space-y-8">
+            <div className="min-w-0 space-y-8 overflow-x-clip">
                 <section>
                     <CheckoutSectionTitle>Payment</CheckoutSectionTitle>
                     <p className={cn('mt-3', checkoutTextClass)}>This account pays on terms.</p>
@@ -59,7 +59,7 @@ export function CheckoutStepPayment({ form, accountIsTerms, accountTerms, onChan
     const cvvMaxLength = form.cardType === 'amex' ? 4 : 4;
 
     return (
-        <div className="space-y-8">
+        <div className="min-w-0 space-y-8 overflow-x-clip">
             <section>
                 <CheckoutSectionTitle>Payment</CheckoutSectionTitle>
                 <p className={cn('mt-3', checkoutTextClass)}>Enter credit card details to pay for this order.</p>

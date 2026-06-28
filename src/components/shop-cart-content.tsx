@@ -44,7 +44,7 @@ function QuantityStepper({ id, value, disabled, onChange, onCommit }: QuantitySt
     };
 
     return (
-        <div className="inline-flex h-8 w-30 overflow-hidden rounded-md border border-[#d1b79a] bg-white">
+        <div className="inline-flex h-8 w-[7.5rem] max-w-full overflow-hidden rounded-md border border-[#d1b79a] bg-white">
             <button
                 type="button"
                 aria-label="Decrease quantity"
@@ -78,7 +78,7 @@ function QuantityStepper({ id, value, disabled, onChange, onCommit }: QuantitySt
                         e.currentTarget.blur();
                     }
                 }}
-                className="h-8 w-10 min-w-0 flex-1 rounded-none border-0 px-0 text-center text-sm tabular-nums shadow-none focus-visible:ring-0"
+                className="h-8 w-10 min-w-0 flex-1 rounded-none border-0 px-0 text-center text-base tabular-nums shadow-none focus-visible:ring-0 sm:text-sm"
             />
             <button
                 type="button"
@@ -233,10 +233,12 @@ function CartLineRow({ item, busy, onUpdated }: CartLineRowProps) {
                         </button>
                     </div>
 
-                    <div className="mt-2 flex items-center justify-between gap-3 border-t border-[#d1b79a]/40 pt-2">
-                        <p className="text-sm font-semibold text-[#4a2518]">{formatCurrency(item.unitPrice)} each</p>
+                    <div className="mt-2 flex min-w-0 items-center justify-between gap-2 border-t border-[#d1b79a]/40 pt-2">
+                        <p className="min-w-0 text-sm font-semibold text-[#4a2518]">{formatCurrency(item.unitPrice)} each</p>
                         <p className="shrink-0 text-right text-sm font-semibold tabular-nums text-[#4a2518]">
-                            Line total: {formatCurrency(item.lineTotal)}
+                            <span className="sm:hidden">Total </span>
+                            <span className="hidden sm:inline">Line total: </span>
+                            {formatCurrency(item.lineTotal)}
                         </p>
                     </div>
                 </div>
@@ -267,7 +269,7 @@ export function ShopCartContent({ initialCart, minimumOrderAmount = null }: Prop
         minimumOrderAmount != null && cart.items.length > 0 && cart.subTotal < minimumOrderAmount;
 
     return (
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6 overflow-x-clip">
             <div className="rounded-lg border border-[#b89572] bg-[#fdf7ef] p-4 sm:p-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Shopping for</p>
                 <p className="mt-1 text-sm font-semibold text-[#4a2518]">{cart.accountDisplayName}</p>
@@ -287,8 +289,8 @@ export function ShopCartContent({ initialCart, minimumOrderAmount = null }: Prop
                     </Link>
                 </div>
             ) : (
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-                    <section className="overflow-hidden rounded-lg border border-[#b89572] bg-[#fdf7ef] px-2 sm:px-3">
+                <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+                    <section className="min-w-0 overflow-hidden rounded-lg border border-[#b89572] bg-[#fdf7ef] px-2 sm:px-3">
                         <ul>
                             {cart.items.map((item) => (
                                 <CartLineRow
@@ -301,7 +303,7 @@ export function ShopCartContent({ initialCart, minimumOrderAmount = null }: Prop
                         </ul>
                     </section>
 
-                    <aside className="rounded-lg border border-[#b89572] bg-[#fdf7ef] p-5">
+                    <aside className="min-w-0 rounded-lg border border-[#b89572] bg-[#fdf7ef] p-5">
                         <h2 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6e4a34]">Order summary</h2>
                         <dl className="mt-4 space-y-2 text-sm text-[#4a2518]">
                             {cart.discounts > 0 ? (

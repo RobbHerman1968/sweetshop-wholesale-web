@@ -40,7 +40,7 @@ export const checkoutChoiceClass = 'inline-flex items-center gap-2 text-sm text-
 export const checkoutFieldInvalidClass = 'border-red-500';
 
 const checkoutControlBaseClass =
-    'flex h-9 rounded-sm border border-[#cfcfcf] bg-white px-2 py-1 text-sm leading-normal text-[#4a2518] outline-none placeholder:text-sm placeholder:text-[#6e4a34]';
+    'flex h-9 min-w-0 rounded-sm border border-[#cfcfcf] bg-white px-2 py-1 text-base leading-normal text-[#4a2518] outline-none placeholder:text-base placeholder:text-[#6e4a34] sm:text-sm sm:placeholder:text-sm';
 
 export const checkoutFieldClass = cn(checkoutControlBaseClass, 'w-full');
 

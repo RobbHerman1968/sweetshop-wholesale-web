@@ -57,7 +57,7 @@ export function CheckoutStepBilling({
         cn(className, invalid(field) && checkoutFieldInvalidClass);
 
     return (
-        <div className="space-y-8">
+        <div className="min-w-0 space-y-8 overflow-x-clip">
             <section>
                 <CheckoutSectionTitle>Billing Address</CheckoutSectionTitle>
                 <p className={cn('mt-3', checkoutTextClass)}>
@@ -142,7 +142,7 @@ export function CheckoutStepBilling({
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="State" required>
-                        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_7rem]">
+                        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem]">
                             <select
                                 className={fieldClass('state', checkoutSelectClass)}
                                 value={form.state}

@@ -332,7 +332,7 @@ export function CheckoutContent({
     const isReviewStep = isCheckoutReviewStep(currentStep);
 
     return (
-        <div className="space-y-8">
+        <div className="min-w-0 space-y-8 overflow-x-clip">
             <CheckoutStepIndicator
                 steps={flowSteps}
                 currentStep={currentStep}
@@ -453,7 +453,7 @@ export function CheckoutContent({
                     </div>
                 </div>
 
-                <div className="xl:sticky xl:top-24">
+                <div className="min-w-0 xl:sticky xl:top-24">
                     <CheckoutOrderSummary
                         cart={cart}
                         shipping={checkoutShipping}

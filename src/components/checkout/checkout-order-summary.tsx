@@ -14,7 +14,7 @@ type CheckoutOrderSummaryProps = {
 
 export function CheckoutOrderSummary({ cart, shipping, tax, estimatedTotal }: CheckoutOrderSummaryProps) {
     return (
-        <aside className="rounded-sm border border-[#4a2518] bg-white p-4 sm:p-5">
+        <aside className="min-w-0 rounded-sm border border-[#4a2518] bg-white p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3 border-b border-[#e8dfd4] pb-3">
                 <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-[#4a2518]">Order Summary</h2>
                 <Link href="/cart" className="text-xs font-bold uppercase tracking-[0.08em] text-[#4a2518] underline-offset-2 hover:underline">

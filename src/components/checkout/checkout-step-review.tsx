@@ -72,7 +72,7 @@ export function CheckoutStepReview({
     estimatedTotal,
 }: CheckoutStepReviewProps) {
     return (
-        <div className="space-y-8">
+        <div className="min-w-0 space-y-8 overflow-x-clip">
             <section className="space-y-3">
                 <CheckoutSectionTitle>Review &amp; Place Order</CheckoutSectionTitle>
                 <p className={checkoutTextClass}>Confirm your shipping, billing, and payment details before placing the order.</p>
