@@ -59,6 +59,7 @@ const authOptions = {
                     name: [found.firstName, found.lastName].filter(Boolean).join(' ') || found.userName,
                     isAdmin: found.isAdmin,
                     isHEB: isHebAccountMateId(found.accountMateId),
+                    needsProfileCompletion: !found.firstName?.trim() || !found.lastName?.trim(),
                 };
             },
         }),
@@ -66,13 +67,27 @@ const authOptions = {
     session: {
         strategy: 'jwt' as const,
     },
+    pages: {
+        signIn: '/',
+    },
     callbacks: {
         async jwt({
             token,
             user,
+            trigger,
+            session,
         }: {
             token: JWT;
-            user?: { id: string; email?: string | null; name?: string | null; isAdmin?: boolean; isHEB?: boolean };
+            user?: {
+                id: string;
+                email?: string | null;
+                name?: string | null;
+                isAdmin?: boolean;
+                isHEB?: boolean;
+                needsProfileCompletion?: boolean;
+            };
+            trigger?: 'update';
+            session?: { needsProfileCompletion?: boolean; name?: string };
         }) {
             if (user) {
                 const userId = parseUserId(user.id);
@@ -83,7 +98,18 @@ const authOptions = {
                 token.name = user.name ?? undefined;
                 token.isAdmin = user.isAdmin;
                 token.isHEB = user.isHEB ?? false;
+                token.needsProfileCompletion = user.needsProfileCompletion ?? false;
             }
+
+            if (trigger === 'update' && session) {
+                if (session.name != null) {
+                    token.name = session.name;
+                }
+                if (session.needsProfileCompletion != null) {
+                    token.needsProfileCompletion = session.needsProfileCompletion;
+                }
+            }
+
             return token;
         },
         async session({ session, token }: { session: Session; token: JWT }) {
@@ -93,6 +119,7 @@ const authOptions = {
                 session.user.name = token.name ?? undefined;
                 session.user.isAdmin = token.isAdmin;
                 session.user.isHEB = token.isHEB ?? false;
+                session.user.needsProfileCompletion = token.needsProfileCompletion ?? false;
             }
             return session;
         },

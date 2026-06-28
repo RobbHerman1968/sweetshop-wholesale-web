@@ -1,6 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db-pg';
+import { getAuthenticatedUserId } from '@/lib/auth-session';
 import { getOrderExpectedDeliveryDatesFromSweetshopOld } from '@/lib/db-sweetshop-old';
 import { and, asc, desc, eq, gte, isNotNull, lte, sql } from 'drizzle-orm';
 import { orderMapper } from '../mappers/order-mapper';
@@ -296,6 +297,118 @@ export type ManageOrderListRow = {
     isNewCustomerOrder: number;
     customerName: string | null;
 };
+
+export type UserOrderListRow = {
+    id: number;
+    orderNumber: number | null;
+    orderDate: string | null;
+    accountMateOrderNumber: number | null;
+    total: string;
+    shippingCode: string | null;
+};
+
+export async function getPaginatedOrdersForUser(
+    userId: number,
+    { page = 1, limit = 50 }: { page?: number; limit?: number } = {},
+): Promise<{ data: UserOrderListRow[]; pagination: { total: number; page: number; limit: number; totalPages: number } }> {
+    if (!Number.isFinite(userId) || userId <= 0) {
+        return { data: [], pagination: { total: 0, page: 1, limit, totalPages: 1 } };
+    }
+
+    const offset = (page - 1) * limit;
+
+    const data = await db
+        .select({
+            id: order.id,
+            orderNumber: order.orderNumber,
+            orderDate: order.orderDate,
+            accountMateOrderNumber: order.accountMateOrderNumber,
+            total: order.total,
+            shippingCode: order.shippingCode,
+        })
+        .from(order)
+        .where(eq(order.userId, userId))
+        .orderBy(desc(order.orderDate), desc(order.id))
+        .limit(limit)
+        .offset(offset);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(order).where(eq(order.userId, userId));
+    const total = Number(count ?? 0);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+    };
+}
+
+export async function getOrderByIdForUser(orderId: number, userId: number): Promise<ManageOrderDetail | null> {
+    if (!Number.isFinite(orderId) || orderId <= 0 || !Number.isFinite(userId) || userId <= 0) {
+        return null;
+    }
+
+    const row = await db.query.order.findFirst({
+        where: and(eq(order.id, orderId), eq(order.userId, userId)),
+    });
+
+    if (!row) {
+        return null;
+    }
+
+    const [items, addresses, userRows] = await Promise.all([
+        db.query.orderItem.findMany({
+            where: eq(orderItem.orderId, orderId),
+            orderBy: [asc(orderItem.id)],
+        }),
+        db.query.orderAddress.findMany({
+            where: eq(orderAddress.orderId, orderId),
+            orderBy: [asc(orderAddress.id)],
+        }),
+        db
+            .select({
+                id: user.id,
+                userName: user.userName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                accountMateId: user.accountMateId,
+            })
+            .from(user)
+            .where(eq(user.id, row.userId))
+            .limit(1),
+    ]);
+
+    return {
+        order: row,
+        items,
+        addresses,
+        user: userRows[0] ?? null,
+    };
+}
+
+/** Order detail for the signed-in user only (ownership enforced in the query). */
+export async function getOrderByIdForAuthenticatedUser(orderId: number): Promise<ManageOrderDetail | null> {
+    const userId = await getAuthenticatedUserId();
+    if (userId == null) {
+        return null;
+    }
+
+    return getOrderByIdForUser(orderId, userId);
+}
+
+export async function getPaginatedOrdersForAuthenticatedUser(
+    { page = 1, limit = 50 }: { page?: number; limit?: number } = {},
+): Promise<{ data: UserOrderListRow[]; pagination: { total: number; page: number; limit: number; totalPages: number } }> {
+    const userId = await getAuthenticatedUserId();
+    if (userId == null) {
+        return { data: [], pagination: { total: 0, page: 1, limit, totalPages: 1 } };
+    }
+
+    return getPaginatedOrdersForUser(userId, { page, limit });
+}
 
 export async function getPaginatedOrdersFromDB({ page = 1, limit = 50, dateFrom, dateTo }: { page?: number; limit?: number; dateFrom?: string; dateTo?: string }) {
     const offset = (page - 1) * limit;

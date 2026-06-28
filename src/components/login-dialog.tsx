@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { X } from 'lucide-react';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -17,6 +18,7 @@ type LoginDialogProps = {
 };
 
 export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
+    const router = useRouter();
     const emailErrorId = useId();
     const passwordErrorId = useId();
     const [forgotOpen, setForgotOpen] = useState(false);
@@ -61,6 +63,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                 setEmail('');
                 setPassword('');
                 onOpenChange(false);
+                router.refresh();
             }
         } catch {
             setSubmitError('Something went wrong. Please try again.');

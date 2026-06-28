@@ -6,7 +6,12 @@ declare module 'next-auth' {
             id: number;
             isAdmin?: boolean;
             isHEB?: boolean;
+            needsProfileCompletion?: boolean;
         } & DefaultSession['user'];
+    }
+
+    interface User {
+        needsProfileCompletion?: boolean;
     }
 }
 
@@ -15,5 +20,6 @@ declare module 'next-auth/jwt' {
         id?: number;
         isAdmin?: boolean;
         isHEB?: boolean;
+        needsProfileCompletion?: boolean;
     }
 }
