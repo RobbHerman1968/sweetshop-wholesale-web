@@ -32,6 +32,12 @@ body {
   overflow-x: clip;
 }
 
+input,
+textarea,
+select {
+  touch-action: manipulation;
+}
+
 /* Skip link: visually hidden until keyboard focus (WCAG 2.4.1). */
 .skip-to-main {
   position: absolute;
