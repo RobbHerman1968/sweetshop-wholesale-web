@@ -177,7 +177,7 @@ function CategoryMegaMenuPanel({ cat }: { cat: BrandBarNavCategory }) {
     const showDescription = categoryShowsDescription(cat);
 
     return (
-        <div className="w-max min-w-full p-4 sm:w-full sm:min-w-[220px] sm:p-5">
+        <div className="w-full max-w-full p-4 sm:w-full sm:min-w-[220px] sm:p-5">
             {showDescription ? (
                 <p className="mb-4 border-b border-[#e8ddd4] pb-2 text-left text-[12px] font-normal leading-snug normal-case tracking-normal text-[#8b6b4a] sm:pb-3 sm:text-[13px]">
                     {cat.description}
@@ -185,7 +185,7 @@ function CategoryMegaMenuPanel({ cat }: { cat: BrandBarNavCategory }) {
             ) : null}
             <ul
                 className={cn(
-                    'flex w-max min-w-full gap-6 pb-1 sm:grid sm:w-full sm:grid-cols-2 sm:gap-x-8 sm:gap-y-5 sm:pb-0',
+                    'flex w-max max-w-full gap-6 pb-1 sm:grid sm:w-full sm:grid-cols-2 sm:gap-x-8 sm:gap-y-5 sm:pb-0',
                     !showDescription && 'pt-0.5',
                 )}
             >
@@ -248,15 +248,16 @@ function MobileBrandBar({ categories }: BrandBarProps) {
     };
 
     return (
-        <div className="sm:hidden">
+        <div className="min-w-0 max-w-full overflow-x-clip sm:hidden">
             <HorizontalScrollHints
+                className="min-w-0 max-w-full"
                 scrollRef={scrollRef}
                 hintLabel="Swipe left or right to see more categories"
-                scrollClassName="w-full min-w-0 overflow-x-scroll overscroll-x-contain px-3 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] touch-pan-x [&::-webkit-scrollbar]:hidden"
+                scrollClassName="w-full min-w-0 max-w-full overflow-x-scroll overscroll-x-contain px-3 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] touch-pan-x [&::-webkit-scrollbar]:hidden"
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
             >
-                <div className="flex w-max min-w-full gap-0" aria-label="Product categories">
+                <div className="flex w-max gap-0" aria-label="Product categories">
                     {categories.map((cat) => {
                         const isOpen = openLabel === cat.label;
 
@@ -287,9 +288,9 @@ function MobileBrandBar({ categories }: BrandBarProps) {
             </HorizontalScrollHints>
             {openCategory ? (
                 <HorizontalScrollHints
-                    className="mx-3 mt-1.5 overflow-hidden rounded-md border border-[#d4c4b0] bg-white text-[#5c4032] shadow-md"
+                    className="mx-3 mt-1.5 min-w-0 max-w-[calc(100%-1.5rem)] overflow-hidden rounded-md border border-[#d4c4b0] bg-white text-[#5c4032] shadow-md"
                     hintLabel="Swipe left or right to see more menu sections"
-                    scrollClassName="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:none] touch-pan-x [&::-webkit-scrollbar]:hidden"
+                    scrollClassName="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:none] touch-pan-x [&::-webkit-scrollbar]:hidden"
                 >
                     <CategoryMegaMenuPanel cat={openCategory} />
                 </HorizontalScrollHints>
@@ -329,7 +330,7 @@ export function BrandBar({ categories }: BrandBarProps) {
     if (displayCategories.length === 0) return null;
 
     return (
-        <nav className="w-full min-w-0 py-0" aria-label="Product categories">
+        <nav className="w-full min-w-0 overflow-x-clip py-0" aria-label="Product categories">
             <div className="mx-auto w-full min-w-0 max-w-6xl sm:px-4">
                 <MobileBrandBar categories={displayCategories} />
                 <DesktopBrandBar categories={displayCategories} />

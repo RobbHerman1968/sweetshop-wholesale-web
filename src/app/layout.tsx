@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { getServerSession } from 'next-auth';
 import './globals.css';
@@ -20,6 +20,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
     title: 'Sweet Shop USA Wholesale',
     description: 'Sweet Shop USA Wholesale',
+};
+
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
 };
 
 export default async function RootLayout({

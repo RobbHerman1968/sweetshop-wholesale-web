@@ -33,7 +33,7 @@ export function AccountOrderPageShell({
     }, [status, router]);
 
     return (
-        <div className="min-h-screen bg-white text-[#3c251a] font-sans">
+        <div className="min-h-screen min-w-0 overflow-x-clip bg-white text-[#3c251a] font-sans">
             <SiteHeader
                 onLoginClick={() => router.push('/')}
                 brandBarCategories={brandBarCategories}
@@ -46,7 +46,7 @@ export function AccountOrderPageShell({
                 id={SITE_MAIN_ID}
                 tabIndex={-1}
                 className={cn(
-                    'mx-auto max-w-6xl border-t-2 border-[#c49a78]/45 bg-gradient-to-b from-[#fdf7ef] to-white px-3 pt-4 pb-8 sm:border-t sm:bg-none sm:px-4 sm:pt-4 sm:pb-10',
+                    'mx-auto min-w-0 max-w-6xl border-t-2 border-[#c49a78]/45 bg-gradient-to-b from-[#fdf7ef] to-white px-3 pt-4 pb-8 sm:border-t sm:bg-none sm:px-4 sm:pt-4 sm:pb-10',
                     SITE_MAIN_FOCUS_CLASS,
                 )}
             >

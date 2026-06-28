@@ -77,7 +77,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent
                     hideCloseButton
-                    className="w-[calc(100%-24px)] border-[#d1b79a] bg-[#fdf7ef] p-0 px-3 pb-6 pt-3 text-[#4a2b1f] sm:w-full"
+                    className="w-[calc(100%-24px)] max-w-md border-[#d1b79a] bg-[#fdf7ef] p-0 px-3 pb-6 pt-3 text-[#4a2b1f] sm:w-full"
                 >
                     <DialogHeader className="space-y-0">
                         <div className="flex items-center justify-between gap-3">

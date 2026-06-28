@@ -137,9 +137,9 @@ export function SiteHeader({
     );
 
     return (
-        <header>
+        <header className="min-w-0 overflow-x-clip">
             <div className="bg-[#f6ebdd]">
-                <div className="mx-auto flex max-w-6xl flex-col gap-2 px-3 pt-1.5 pb-1 sm:px-4 sm:pt-2 sm:pb-1">
+                <div className="mx-auto flex min-w-0 max-w-6xl flex-col gap-2 px-3 pt-1.5 pb-1 sm:px-4 sm:pt-2 sm:pb-1">
                     {/* Top utility navigation with logo */}
                     <div className="flex items-center justify-between gap-2 text-xs uppercase tracking-[0.18em] text-[#5c4032]">
                         <div className="flex items-center gap-1 sm:gap-2">
@@ -225,7 +225,7 @@ export function SiteHeader({
                     </div>
 
                     {isLoggedIn ? (
-                        <div className="flex w-full justify-center border-t border-[#d4c4b0]/60 pt-2 lg:hidden">
+                        <div className="flex w-full min-w-0 justify-center border-t border-[#d4c4b0]/60 pt-2 lg:hidden">
                             <WholesaleAccountSwitcher
                                 fullWidthOnMobile
                                 onAccountSelected={() => setIsMenuOpen(false)}
@@ -298,7 +298,7 @@ export function SiteHeader({
                 </div>
             </div>
 
-            <div className="border-t border-[#d4c4b0] bg-white pb-2 pt-2 sm:pb-3 sm:pt-3">
+            <div className="min-w-0 overflow-x-clip border-t border-[#d4c4b0] bg-white pb-2 pt-2 sm:pb-3 sm:pt-3">
                 <BrandBar categories={brandBarCategories} />
             </div>
         </header>

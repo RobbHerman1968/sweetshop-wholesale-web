@@ -87,7 +87,7 @@ export function AccountPageClient({
     }
 
     return (
-        <div className="min-h-screen bg-white text-[#3c251a] font-sans">
+        <div className="min-h-screen min-w-0 overflow-x-clip bg-white text-[#3c251a] font-sans">
             <SiteHeader
                 onLoginClick={() => router.push('/')}
                 brandBarCategories={brandBarCategories}
@@ -100,7 +100,7 @@ export function AccountPageClient({
                 id={SITE_MAIN_ID}
                 tabIndex={-1}
                 className={cn(
-                    'mx-auto max-w-6xl border-t-2 border-[#c49a78]/45 bg-gradient-to-b from-[#fdf7ef] to-white px-3 pt-4 pb-8 sm:border-t sm:bg-none sm:px-4 sm:pt-4 sm:pb-10',
+                    'mx-auto min-w-0 max-w-6xl border-t-2 border-[#c49a78]/45 bg-gradient-to-b from-[#fdf7ef] to-white px-3 pt-4 pb-8 sm:border-t sm:bg-none sm:px-4 sm:pt-4 sm:pb-10',
                     SITE_MAIN_FOCUS_CLASS,
                 )}
             >
@@ -179,8 +179,8 @@ export function AccountPageClient({
                                         No orders yet.
                                     </p>
                                 ) : (
-                                    <div className="overflow-x-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
-                                        <table className="min-w-full border-collapse text-xs text-[#4a2518]">
+                                    <div className="min-w-0 max-w-full overflow-x-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
+                                        <table className="w-full table-fixed border-collapse text-xs text-[#4a2518] sm:table-auto">
                                             <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
                                                 <tr>
                                                     <th className="px-3 py-2 text-center">Order #</th>
@@ -202,8 +202,8 @@ export function AccountPageClient({
                                                                 <td className="px-3 py-2 align-middle text-center text-[11px] font-semibold">
                                                                     #{order.orderNumber ?? order.id}
                                                                 </td>
-                                                                <td className="px-3 py-2 align-middle text-center text-[11px]">
-                                                                    {order.accountMateOrderNumber ?? '—'}
+                                                                <td className="px-2 py-2 align-middle text-center text-[11px] sm:px-3">
+                                                                    <span className="block truncate">{order.accountMateOrderNumber ?? '—'}</span>
                                                                 </td>
                                                                 <td className="hidden px-3 py-2 align-middle text-center text-[11px] tabular-nums sm:table-cell">
                                                                     {formatOrderDateCentral(order.orderDate)}

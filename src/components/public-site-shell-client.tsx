@@ -24,7 +24,7 @@ export function PublicSiteShellClient({
     const [isLoginOpen, setIsLoginOpen] = useState(false);
 
     return (
-        <div className="min-h-screen bg-white text-[#3c251a] font-sans">
+        <div className="min-h-screen min-w-0 overflow-x-clip bg-white text-[#3c251a] font-sans">
             <SiteHeader
                 onLoginClick={() => setIsLoginOpen(true)}
                 brandBarCategories={brandBarCategories}
