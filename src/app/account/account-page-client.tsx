@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -96,7 +96,14 @@ export function AccountPageClient({
                 initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />
 
-            <main id={SITE_MAIN_ID} tabIndex={-1} className={cn('mx-auto max-w-6xl px-3 pt-1 pb-8 sm:px-4 sm:pt-1 sm:pb-10', SITE_MAIN_FOCUS_CLASS)}>
+            <main
+                id={SITE_MAIN_ID}
+                tabIndex={-1}
+                className={cn(
+                    'mx-auto max-w-6xl border-t-2 border-[#c49a78]/45 bg-gradient-to-b from-[#fdf7ef] to-white px-3 pt-4 pb-8 sm:border-t sm:bg-none sm:px-4 sm:pt-4 sm:pb-10',
+                    SITE_MAIN_FOCUS_CLASS,
+                )}
+            >
                 {status === 'loading' ? (
                     <p className="text-sm text-[#6e4a34]" role="status" aria-live="polite">
                         Loading account…
@@ -178,9 +185,9 @@ export function AccountPageClient({
                                                 <tr>
                                                     <th className="px-3 py-2 text-center">Order #</th>
                                                     <th className="px-3 py-2 text-center">AM Order #</th>
-                                                    <th className="px-3 py-2 text-center">Date</th>
+                                                    <th className="hidden px-3 py-2 text-center sm:table-cell">Date</th>
                                                     <th className="px-3 py-2 text-right">Total</th>
-                                                    <th className="px-3 py-2 text-center">Ship Code</th>
+                                                    <th className="hidden px-3 py-2 text-center sm:table-cell">Ship Code</th>
                                                     <th className="px-3 py-2 text-right w-20"></th>
                                                 </tr>
                                             </thead>
@@ -188,30 +195,43 @@ export function AccountPageClient({
                                                 {accountData.orders.map((order, idx) => {
                                                     const detailHref = `/account/orders/${order.id}`;
                                                     const isEven = idx % 2 === 0;
+                                                    const rowBg = isEven ? 'bg-[#fdf7ef] font-mono' : 'bg-[#f8eddf] font-mono';
                                                     return (
-                                                        <tr key={order.id} className={isEven ? 'bg-[#fdf7ef] font-mono' : 'bg-[#f8eddf] font-mono'}>
-                                                            <td className="px-3 py-2 align-middle text-center text-[11px] font-semibold">
-                                                                #{order.orderNumber ?? order.id}
-                                                            </td>
-                                                            <td className="px-3 py-2 align-middle text-center text-[11px]">
-                                                                {order.accountMateOrderNumber ?? '—'}
-                                                            </td>
-                                                            <td className="px-3 py-2 align-middle text-center text-[11px] tabular-nums">
-                                                                {formatOrderDateCentral(order.orderDate)}
-                                                            </td>
-                                                            <td className="px-3 py-2 align-middle text-right text-[11px] font-semibold">
-                                                                ${Number(order.total).toFixed(2)}
-                                                            </td>
-                                                            <td className="px-3 py-2 align-middle text-center text-[11px]">{order.shippingCode ?? '—'}</td>
-                                                            <td className="px-3 py-2 align-middle text-right text-[11px]">
-                                                                <Link
-                                                                    href={detailHref}
-                                                                    className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
+                                                        <Fragment key={order.id}>
+                                                            <tr className={rowBg}>
+                                                                <td className="px-3 py-2 align-middle text-center text-[11px] font-semibold">
+                                                                    #{order.orderNumber ?? order.id}
+                                                                </td>
+                                                                <td className="px-3 py-2 align-middle text-center text-[11px]">
+                                                                    {order.accountMateOrderNumber ?? '—'}
+                                                                </td>
+                                                                <td className="hidden px-3 py-2 align-middle text-center text-[11px] tabular-nums sm:table-cell">
+                                                                    {formatOrderDateCentral(order.orderDate)}
+                                                                </td>
+                                                                <td className="px-3 py-2 align-middle text-right text-[11px] font-semibold">
+                                                                    ${Number(order.total).toFixed(2)}
+                                                                </td>
+                                                                <td className="hidden px-3 py-2 align-middle text-center text-[11px] sm:table-cell">{order.shippingCode ?? '—'}</td>
+                                                                <td className="px-3 py-2 align-middle text-right text-[11px]">
+                                                                    <Link
+                                                                        href={detailHref}
+                                                                        className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
+                                                                    >
+                                                                        View
+                                                                    </Link>
+                                                                </td>
+                                                            </tr>
+                                                            <tr className={cn(rowBg, 'sm:hidden')}>
+                                                                <td
+                                                                    colSpan={4}
+                                                                    className="px-3 pb-2 pt-0 text-center text-[10px] font-sans font-normal normal-case tracking-normal text-[#6e4a34]"
                                                                 >
-                                                                    View
-                                                                </Link>
-                                                            </td>
-                                                        </tr>
+                                                                    {formatOrderDateCentral(order.orderDate)}
+                                                                    <span className="mx-1">·</span>
+                                                                    Ship: {order.shippingCode ?? '—'}
+                                                                </td>
+                                                            </tr>
+                                                        </Fragment>
                                                     );
                                                 })}
                                             </tbody>

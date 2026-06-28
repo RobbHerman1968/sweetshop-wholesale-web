@@ -2,6 +2,7 @@ import Link from 'next/link';
 import moment from 'moment-timezone';
 import { RemoteImage } from '@/components/remote-image';
 import type { ManageOrderDetail } from '@/lib/db-pg/actions/order';
+import { cn } from '@/lib/utils';
 
 type CustomerOrderDetailContentProps = {
     detail: ManageOrderDetail;
@@ -134,8 +135,51 @@ export function CustomerOrderDetailContent({ detail }: CustomerOrderDetailConten
                 {items.length === 0 ? (
                     <p className="rounded-lg border border-[#d4c4b0] bg-[#fdf7ef] p-6 text-center text-xs text-[#6e4a34]">No line items found.</p>
                 ) : (
-                    <div className="overflow-x-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
-                        <table className="min-w-full border-collapse text-xs text-[#4a2518]">
+                    <>
+                        <div className="rounded-md border border-[#c49a78] bg-[#f8eddf] sm:hidden">
+                            <ul className="divide-y divide-[#c49a78]">
+                                {items.map((item, idx) => {
+                                    const imageSrc = resolveOrderItemImageSrc(item.imagePath);
+                                    const isEven = idx % 2 === 0;
+                                    const unitPrice = Number(item.promotionPrice) > 0 ? item.promotionPrice : item.price;
+
+                                    return (
+                                        <li
+                                            key={item.id}
+                                            className={cn('flex gap-3 p-3', isEven ? 'bg-[#fdf7ef]' : 'bg-[#f8eddf]')}
+                                        >
+                                            {imageSrc ? (
+                                                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded border border-[#c49a78] bg-white">
+                                                    <RemoteImage src={imageSrc} alt={item.name} sizes="64px" />
+                                                </div>
+                                            ) : (
+                                                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded border border-[#c49a78] bg-[#fdf7ef] text-[10px] text-[#7c5b44]">
+                                                    —
+                                                </div>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-sans text-[11px] font-semibold leading-snug text-[#4a2518]">{item.name}</p>
+                                                {item.variableData ? (
+                                                    <p className="mt-1 font-sans text-[10px] text-[#6e4a34]">{item.variableData}</p>
+                                                ) : null}
+                                                <p className="mt-1 font-mono text-[10px] text-[#6e4a34]">Item # {item.itemNumber}</p>
+                                                <div className="mt-2 flex items-center justify-between gap-3 font-mono text-[11px] text-[#4a2518]">
+                                                    <span>
+                                                        Qty {item.quantity}
+                                                        <span className="mx-1 text-[#6e4a34]">·</span>
+                                                        {formatMoney(unitPrice)}
+                                                    </span>
+                                                    <span className="font-semibold tabular-nums">{formatMoney(item.lineTotal)}</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+
+                        <div className="hidden overflow-x-auto rounded-md border border-[#c49a78] bg-[#f8eddf] sm:block">
+                            <table className="min-w-full border-collapse text-xs text-[#4a2518]">
                             <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
                                 <tr>
                                     <th className="px-3 py-2 text-left w-16"></th>
@@ -175,8 +219,9 @@ export function CustomerOrderDetailContent({ detail }: CustomerOrderDetailConten
                                     );
                                 })}
                             </tbody>
-                        </table>
-                    </div>
+                            </table>
+                        </div>
+                    </>
                 )}
             </section>
 

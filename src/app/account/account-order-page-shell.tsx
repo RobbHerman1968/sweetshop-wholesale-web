@@ -42,7 +42,14 @@ export function AccountOrderPageShell({
                 initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />
 
-            <main id={SITE_MAIN_ID} tabIndex={-1} className={cn('mx-auto max-w-6xl px-3 pt-1 pb-8 sm:px-4 sm:pt-1 sm:pb-10', SITE_MAIN_FOCUS_CLASS)}>
+            <main
+                id={SITE_MAIN_ID}
+                tabIndex={-1}
+                className={cn(
+                    'mx-auto max-w-6xl border-t-2 border-[#c49a78]/45 bg-gradient-to-b from-[#fdf7ef] to-white px-3 pt-4 pb-8 sm:border-t sm:bg-none sm:px-4 sm:pt-4 sm:pb-10',
+                    SITE_MAIN_FOCUS_CLASS,
+                )}
+            >
                 {children}
             </main>
         </div>
