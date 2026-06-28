@@ -8,8 +8,8 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { describeMenuItemTarget, usesGlobalMenuDisplayOrder } from '@/lib/menu-manage-utils';
 import { reorderMenuItems } from '@/lib/db-pg/actions/menu-manage';
-import type { ManageMenu, ManageMenuItem, ManageMenuItemCategoryStats } from '@/lib/db-pg/actions/menu';
-import { MenuItemCategoryMetaCells, menuItemCategoryMetaHeaders } from './menu-item-category-meta-cells';
+import type { ManageMenu, ManageMenuItem, ManageMenuItemCategoryStats, ManageMenuItemPageStats } from '@/lib/db-pg/actions/menu';
+import { MenuItemLinkMetaCells, menuItemLinkMetaHeaders } from './menu-item-category-meta-cells';
 import {
     applyMenuUpdatesToRows,
     buildFlatRowsFromItems,
@@ -27,6 +27,7 @@ type MenuItemsSortableListProps = {
     categoryNames: Record<number, string>;
     pageNames: Record<number, string>;
     categoryStats: Record<number, ManageMenuItemCategoryStats>;
+    pageStats: Record<number, ManageMenuItemPageStats>;
 };
 
 type DropHint = {
@@ -44,7 +45,7 @@ function getDropPositionFromRowEvent(event: React.DragEvent<HTMLElement>): MenuI
     return 'child';
 }
 
-export function MenuItemsSortableList({ menu, items, categoryNames, pageNames, categoryStats }: MenuItemsSortableListProps) {
+export function MenuItemsSortableList({ menu, items, categoryNames, pageNames, categoryStats, pageStats }: MenuItemsSortableListProps) {
     const router = useRouter();
     const categoryNameMap = new Map(Object.entries(categoryNames).map(([id, name]) => [Number(id), name]));
     const pageNameMap = new Map(Object.entries(pageNames).map(([id, name]) => [Number(id), name]));
@@ -140,7 +141,7 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames, c
                             <th className="w-10 px-2 py-2" aria-label="Reorder" />
                             <th className="px-4 py-2">Name</th>
                             <th className="px-4 py-2">Target</th>
-                            {menuItemCategoryMetaHeaders}
+                            {menuItemLinkMetaHeaders}
                             <th className="px-4 py-2 text-center">Order</th>
                             <th className="px-4 py-2">Status</th>
                             <th className="px-4 py-2">Actions</th>
@@ -184,7 +185,12 @@ export function MenuItemsSortableList({ menu, items, categoryNames, pageNames, c
                                         </span>
                                     </td>
                                     <td className="px-4 py-1.5">{describeMenuItemTarget(item, categoryNameMap, pageNameMap)}</td>
-                                    <MenuItemCategoryMetaCells categoryId={item.categoryId} categoryStats={categoryStats} />
+                                    <MenuItemLinkMetaCells
+                                        categoryId={item.categoryId}
+                                        pageId={item.pageId}
+                                        categoryStats={categoryStats}
+                                        pageStats={pageStats}
+                                    />
                                     <td className="px-4 py-1.5 text-center tabular-nums">{item.displayOrder}</td>
                                     <td className="px-4 py-1.5">
                                         <div className="flex flex-wrap gap-1.5">

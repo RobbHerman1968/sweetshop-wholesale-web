@@ -2,6 +2,7 @@
 
 import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { db } from '@/lib/db-pg';
 import { page } from '@/lib/drizzle/schema';
 import { and, asc, eq, ilike, sql } from 'drizzle-orm';
@@ -126,6 +127,61 @@ function getFormRichText(formData: FormData, key: string, fallback: string | und
     return typeof raw === 'string' ? raw : (fallback ?? '');
 }
 
+type PageFormResult = { ok: true } | { ok: false; error: string };
+
+function parsePageForm(formData: FormData, contentFallback = '') {
+    const name = String(formData.get('name') ?? '').trim();
+    if (!name) {
+        return { ok: false as const, error: 'Page name is required.' };
+    }
+
+    const navName = slugifyPageNavName(name);
+    if (!navName) {
+        return { ok: false as const, error: 'Enter a valid page name.' };
+    }
+
+    const content = getFormRichText(formData, 'content', contentFallback);
+    const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true';
+
+    return {
+        ok: true as const,
+        values: {
+            name,
+            navName,
+            content,
+            isActive,
+        },
+    };
+}
+
+function revalidatePagePaths(pageId: number, navName: string) {
+    revalidatePath('/manage/pages');
+    revalidatePath(`/manage/pages/${pageId}`);
+    revalidatePath(buildPagePath(pageId, navName));
+    revalidatePath(`/page/${pageId}`);
+}
+
+export async function createPageFromForm(formData: FormData): Promise<PageFormResult> {
+    const parsed = parsePageForm(formData);
+    if (!parsed.ok) {
+        return parsed;
+    }
+
+    const [created] = await db
+        .insert(page)
+        .values({
+            name: parsed.values.name,
+            navName: parsed.values.navName,
+            content: parsed.values.content,
+            imageUrl: null,
+            isActive: parsed.values.isActive,
+        })
+        .returning({ id: page.id });
+
+    revalidatePagePaths(created.id, parsed.values.navName);
+    redirect(`/manage/pages/${created.id}`);
+}
+
 export async function updatePageFromForm(formData: FormData) {
     const id = Number(formData.get('id'));
     if (!id) return;
@@ -133,26 +189,21 @@ export async function updatePageFromForm(formData: FormData) {
     const existing = await getPageByIdForManage(id);
     if (!existing) return;
 
-    const name = (formData.get('name') as string)?.trim() ?? existing.name;
-    const navName = slugifyPageNavName(name);
-    const imageUrlRaw = formData.get('imageUrl');
-    const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw.trim() || null : existing.imageUrl;
-    const content = getFormRichText(formData, 'content', existing.content);
-    const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true';
+    const parsed = parsePageForm(formData, existing.content);
+    if (!parsed.ok) {
+        return;
+    }
 
     await db
         .update(page)
         .set({
-            name,
-            navName,
-            content,
-            imageUrl,
-            isActive,
+            name: parsed.values.name,
+            navName: parsed.values.navName,
+            content: parsed.values.content,
+            imageUrl: existing.imageUrl,
+            isActive: parsed.values.isActive,
         })
         .where(eq(page.id, id));
 
-    revalidatePath('/manage/pages');
-    revalidatePath(`/manage/pages/${id}`);
-    revalidatePath(buildPagePath(id, navName));
-    revalidatePath(`/page/${id}`);
+    revalidatePagePaths(id, parsed.values.navName);
 }

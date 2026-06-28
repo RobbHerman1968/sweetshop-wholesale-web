@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPageByIdForManage } from '@/lib/db-pg/actions/page';
-import { EditPageContent } from './edit-page-content';
+import { PageForm } from '../page-form';
 
 type Props = {
     params: Promise<{ pageId: string }>;
@@ -23,7 +23,7 @@ export default async function ManageEditPagePage({ params }: Props) {
                     ← Back to pages
                 </Link>
             </div>
-            <EditPageContent page={sitePage} />
+            <PageForm mode="edit" page={sitePage} backHref="/manage/pages" />
         </div>
     );
 }

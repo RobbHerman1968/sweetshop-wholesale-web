@@ -235,16 +235,22 @@ export type ManageMenuItemCategoryStats = {
     activeProductCount: number;
 };
 
+export type ManageMenuItemPageStats = {
+    isActive: boolean;
+};
+
 export async function getMenuItemNameMaps(items: ManageMenuItem[]): Promise<{
     categoryNames: Map<number, string>;
     pageNames: Map<number, string>;
     categoryStats: Map<number, ManageMenuItemCategoryStats>;
+    pageStats: Map<number, ManageMenuItemPageStats>;
 }> {
     const categoryIds = [...new Set(items.map((item) => item.categoryId).filter((id): id is number => id != null && id > 0))];
     const pageIds = [...new Set(items.map((item) => item.pageId).filter((id): id is number => id != null && id > 0))];
     const categoryNames = new Map<number, string>();
     const pageNames = new Map<number, string>();
     const categoryStats = new Map<number, ManageMenuItemCategoryStats>();
+    const pageStats = new Map<number, ManageMenuItemPageStats>();
 
     if (categoryIds.length > 0) {
         const [categories, activeProductCounts] = await Promise.all([
@@ -278,16 +284,19 @@ export async function getMenuItemNameMaps(items: ManageMenuItem[]): Promise<{
 
     if (pageIds.length > 0) {
         const pages = await db
-            .select({ id: page.id, name: page.name })
+            .select({ id: page.id, name: page.name, isActive: page.isActive })
             .from(page)
             .where(inArray(page.id, pageIds));
 
         for (const row of pages) {
             pageNames.set(row.id, row.name?.trim() || `Page ${row.id}`);
+            pageStats.set(row.id, {
+                isActive: row.isActive ?? false,
+            });
         }
     }
 
-    return { categoryNames, pageNames, categoryStats };
+    return { categoryNames, pageNames, categoryStats, pageStats };
 }
 
 function formatMenuLabel(name: string): string {
@@ -539,16 +548,21 @@ export const getBrandBarNavCategories = cache(async (menuId = WHOLESALE_BRAND_BA
                 id: page.id,
                 navName: page.navName,
                 name: page.name,
+                isActive: page.isActive,
             })
             .from(page)
             .where(inArray(page.id, pageIds));
 
         for (const row of pages) {
+            if (!row.isActive) continue;
             pageNavNames.set(row.id, row.navName?.trim() || row.name?.trim() || '');
         }
     }
 
-    return buildBrandBarNavCategories(rows, categoryNavNames, pageNavNames);
+    const activePageIds = new Set(pageNavNames.keys());
+    const categories = buildBrandBarNavCategories(rows, categoryNavNames, pageNavNames);
+
+    return filterBrandBarNavCategoriesByActivePages(categories, activePageIds);
 });
 
 function filterShopNavCategoriesByActiveProducts(
@@ -564,6 +578,26 @@ function filterShopNavCategoriesByActiveProducts(
                     links: section.links.filter((link) => {
                         if (link.categoryId == null || link.categoryId <= 0) return true;
                         return activeCategoryIds.has(link.categoryId);
+                    }),
+                }))
+                .filter((section) => section.links.length > 0),
+        }))
+        .filter((group) => group.sections.length > 0);
+}
+
+function filterBrandBarNavCategoriesByActivePages(
+    categories: BrandBarNavCategory[],
+    activePageIds: Set<number>,
+): BrandBarNavCategory[] {
+    return categories
+        .map((group) => ({
+            ...group,
+            sections: group.sections
+                .map((section) => ({
+                    ...section,
+                    links: section.links.filter((link) => {
+                        if (link.pageId == null || link.pageId <= 0) return true;
+                        return activePageIds.has(link.pageId);
                     }),
                 }))
                 .filter((section) => section.links.length > 0),

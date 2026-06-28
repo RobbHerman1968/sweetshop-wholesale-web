@@ -53,7 +53,8 @@ export function PagesContent({ data, pagination, searchName }: PagesContentProps
         <div className="mx-auto max-w-7xl space-y-6">
             <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Pages</h1>
 
-            <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
                     <Input
@@ -70,7 +71,11 @@ export function PagesContent({ data, pagination, searchName }: PagesContentProps
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search
                 </Button>
-            </form>
+                </form>
+                <Link href="/manage/pages/new" className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}>
+                    Add page
+                </Link>
+            </div>
 
             <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
                 <p className="w-64">
@@ -130,11 +135,9 @@ export function PagesContent({ data, pagination, searchName }: PagesContentProps
                                         </td>
                                         <td className="px-3 py-2 align-middle text-center text-[11px]">
                                             {p.isActive ? (
-                                                <span className="text-[#4a2518]">Active</span>
+                                                <span className="rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] uppercase text-white">Active</span>
                                             ) : (
-                                                <span className="inline-block rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">
-                                                    Inactive
-                                                </span>
+                                                <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>
                                             )}
                                         </td>
                                         <td className="px-3 py-2 align-middle text-right text-[11px]">
@@ -145,7 +148,7 @@ export function PagesContent({ data, pagination, searchName }: PagesContentProps
                                                 >
                                                     Edit
                                                 </Link>
-                                                {p.isActive && p.navName ? (
+                                                {p.navName && p.isActive ? (
                                                     <Link
                                                         href={buildPagePath(p.id, p.navName)}
                                                         target="_blank"
@@ -154,7 +157,17 @@ export function PagesContent({ data, pagination, searchName }: PagesContentProps
                                                     >
                                                         View
                                                     </Link>
-                                                ) : null}
+                                                ) : (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        disabled
+                                                        className="px-3 py-1 text-[10px] tracking-[0.15em]"
+                                                        title={!p.navName ? 'Page has no URL slug' : 'Page is inactive'}
+                                                    >
+                                                        View
+                                                    </Button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

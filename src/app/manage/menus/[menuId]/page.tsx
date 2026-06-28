@@ -25,7 +25,7 @@ export default async function ManageMenuItemsPage({ params, searchParams }: Prop
 
     const trimmedName = searchName.trim();
     const items = await getMenuItemsForManage(menuId, trimmedName || undefined);
-    const { categoryNames, pageNames, categoryStats } = await getMenuItemNameMaps(items);
+    const { categoryNames, pageNames, categoryStats, pageStats } = await getMenuItemNameMaps(items);
     const usage = getMenuUsageDescription(menu);
 
     return (
@@ -41,6 +41,7 @@ export default async function ManageMenuItemsPage({ params, searchParams }: Prop
                 categoryNames={Object.fromEntries(categoryNames)}
                 pageNames={Object.fromEntries(pageNames)}
                 categoryStats={Object.fromEntries(categoryStats)}
+                pageStats={Object.fromEntries(pageStats)}
                 searchName={trimmedName}
                 usage={usage}
             />
