@@ -1,6 +1,4 @@
-import NextAuth from 'next-auth';
-import type { Session } from 'next-auth';
-import type { JWT } from 'next-auth/jwt';
+import NextAuth, { type NextAuthOptions } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import * as argon2 from 'argon2';
 import { eq } from 'drizzle-orm';
@@ -13,7 +11,7 @@ import { isHebAccountMateId } from '@/lib/shop-shopping-menu';
 
 export { loginSchema } from '@/lib/validations/auth';
 
-const authOptions = {
+const authOptions: NextAuthOptions = {
     providers: [
         Credentials({
             name: 'Email and Password',
@@ -71,24 +69,7 @@ const authOptions = {
         signIn: '/',
     },
     callbacks: {
-        async jwt({
-            token,
-            user,
-            trigger,
-            session,
-        }: {
-            token: JWT;
-            user?: {
-                id: string;
-                email?: string | null;
-                name?: string | null;
-                isAdmin?: boolean;
-                isHEB?: boolean;
-                needsProfileCompletion?: boolean;
-            };
-            trigger?: 'update';
-            session?: { needsProfileCompletion?: boolean; name?: string };
-        }) {
+        async jwt({ token, user, trigger, session }) {
             if (user) {
                 const userId = parseUserId(user.id);
                 if (userId != null) {
@@ -102,17 +83,18 @@ const authOptions = {
             }
 
             if (trigger === 'update' && session) {
-                if (session.name != null) {
-                    token.name = session.name;
+                const updateSession = session as { needsProfileCompletion?: boolean; name?: string };
+                if (updateSession.name != null) {
+                    token.name = updateSession.name;
                 }
-                if (session.needsProfileCompletion != null) {
-                    token.needsProfileCompletion = session.needsProfileCompletion;
+                if (updateSession.needsProfileCompletion != null) {
+                    token.needsProfileCompletion = updateSession.needsProfileCompletion;
                 }
             }
 
             return token;
         },
-        async session({ session, token }: { session: Session; token: JWT }) {
+        async session({ session, token }) {
             if (token && session.user) {
                 session.user.id = parseUserId(token.id) ?? 0;
                 session.user.email = token.email ?? undefined;

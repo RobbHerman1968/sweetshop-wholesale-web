@@ -11,6 +11,8 @@ declare module 'next-auth' {
     }
 
     interface User {
+        isAdmin?: boolean;
+        isHEB?: boolean;
         needsProfileCompletion?: boolean;
     }
 }
