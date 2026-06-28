@@ -134,11 +134,9 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
                                         </td>
                                         <td className="px-3 py-2 align-middle text-center text-[11px]">
                                             {c.isActive ? (
-                                                <span className="text-[#4a2518]">Active</span>
+                                                <span className="rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] uppercase text-white">Active</span>
                                             ) : (
-                                                <span className="inline-block rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">
-                                                    Inactive
-                                                </span>
+                                                <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>
                                             )}
                                         </td>
                                         <td className="px-3 py-2 align-middle text-right text-[11px]">

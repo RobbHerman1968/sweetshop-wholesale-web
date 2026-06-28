@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { db } from '@/lib/db-pg';
-import { category, menu, menuItem, page } from '@/lib/drizzle/schema';
+import { category, menu, menuItem, page, product, productCategory } from '@/lib/drizzle/schema';
 import { and, asc, eq, ilike, inArray, sql } from 'drizzle-orm';
 import type { BrandBarNavCategory, BrandBarNavLink, BrandBarNavSection } from '@/assets/brand-bar-nav';
 import { getCategoryIdsWithActiveProducts } from '@/lib/db-pg/actions/product';
@@ -230,23 +230,49 @@ export async function getMenuEditLookups(): Promise<{ categories: MenuEditLookup
     };
 }
 
+export type ManageMenuItemCategoryStats = {
+    isActive: boolean;
+    activeProductCount: number;
+};
+
 export async function getMenuItemNameMaps(items: ManageMenuItem[]): Promise<{
     categoryNames: Map<number, string>;
     pageNames: Map<number, string>;
+    categoryStats: Map<number, ManageMenuItemCategoryStats>;
 }> {
     const categoryIds = [...new Set(items.map((item) => item.categoryId).filter((id): id is number => id != null && id > 0))];
     const pageIds = [...new Set(items.map((item) => item.pageId).filter((id): id is number => id != null && id > 0))];
     const categoryNames = new Map<number, string>();
     const pageNames = new Map<number, string>();
+    const categoryStats = new Map<number, ManageMenuItemCategoryStats>();
 
     if (categoryIds.length > 0) {
-        const categories = await db
-            .select({ id: category.id, name: category.name })
-            .from(category)
-            .where(inArray(category.id, categoryIds));
+        const [categories, activeProductCounts] = await Promise.all([
+            db
+                .select({ id: category.id, name: category.name, isActive: category.isActive })
+                .from(category)
+                .where(inArray(category.id, categoryIds)),
+            db
+                .select({
+                    categoryId: productCategory.categoryId,
+                    activeProductCount: sql<number>`count(distinct ${product.id})::int`,
+                })
+                .from(productCategory)
+                .innerJoin(product, eq(productCategory.productId, product.id))
+                .where(and(inArray(productCategory.categoryId, categoryIds), eq(product.isActive, true)))
+                .groupBy(productCategory.categoryId),
+        ]);
+
+        const activeCountByCategoryId = new Map(
+            activeProductCounts.map((row) => [row.categoryId, Number(row.activeProductCount)]),
+        );
 
         for (const row of categories) {
             categoryNames.set(row.id, row.name?.trim() || `Category ${row.id}`);
+            categoryStats.set(row.id, {
+                isActive: row.isActive,
+                activeProductCount: activeCountByCategoryId.get(row.id) ?? 0,
+            });
         }
     }
 
@@ -261,7 +287,7 @@ export async function getMenuItemNameMaps(items: ManageMenuItem[]): Promise<{
         }
     }
 
-    return { categoryNames, pageNames };
+    return { categoryNames, pageNames, categoryStats };
 }
 
 function formatMenuLabel(name: string): string {

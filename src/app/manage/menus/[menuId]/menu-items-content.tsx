@@ -7,14 +7,16 @@ import { Input } from '@/components/ui/input';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
 import { describeMenuItemTarget } from '@/lib/menu-manage-utils';
-import type { ManageMenu, ManageMenuItem } from '@/lib/db-pg/actions/menu';
+import type { ManageMenu, ManageMenuItem, ManageMenuItemCategoryStats } from '@/lib/db-pg/actions/menu';
 import { MenuItemsSortableList } from './menu-items-sortable-list';
+import { MenuItemCategoryMetaCells, menuItemCategoryMetaHeaders } from './menu-item-category-meta-cells';
 
 type MenuItemsContentProps = {
     menu: ManageMenu;
     items: ManageMenuItem[];
     categoryNames: Record<number, string>;
     pageNames: Record<number, string>;
+    categoryStats: Record<number, ManageMenuItemCategoryStats>;
     searchName: string;
     usage: string | null;
 };
@@ -25,7 +27,7 @@ function buildQuery(name?: string) {
     return q.toString() ? `?${q.toString()}` : '';
 }
 
-export function MenuItemsContent({ menu, items, categoryNames, pageNames, searchName, usage }: MenuItemsContentProps) {
+export function MenuItemsContent({ menu, items, categoryNames, pageNames, categoryStats, searchName, usage }: MenuItemsContentProps) {
     const router = useRouter();
     const categoryNameMap = new Map(Object.entries(categoryNames).map(([id, name]) => [Number(id), name]));
     const pageNameMap = new Map(Object.entries(pageNames).map(([id, name]) => [Number(id), name]));
@@ -77,11 +79,6 @@ export function MenuItemsContent({ menu, items, categoryNames, pageNames, search
                 </Button>
             </form>
 
-            <p className="text-xs text-[#6e4a34]">
-                Showing {items.length} of {menu.itemCount} menu items
-                {isFiltering && ' (filtered)'}.
-            </p>
-
             {isFiltering ? (
                 <p className="rounded-md border border-[#c49a78] bg-[#f8eddf] px-3 py-2 text-xs text-[#6e4a34]">Clear search to drag and reorder menu items.</p>
             ) : null}
@@ -100,6 +97,7 @@ export function MenuItemsContent({ menu, items, categoryNames, pageNames, search
                             <tr>
                                 <th className="px-4 py-2">Name</th>
                                 <th className="px-4 py-2">Target</th>
+                                {menuItemCategoryMetaHeaders}
                                 <th className="px-4 py-2 text-center">Order</th>
                                 <th className="px-4 py-2">Status</th>
                                 <th className="px-4 py-2">Actions</th>
@@ -110,6 +108,7 @@ export function MenuItemsContent({ menu, items, categoryNames, pageNames, search
                                 <tr key={item.id} className="border-b border-[#e3cbb0]/80 last:border-b-0">
                                     <td className="px-4 py-1.5 font-semibold text-[#4a2518]">{item.name || '—'}</td>
                                     <td className="px-4 py-1.5">{describeMenuItemTarget(item, categoryNameMap, pageNameMap)}</td>
+                                    <MenuItemCategoryMetaCells categoryId={item.categoryId} categoryStats={categoryStats} />
                                     <td className="px-4 py-1.5 text-center tabular-nums">{item.displayOrder}</td>
                                     <td className="px-4 py-1.5">
                                         <div className="flex flex-wrap gap-1.5">
@@ -132,7 +131,7 @@ export function MenuItemsContent({ menu, items, categoryNames, pageNames, search
                     </table>
                 </div>
             ) : (
-                <MenuItemsSortableList menu={menu} items={items} categoryNames={categoryNames} pageNames={pageNames} />
+                <MenuItemsSortableList menu={menu} items={items} categoryNames={categoryNames} pageNames={pageNames} categoryStats={categoryStats} />
             )}
         </div>
     );
