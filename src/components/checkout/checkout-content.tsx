@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
 import { CheckoutStepBilling } from '@/components/checkout/checkout-step-billing';
@@ -156,6 +156,7 @@ export function CheckoutContent({
         getCheckoutBillingEmailAddress(initialShipping, accountDefaults, checkoutSavedAddresses, initialBilling),
     );
     const [savingAddress, setSavingAddress] = useState(false);
+    const hasRecordedInitialStep = useRef(false);
 
     const needsBillingStep = checkoutNeedsBillingStep(shippingForm.isBillingAddress);
     const flowSteps = useMemo(() => getCheckoutFlowSteps(needsBillingStep), [needsBillingStep]);
@@ -165,6 +166,17 @@ export function CheckoutContent({
             setCurrentStep('payment');
         }
     }, [currentStep, flowSteps]);
+
+    useEffect(() => {
+        if (!hasRecordedInitialStep.current) {
+            hasRecordedInitialStep.current = true;
+            return;
+        }
+
+        if (window.matchMedia('(max-width: 639px)').matches) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [currentStep]);
 
     const checkoutShipping = useMemo(
         () =>

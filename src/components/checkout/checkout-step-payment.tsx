@@ -2,7 +2,6 @@
 
 import { CheckoutFormRow, CheckoutSectionTitle, checkoutFieldClass, checkoutFieldInvalidClass, checkoutSelectClass, checkoutTextClass } from '@/components/checkout/checkout-form-row';
 import type { CheckoutPaymentForm } from '@/lib/checkout-types';
-import { SUPPORTED_CHECKOUT_CARD_LABELS } from '@/lib/checkout-types';
 import {
     detectCardType,
     formatCardNumberDisplay,
@@ -63,10 +62,6 @@ export function CheckoutStepPayment({ form, accountIsTerms, accountTerms, onChan
             <section>
                 <CheckoutSectionTitle>Payment</CheckoutSectionTitle>
                 <p className={cn('mt-3', checkoutTextClass)}>Enter credit card details to pay for this order.</p>
-                <p className={cn('mt-2', checkoutTextClass)}>We accept {SUPPORTED_CHECKOUT_CARD_LABELS}.</p>
-                <p className={cn('mt-2', checkoutTextClass)}>
-                    Card details are kept in your browser until you place the order and are not sent to our servers when you continue to review.
-                </p>
             </section>
 
             <section className="rounded-sm border border-[#e8dfd4] bg-white px-3 sm:px-4">
