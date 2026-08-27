@@ -3,33 +3,96 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { LoginDialog } from '@/components/login-dialog';
+import { RemoteImage } from '@/components/remote-image';
 import { SiteFooter } from '@/components/site-footer';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { SiteHeader } from '@/components/site-header';
 import { SITE_MAIN_FOCUS_CLASS, SITE_MAIN_ID } from '@/lib/site-main';
+import type { HomePageDisplayContent } from '@/lib/homepage-content';
 import { cn } from '@/lib/utils';
 import type { BrandBarNavCategory } from '@/assets/brand-bar-nav';
-
-const heroVideoSrc = 'https://tk1qsvgip35suuxh.public.blob.vercel-storage.com/videos/sweetshopusa-hero.mp4';
 
 type HomePageClientProps = {
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
+    initialIsLoggedIn?: boolean;
     initialAccountDisplayName?: string | null;
     initialAccountShippingLeadTime?: number | null;
     termsPageHref?: string | null;
     privacyPageHref?: string | null;
+    content: HomePageDisplayContent;
 };
+
+function stripHtml(value: string): string {
+    return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function HomePageProductCard({ product }: { product: HomePageDisplayContent['sections'][number]['products'][number] }) {
+    const label = stripHtml(product.name) || `Product ${product.id}`;
+
+    return (
+        <article className="flex h-full flex-col overflow-hidden rounded-xl border border-[#b89572] bg-[#fdf7ef] shadow-sm">
+            <div className="relative h-48 w-full shrink-0 overflow-hidden bg-white sm:h-52 xl:h-44">
+                {product.imagePath ? (
+                    <RemoteImage src={product.imagePath} alt={label} sizes="(max-width: 1024px) 33vw, 240px" className="brightness-110" />
+                ) : (
+                    <div className="flex h-full items-center justify-center text-[11px] font-medium uppercase tracking-wider text-[#8b6b4a]">No image</div>
+                )}
+            </div>
+            <div className="flex flex-1 flex-col justify-center p-4">
+                <h3 className="text-[12px] font-bold uppercase leading-snug tracking-[0.11em] text-[#4a2518] line-clamp-4">{label}</h3>
+            </div>
+        </article>
+    );
+}
+
+function HomePageSectionBlock({ section }: { section: HomePageDisplayContent['sections'][number] }) {
+    return (
+        <section className="rounded-2xl border border-[#b89572] bg-[#f6ebdd] p-6 sm:p-8">
+            <div className="grid gap-6 xl:grid-cols-4 xl:items-stretch">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between xl:col-span-1 xl:h-full xl:flex-col xl:gap-0 xl:pr-2">
+                    <div className="max-w-3xl xl:flex xl:min-h-0 xl:max-w-none xl:flex-1 xl:flex-col">
+                        <h2 className="text-[13px] font-semibold uppercase tracking-[0.24em] text-[#5c4032] sm:text-sm sm:tracking-[0.26em] xl:shrink-0">{section.title}</h2>
+                        {section.description ? (
+                            <div className="mt-3 xl:mt-0 xl:flex xl:flex-1 xl:items-center">
+                                <p className="text-sm leading-relaxed text-[#5c4032] sm:text-base">{section.description}</p>
+                            </div>
+                        ) : null}
+                    </div>
+                    <Link
+                        href={section.categoryHref}
+                        className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0 px-4 py-1.5 text-[11px] xl:mt-auto xl:w-fit')}
+                    >
+                        View category
+                    </Link>
+                </div>
+
+                {section.products.length > 0 ? (
+                    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:col-span-3 xl:grid-cols-3 xl:gap-6">
+                        {section.products.map((product) => (
+                            <li key={product.id} className="h-full min-w-0">
+                                <HomePageProductCard product={product} />
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
+            </div>
+        </section>
+    );
+}
 
 export function HomePageClient({
     brandBarCategories,
     initialCartItemCount,
+    initialIsLoggedIn = false,
     initialAccountDisplayName = null,
     initialAccountShippingLeadTime = null,
     termsPageHref = null,
     privacyPageHref = null,
+    content,
 }: HomePageClientProps) {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
+    const { hero, sections } = content;
 
     return (
         <div className="min-h-screen min-w-0 overflow-x-clip bg-white text-[#3c251a] font-sans">
@@ -37,21 +100,21 @@ export function HomePageClient({
                 onLoginClick={() => setIsLoginOpen(true)}
                 brandBarCategories={brandBarCategories}
                 initialCartItemCount={initialCartItemCount}
+                initialIsLoggedIn={initialIsLoggedIn}
                 initialAccountDisplayName={initialAccountDisplayName}
                 initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />
 
             <main id={SITE_MAIN_ID} tabIndex={-1} className={cn('mx-auto flex max-w-6xl flex-col gap-10 px-3 pb-14 pt-1 sm:px-4 sm:pb-16 sm:pt-1', SITE_MAIN_FOCUS_CLASS)}>
-                {/* Hero banner */}
                 <section className="relative min-h-[280px] overflow-hidden rounded-2xl border border-[#b89572] bg-gradient-to-r from-[#3d2518] via-[#5c3820] to-[#3d2518] text-[#fdf7ef] shadow-lg sm:min-h-[320px] sm:rounded-3xl">
-                    {heroVideoSrc ? <video className="absolute inset-0 h-full w-full object-cover" src={heroVideoSrc} autoPlay muted loop playsInline aria-hidden /> : null}
+                    {hero.videoUrl ? <video className="absolute inset-0 h-full w-full object-cover" src={hero.videoUrl} autoPlay muted loop playsInline aria-hidden /> : null}
                     <div className="absolute inset-0 bg-gradient-to-r from-[#3d2518]/85 via-[#2a1810]/70 to-[#3d2518]/85" aria-hidden />
                     <div className="absolute inset-0 opacity-30 mix-blend-overlay bg-[radial-gradient(circle_at_top,_#f5d4b8_0,_transparent_55%),radial-gradient(circle_at_bottom,_#2b1508_0,_transparent_55%)]" aria-hidden />
                     <div className="relative flex flex-col items-center gap-3 px-4 py-8 text-center sm:gap-4 sm:px-10 sm:py-10 md:px-16 md:py-14">
-                        <h1 className="text-2xl font-semibold uppercase tracking-[0.35em] text-[#f5d9b8] sm:text-3xl sm:tracking-[0.4em]">SWEET SHOP USA</h1>
-                        <p className="text-[11px] tracking-[0.28em] uppercase text-[#fdf7ef]/80 sm:text-sm sm:tracking-[0.35em]">Handmade Chocolates</p>
-                        <p className="mt-3 max-w-xl text-xs leading-relaxed text-[#fdf7ef]/90 sm:mt-4 sm:max-w-2xl sm:text-sm">To view our wholesale items please sign in using your wholesale login or apply now to become a Sweet Shop USA wholesale partner.</p>
-                        <p className="text-[11px] tracking-[0.26em] text-[#f5d9b8] sm:text-xs sm:tracking-[0.3em]">1-800-222-2269</p>
+                        <h1 className="text-2xl font-semibold uppercase tracking-[0.35em] text-[#f5d9b8] sm:text-3xl sm:tracking-[0.4em]">{hero.title}</h1>
+                        <p className="text-[11px] tracking-[0.28em] uppercase text-[#fdf7ef]/80 sm:text-sm sm:tracking-[0.35em]">{hero.subtitle}</p>
+                        <p className="mt-3 max-w-xl text-xs leading-relaxed text-[#fdf7ef]/90 sm:mt-4 sm:max-w-2xl sm:text-sm">{hero.body}</p>
+                        <p className="text-[11px] tracking-[0.26em] text-[#f5d9b8] sm:text-xs sm:tracking-[0.3em]">{hero.phone}</p>
                         <div className="mt-4 flex w-full flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
                             <Button type="button" variant="primary" className="bg-[#fdf7ef] text-[#251a0a]! hover:bg-[#ede0d4] px-4 py-1.5 text-[11px] sm:w-auto" onClick={() => setIsLoginOpen(true)}>
                                 Wholesale Login
@@ -69,50 +132,9 @@ export function HomePageClient({
                     </div>
                 </section>
 
-                {/* Content rows */}
-                <section className="grid gap-6 md:gap-8 md:grid-cols-[2fr,2fr]">
-                    {/* New items */}
-                    <article className="rounded-2xl border border-[#b89572] bg-[#f6ebdd] p-6">
-                        <h2 className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#5c4032]">New at Sweet Shop USA</h2>
-                        <p className="mt-3 text-xs text-[#5c4032]">Discover our latest handcrafted truffles, seasonal assortments, and exclusive wholesale offerings for your shop or business.</p>
-                        <div className="mt-5 h-32 rounded-2xl bg-gradient-to-tr from-[#c9a078] via-[#e8d0b8] to-[#faf0e8]" aria-hidden />
-                        <Button type="button" variant="link" className="mt-4 text-[11px]">
-                            View New Items
-                        </Button>
-                    </article>
-
-                    {/* Spring collection */}
-                    <article className="rounded-2xl border border-[#b89572] bg-[#f6ebdd] p-6">
-                        <h2 className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#5c4032]">Spring Collection</h2>
-                        <p className="mt-3 text-xs text-[#5c4032]">Bright, gift-ready packaging and fresh flavor profiles designed for spring holidays, celebrations, and corporate gifting.</p>
-                        <div className="mt-5 grid h-32 grid-cols-2 gap-3" aria-hidden>
-                            <div className="rounded-2xl bg-gradient-to-br from-[#f0d8bc] to-[#faf0e8]" />
-                            <div className="rounded-2xl bg-gradient-to-br from-[#ddc09a] to-[#f0e0cc]" />
-                        </div>
-                        <Button type="button" variant="link" className="mt-4 text-[11px]">
-                            Explore Spring
-                        </Button>
-                    </article>
-                </section>
-
-                {/* Brand / process / featured strip */}
-                <section className="grid gap-6 md:gap-8 md:grid-cols-3">
-                    <div className="rounded-2xl border border-[#b89572] bg-[#f6ebdd] p-5 sm:p-6">
-                        <h3 className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#5c4032]">Our Family of Brands</h3>
-                        <p className="mt-3 text-xs text-[#5c4032]">Sweet Shop USA crafts confections for leading national and regional brands, private label programs, and specialty retailers.</p>
-                    </div>
-                    <div className="rounded-2xl border border-[#b89572] bg-[#f6ebdd] p-5 sm:p-6">
-                        <h3 className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#5c4032]">Handcrafting Process</h3>
-                        <p className="mt-3 text-xs text-[#5c4032]">Every piece is hand dipped, decorated, and inspected in our Texas chocolate factory, following time-honored techniques.</p>
-                        <Button type="button" variant="outline" className="mt-4 px-4 py-1.5 text-[11px]">
-                            Watch the Process
-                        </Button>
-                    </div>
-                    <div className="rounded-2xl border border-[#b89572] bg-[#f6ebdd] p-5 sm:p-6">
-                        <h3 className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#5c4032]">Featured Items</h3>
-                        <p className="mt-3 text-xs text-[#5c4032]">Curated assortments, best-selling truffles, and premium toffees ready to delight your customers.</p>
-                    </div>
-                </section>
+                {sections.map((section) => (
+                    <HomePageSectionBlock key={`${section.categoryId}-${section.title}`} section={section} />
+                ))}
             </main>
 
             <LoginDialog open={isLoginOpen} onOpenChange={setIsLoginOpen} />

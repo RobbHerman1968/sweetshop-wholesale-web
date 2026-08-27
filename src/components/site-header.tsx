@@ -24,6 +24,8 @@ type SiteHeaderProps = {
     onLoginClick: () => void;
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
+    /** From `getServerSession` on the page so auth chrome matches SSR during hydration. */
+    initialIsLoggedIn?: boolean;
     initialAccountDisplayName?: string | null;
     initialAccountShippingLeadTime?: number | null;
 };
@@ -100,6 +102,7 @@ export function SiteHeader({
     onLoginClick,
     brandBarCategories,
     initialCartItemCount,
+    initialIsLoggedIn = false,
     initialAccountDisplayName = null,
     initialAccountShippingLeadTime = null,
 }: SiteHeaderProps) {
@@ -108,7 +111,7 @@ export function SiteHeader({
     const pathname = usePathname();
     const router = useRouter();
     const { status } = useSession();
-    const isLoggedIn = status === 'authenticated';
+    const isLoggedIn = status === 'loading' ? initialIsLoggedIn : status === 'authenticated';
     const { itemCount: liveCartItemCount } = useShopCartCount();
     const cartItemCount = cartCountHydrated ? liveCartItemCount : initialCartItemCount;
 
@@ -299,7 +302,7 @@ export function SiteHeader({
             </div>
 
             <div className="min-w-0 overflow-x-clip border-t border-[#d4c4b0] bg-white pb-2 pt-2 sm:pb-3 sm:pt-3">
-                <BrandBar categories={brandBarCategories} />
+                <BrandBar categories={brandBarCategories} initialAccountDisplayName={initialAccountDisplayName} />
             </div>
         </header>
     );

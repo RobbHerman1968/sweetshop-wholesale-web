@@ -33,6 +33,7 @@ const baseNavItems: NavItem[] = [
     { type: 'link', href: '/manage/products', label: 'Products' },
     { type: 'link', href: '/manage/images', label: 'Images' },
     { type: 'divider' },
+    { type: 'link', href: '/manage/homepage-setup', label: 'HomePage Setup' },
     { type: 'link', href: '/manage/categories', label: 'Categories' },
     { type: 'link', href: '/manage/pages', label: 'Pages' },
     { type: 'link', href: '/manage/menus', label: 'Menus' },

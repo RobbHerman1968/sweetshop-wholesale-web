@@ -26,6 +26,7 @@ export default async function AccountPage() {
             <AccountPageClient
                 brandBarCategories={brandBarCategories}
                 initialCartItemCount={initialCartItemCount}
+                initialIsLoggedIn
                 initialAccountDisplayName={switcherState.selectedAccountDisplayName}
                 initialAccountShippingLeadTime={switcherState.selectedAccountShippingLeadTime}
                 accountData={accountData}

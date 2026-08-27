@@ -10,6 +10,7 @@ type PublicSiteShellClientProps = {
     children: ReactNode;
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
+    initialIsLoggedIn?: boolean;
     initialAccountDisplayName?: string | null;
     initialAccountShippingLeadTime?: number | null;
     termsPageHref?: string | null;
@@ -20,6 +21,7 @@ export function PublicSiteShellClient({
     children,
     brandBarCategories,
     initialCartItemCount,
+    initialIsLoggedIn = false,
     initialAccountDisplayName = null,
     initialAccountShippingLeadTime = null,
     termsPageHref = null,
@@ -33,6 +35,7 @@ export function PublicSiteShellClient({
                 onLoginClick={() => setIsLoginOpen(true)}
                 brandBarCategories={brandBarCategories}
                 initialCartItemCount={initialCartItemCount}
+                initialIsLoggedIn={initialIsLoggedIn}
                 initialAccountDisplayName={initialAccountDisplayName}
                 initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />

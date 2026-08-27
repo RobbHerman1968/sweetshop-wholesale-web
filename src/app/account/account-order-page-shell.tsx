@@ -11,6 +11,7 @@ import type { BrandBarNavCategory } from '@/assets/brand-bar-nav';
 type AccountOrderPageShellProps = {
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
+    initialIsLoggedIn?: boolean;
     initialAccountDisplayName?: string | null;
     initialAccountShippingLeadTime?: number | null;
     children: React.ReactNode;
@@ -19,6 +20,7 @@ type AccountOrderPageShellProps = {
 export function AccountOrderPageShell({
     brandBarCategories,
     initialCartItemCount,
+    initialIsLoggedIn = true,
     initialAccountDisplayName = null,
     initialAccountShippingLeadTime = null,
     children,
@@ -38,6 +40,7 @@ export function AccountOrderPageShell({
                 onLoginClick={() => router.push('/')}
                 brandBarCategories={brandBarCategories}
                 initialCartItemCount={initialCartItemCount}
+                initialIsLoggedIn={initialIsLoggedIn}
                 initialAccountDisplayName={initialAccountDisplayName}
                 initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />

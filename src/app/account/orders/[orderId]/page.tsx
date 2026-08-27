@@ -31,6 +31,7 @@ export default async function AccountOrderDetailPage({ params }: Props) {
         <AccountOrderPageShell
             brandBarCategories={brandBarCategories}
             initialCartItemCount={initialCartItemCount}
+            initialIsLoggedIn
             initialAccountDisplayName={switcherState.selectedAccountDisplayName}
             initialAccountShippingLeadTime={switcherState.selectedAccountShippingLeadTime}
         >

@@ -24,6 +24,7 @@ export async function PublicSiteShell({ children }: PublicSiteShellProps) {
         <PublicSiteShellClient
             brandBarCategories={brandBarCategories}
             initialCartItemCount={initialCartItemCount}
+            initialIsLoggedIn={Boolean(session?.user)}
             initialAccountDisplayName={switcherState.selectedAccountDisplayName}
             initialAccountShippingLeadTime={switcherState.selectedAccountShippingLeadTime}
             termsPageHref={footerLegalLinks.termsPageHref}

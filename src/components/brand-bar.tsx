@@ -18,6 +18,7 @@ import {
 
 type BrandBarProps = {
     categories: BrandBarNavCategory[];
+    initialAccountDisplayName?: string | null;
 };
 
 function categoryShowsDescription(cat: BrandBarNavCategory) {
@@ -320,8 +321,9 @@ function DesktopBrandBar({ categories }: BrandBarProps) {
     );
 }
 
-export function BrandBar({ categories }: BrandBarProps) {
-    const accountDisplayName = useShopCartStore((state) => state.accountDisplayName);
+export function BrandBar({ categories, initialAccountDisplayName = null }: BrandBarProps) {
+    const storeAccountDisplayName = useShopCartStore((state) => state.accountDisplayName);
+    const accountDisplayName = storeAccountDisplayName ?? initialAccountDisplayName;
     const displayCategories = useMemo(
         () => applyShopByLocationAccountName(categories, accountDisplayName),
         [categories, accountDisplayName],

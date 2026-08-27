@@ -21,6 +21,7 @@ import type { BrandBarNavCategory } from '@/assets/brand-bar-nav';
 type AccountPageClientProps = {
     brandBarCategories: BrandBarNavCategory[];
     initialCartItemCount: number;
+    initialIsLoggedIn?: boolean;
     initialAccountDisplayName?: string | null;
     initialAccountShippingLeadTime?: number | null;
     accountData: AccountPageData;
@@ -34,6 +35,7 @@ function formatOrderDateCentral(orderDate: string | null): string {
 export function AccountPageClient({
     brandBarCategories,
     initialCartItemCount,
+    initialIsLoggedIn = true,
     initialAccountDisplayName = null,
     initialAccountShippingLeadTime = null,
     accountData,
@@ -92,6 +94,7 @@ export function AccountPageClient({
                 onLoginClick={() => router.push('/')}
                 brandBarCategories={brandBarCategories}
                 initialCartItemCount={initialCartItemCount}
+                initialIsLoggedIn={initialIsLoggedIn}
                 initialAccountDisplayName={initialAccountDisplayName}
                 initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />
