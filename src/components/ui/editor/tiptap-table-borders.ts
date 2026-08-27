@@ -1,4 +1,5 @@
-import { Table, TableView } from '@tiptap/extension-table';
+import { Table, TableView, type TableOptions } from '@tiptap/extension-table';
+import type { CommandProps } from '@tiptap/core';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 
@@ -38,18 +39,16 @@ class TableViewWithBorderSync extends TableView {
 
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
-        table: {
-            toggleTableBorders: () => ReturnType;
-        };
+        toggleTableBorders: () => ReturnType;
     }
 }
 
 export const TableWithBorders = Table.extend({
-    addOptions() {
+    addOptions(): TableOptions {
         return {
             ...this.parent?.(),
             View: TableViewWithBorderSync,
-        };
+        } as TableOptions;
     },
 
     addAttributes() {
@@ -90,7 +89,7 @@ export const TableWithBorders = Table.extend({
             ...this.parent?.(),
             toggleTableBorders:
                 () =>
-                ({ state, dispatch, tr }) => {
+                ({ state, dispatch, tr }: CommandProps) => {
                     const $pos = state.selection.$from;
 
                     for (let depth = $pos.depth; depth > 0; depth -= 1) {

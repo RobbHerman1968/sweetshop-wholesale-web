@@ -162,6 +162,12 @@ export default function TipTapMenuBar({ editor, onOpenImagePicker }: TipTapMenuB
         editor.chain().focus().setTextAlign(align).run();
     }
 
+    function toggleTableBorders() {
+        if (!editor) return;
+        const showBorders = (editor.getAttributes('table').showBorders as boolean | undefined) !== false;
+        editor.chain().focus().updateAttributes('table', { showBorders: !showBorders }).run();
+    }
+
     if (!editor) return null;
 
     return (
@@ -281,7 +287,7 @@ export default function TipTapMenuBar({ editor, onOpenImagePicker }: TipTapMenuB
                 <>
                     <button
                         type="button"
-                        onClick={() => editor.chain().focus().toggleTableBorders().run()}
+                        onClick={toggleTableBorders}
                         className={`rounded border border-gray-500 px-2 py-1 text-[10px] font-medium text-black ${editorState?.tableShowBorders ? 'bg-gray-700 text-white' : ''}`}
                         title={
                             editorState?.tableShowBorders
