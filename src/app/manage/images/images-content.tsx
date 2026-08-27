@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { deleteVercelImageIfUnused, updateVercelImageName, updateVercelImageNamesBulk } from '@/lib/db-pg/actions/image';
 import type { ImageLibraryFilter } from '@/lib/image-library-filter';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
-import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { buildLegacyDynImageUrl } from '@/lib/legacy-dynimage-url';
 import { RemoteImage } from '@/components/remote-image';
@@ -209,7 +208,7 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
     const { page, totalPages } = pagination;
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
             <Dialog open={imageToDelete != null} onOpenChange={(open) => !open && setImageToDelete(null)}>
                 <DialogContent>
                     <DialogHeader>
@@ -319,7 +318,7 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
                 </SheetContent>
             </Sheet>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Images</h1>
                 <div className="flex flex-wrap items-center gap-2">
                     {selectedCount > 0 && (
@@ -342,7 +341,7 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
                 </div>
             </div>
 
-            <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
+            <form onSubmit={handleSearch} className="flex shrink-0 flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Type</span>
                     <Select value={imageType} onValueChange={(value) => handleImageTypeChange(value as ImageLibraryFilter)}>
@@ -376,7 +375,7 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
                 </Button>
             </form>
 
-            <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex shrink-0 flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
                 <p className="w-64">
                     Showing {data.length} of {pagination.total} {IMAGE_TYPE_LABELS[imageType].toLowerCase()}
                     {searchName && ' matching search'}.
@@ -385,50 +384,46 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
             </div>
 
             {deleteError && (
-                <Alert variant="destructive" className="bg-red-100! text-red-900!">
+                <Alert variant="destructive" className="shrink-0 bg-red-100! text-red-900!">
                     <AlertDescription className="text-xs">{deleteError}</AlertDescription>
                 </Alert>
             )}
 
-            {data.length === 0 ? (
-                <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No images found.</p>
-            ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-                    {data.map((img) => (
-                        <li key={img.id}>
-                            <article className="overflow-hidden rounded-lg border border-[#c49a78] bg-[#f8eddf]">
-                                <div className="relative aspect-square w-full bg-[#ffffff]">
-                                    {img.publicUrl ? (
-                                        <RemoteImage src={img.publicUrl} sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 25vw" />
-                                    ) : (
-                                        <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-wider text-[#6e4a34] bg-white">No file</div>
-                                    )}
-                                </div>
-                                <div className="p-3">
-                                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{img.name || img.imageName || '—'}</p>
-                                    <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{img.publicUrl || '—'}</p>
-                                    <div className="mt-2 flex gap-2">
-                                        <Button type="button" variant="sweet" className="flex-1 text-[11px]" onClick={() => openEditSheet(img)}>
-                                            Edit
-                                        </Button>
-                                        <Button type="button" variant="outline" className="flex-1 text-[11px] border-red-400 text-red-700 hover:bg-red-50 hover:border-red-500" onClick={() => openDeleteConfirm(img)} disabled={deletingId === img.id}>
-                                            {deletingId === img.id ? 'Deleting…' : 'Delete'}
-                                        </Button>
-                                    </div>
-                                </div>
-                            </article>
-                        </li>
-                    ))}
-                </ul>
-            )}
-
-            <ImagesPaginationNav
-                page={page}
-                totalPages={totalPages}
-                searchName={searchName}
-                imageType={imageType}
-                className="justify-center sm:justify-end"
-            />
+            <div className="min-h-0 flex-1 overflow-hidden pb-2.5">
+                <div className="h-full overflow-y-auto rounded-md border border-[#c49a78] bg-[#f8eddf] p-3 sm:p-4">
+                    {data.length === 0 ? (
+                        <p className="rounded-2xl border border-[#c49a78] bg-[#fdf7ef] p-6 text-center text-xs text-[#6e4a34]">No images found.</p>
+                    ) : (
+                        <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                            {data.map((img) => (
+                                <li key={img.id}>
+                                    <article className="overflow-hidden rounded-lg border border-[#c49a78] bg-[#fdf7ef]">
+                                        <div className="relative aspect-square w-full bg-[#ffffff]">
+                                            {img.publicUrl ? (
+                                                <RemoteImage src={img.publicUrl} sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 25vw" />
+                                            ) : (
+                                                <div className="flex h-full items-center justify-center bg-white text-[10px] uppercase tracking-wider text-[#6e4a34]">No file</div>
+                                            )}
+                                        </div>
+                                        <div className="p-3">
+                                            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{img.name || img.imageName || '—'}</p>
+                                            <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{img.publicUrl || '—'}</p>
+                                            <div className="mt-2 flex gap-2">
+                                                <Button type="button" variant="sweet" className="flex-1 text-[11px]" onClick={() => openEditSheet(img)}>
+                                                    Edit
+                                                </Button>
+                                                <Button type="button" variant="outline" className="flex-1 border-red-400 text-[11px] text-red-700 hover:border-red-500 hover:bg-red-50" onClick={() => openDeleteConfirm(img)} disabled={deletingId === img.id}>
+                                                    {deletingId === img.id ? 'Deleting…' : 'Delete'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
 
             <AddImageDialog open={addProductImageOpen} onOpenChange={setAddProductImageOpen} isProductImage />
             <AddImageDialog open={addOtherImageOpen} onOpenChange={setAddOtherImageOpen} isProductImage={false} />

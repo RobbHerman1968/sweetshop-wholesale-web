@@ -35,13 +35,15 @@ export default async function ManageProductsPage({ searchParams }: Props) {
 
     return (
         <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#7c5b44]">Loading products…</div>}>
-            <ProductsContent
-                data={data}
-                pagination={result.pagination}
-                searchName={name}
-                searchItemNumber={itemNumber}
-                status={status}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+                <ProductsContent
+                    data={data}
+                    pagination={result.pagination}
+                    searchName={name}
+                    searchItemNumber={itemNumber}
+                    status={status}
+                />
+            </div>
         </Suspense>
     );
 }

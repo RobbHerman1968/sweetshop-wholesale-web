@@ -3,10 +3,10 @@
 import { db } from '@/lib/db-pg';
 import { getAuthenticatedUserId } from '@/lib/auth-session';
 import { getOrderExpectedDeliveryDatesFromSweetshopOld } from '@/lib/db-sweetshop-old';
-import { and, asc, desc, eq, gte, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { orderMapper } from '../mappers/order-mapper';
 import { Order } from '../entities/order-entity';
-import { order, orderAddress, orderItem, user } from '@/lib/drizzle/schema';
+import { account, order, orderAddress, orderItem, user } from '@/lib/drizzle/schema';
 import moment from 'moment-timezone';
 
 export type OrderDailyStat = {
@@ -410,8 +410,25 @@ export async function getPaginatedOrdersForAuthenticatedUser(
     return getPaginatedOrdersForUser(userId, { page, limit });
 }
 
-export async function getPaginatedOrdersFromDB({ page = 1, limit = 50, dateFrom, dateTo }: { page?: number; limit?: number; dateFrom?: string; dateTo?: string }) {
+export async function getPaginatedOrdersFromDB({
+    page = 1,
+    limit = 50,
+    dateFrom,
+    dateTo,
+    accountMateId,
+    email,
+}: {
+    page?: number;
+    limit?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    accountMateId?: string;
+    email?: string;
+}) {
     const offset = (page - 1) * limit;
+    const accountMateIdTerm = accountMateId?.trim() ?? '';
+    const emailTerm = email?.trim().toLowerCase() ?? '';
+    const needsAccountJoin = accountMateIdTerm.length > 0 || emailTerm.length > 0;
 
     const conditions = [];
     if (dateFrom) {
@@ -420,9 +437,30 @@ export async function getPaginatedOrdersFromDB({ page = 1, limit = 50, dateFrom,
     if (dateTo) {
         conditions.push(lte(order.orderDate, `${dateTo}T23:59:59.999Z`));
     }
+    if (accountMateIdTerm) {
+        conditions.push(
+            or(
+                ilike(user.accountMateId, `%${accountMateIdTerm}%`),
+                ilike(account.accountMateId, `%${accountMateIdTerm}%`),
+            ),
+        );
+    }
+    if (emailTerm) {
+        conditions.push(
+            or(
+                ilike(sql`lower(trim(coalesce(${account.contactEmail}, '')))`, `%${emailTerm}%`),
+                ilike(sql`lower(trim(coalesce(${user.userName}, '')))`, `%${emailTerm}%`),
+                sql`exists (
+                    select 1 from "orderAddress" oa
+                    where oa."orderId" = ${order.id}
+                    and lower(trim(coalesce(oa."emailAddress", ''))) like ${`%${emailTerm}%`}
+                )`,
+            ),
+        );
+    }
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const baseQuery = db
+    let baseQuery = db
         .select({
             id: order.id,
             orderNumber: order.orderNumber,
@@ -436,13 +474,26 @@ export async function getPaginatedOrdersFromDB({ page = 1, limit = 50, dateFrom,
         })
         .from(order)
         .leftJoin(user, eq(order.userId, user.id))
-        .orderBy(desc(order.orderDate), desc(order.id))
-        .limit(limit)
-        .offset(offset);
+        .$dynamic();
+
+    if (needsAccountJoin) {
+        baseQuery = baseQuery.leftJoin(account, eq(order.userId, account.id));
+    }
+
+    baseQuery = baseQuery.orderBy(desc(order.orderDate), desc(order.id)).limit(limit).offset(offset);
 
     const data = whereClause ? await baseQuery.where(whereClause) : await baseQuery;
 
-    const countQuery = db.select({ count: sql<number>`count(*)` }).from(order);
+    let countQuery = db
+        .select({ count: sql<number>`count(distinct ${order.id})` })
+        .from(order)
+        .leftJoin(user, eq(order.userId, user.id))
+        .$dynamic();
+
+    if (needsAccountJoin) {
+        countQuery = countQuery.leftJoin(account, eq(order.userId, account.id));
+    }
+
     const countResult = whereClause ? await countQuery.where(whereClause) : await countQuery;
     const count = Number(countResult[0]?.count ?? 0);
 

@@ -29,22 +29,27 @@ export default async function ManageMenuItemsPage({ params, searchParams }: Prop
     const usage = getMenuUsageDescription(menu);
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
-                <Link href="/manage/menus" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline-offset-4 hover:underline">
+        <div className="flex min-h-0 flex-1 flex-col">
+            <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-4 overflow-hidden">
+                <Link
+                    href="/manage/menus"
+                    className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline-offset-4 hover:underline"
+                >
                     ← Back to menus
                 </Link>
+                <div className="min-h-0 flex-1">
+                    <MenuItemsContent
+                        menu={menu}
+                        items={items}
+                        categoryNames={Object.fromEntries(categoryNames)}
+                        pageNames={Object.fromEntries(pageNames)}
+                        categoryStats={Object.fromEntries(categoryStats)}
+                        pageStats={Object.fromEntries(pageStats)}
+                        searchName={trimmedName}
+                        usage={usage}
+                    />
+                </div>
             </div>
-            <MenuItemsContent
-                menu={menu}
-                items={items}
-                categoryNames={Object.fromEntries(categoryNames)}
-                pageNames={Object.fromEntries(pageNames)}
-                categoryStats={Object.fromEntries(categoryStats)}
-                pageStats={Object.fromEntries(pageStats)}
-                searchName={trimmedName}
-                usage={usage}
-            />
         </div>
     );
 }

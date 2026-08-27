@@ -25,13 +25,15 @@ export default async function ManageAccountsPage({ searchParams }: Props) {
 
     return (
         <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading accounts…</div>}>
-            <AccountsContent
-                data={result.data}
-                menus={menus}
-                pagination={result.pagination}
-                searchName={name}
-                searchAccountMateId={accountMateId}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+                <AccountsContent
+                    data={result.data}
+                    menus={menus}
+                    pagination={result.pagination}
+                    searchName={name}
+                    searchAccountMateId={accountMateId}
+                />
+            </div>
         </Suspense>
     );
 }

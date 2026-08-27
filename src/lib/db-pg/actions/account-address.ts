@@ -64,6 +64,26 @@ export async function getAccountAddressesForCheckout(accountId: number): Promise
         .filter((address) => !address.isBillingAddress || address.addressLine1);
 }
 
+/** Legacy Account.GetShippingAddresses: type "S" only, ordered by name / last / first. */
+export async function getAccountShippingAddressesForCheckout(accountId: number): Promise<CheckoutSavedAddress[]> {
+    if (!Number.isFinite(accountId) || accountId <= 0) {
+        return [];
+    }
+
+    const rows = await db
+        .select()
+        .from(accountAddress)
+        .where(and(eq(accountAddress.accountId, accountId), eq(accountAddress.type, 'S')))
+        .orderBy(
+            asc(accountAddress.name),
+            asc(accountAddress.lastName),
+            asc(accountAddress.firstName),
+            asc(accountAddress.id),
+        );
+
+    return rows.map(mapAccountAddressRow);
+}
+
 export type SaveCheckoutAccountAddressResult =
     | { ok: true; addressId: number; billingEmailAddress: string }
     | { ok: false; error: string };

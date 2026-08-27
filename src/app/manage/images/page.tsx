@@ -24,18 +24,20 @@ export default async function ManageImagesPage({ searchParams }: Props) {
 
     return (
         <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading images…</div>}>
-            <ImagesContent
-                data={result.data.map((img) => ({
-                    id: img.id,
-                    name: img.name ?? '',
-                    imageName: img.imageName ?? '',
-                    isProductImage: img.isProductImage,
-                    publicUrl: typeof img.path === 'string' ? img.path.trim() : '',
-                }))}
-                pagination={result.pagination}
-                searchName={name}
-                imageType={imageType}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+                <ImagesContent
+                    data={result.data.map((img) => ({
+                        id: img.id,
+                        name: img.name ?? '',
+                        imageName: img.imageName ?? '',
+                        isProductImage: img.isProductImage,
+                        publicUrl: typeof img.path === 'string' ? img.path.trim() : '',
+                    }))}
+                    pagination={result.pagination}
+                    searchName={name}
+                    imageType={imageType}
+                />
+            </div>
         </Suspense>
     );
 }

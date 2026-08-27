@@ -49,10 +49,10 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
     }
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
-            <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Categories</h1>
+        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+            <h1 className="shrink-0 text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Categories</h1>
 
-            <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">
                 <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Name</span>
@@ -76,7 +76,7 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
                 </Link>
             </div>
 
-            <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex shrink-0 flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
                 <p className="w-64">
                     Showing {data.length} of {pagination.total} categories
                     {searchName && ' (filtered)'}.
@@ -109,59 +109,61 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
                 )}
             </div>
 
-            {data.length === 0 ? (
-                <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No categories found.</p>
-            ) : (
-                <div className="overflow-x-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
-                    <table className="min-w-full border-collapse text-xs text-[#4a2518]">
-                        <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
-                            <tr>
-                                <th className="px-3 py-2 text-left min-w-40">Name</th>
-                                <th className="px-3 py-2 text-left min-w-48">Path</th>
-                                <th className="w-28 px-3 py-2 text-center">Status</th>
-                                <th className="px-3 py-2 text-right min-w-56"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.map((c, idx) => {
-                                const isEven = idx % 2 === 0;
+            <div className="min-h-0 flex-1 overflow-hidden pb-2.5">
+                {data.length === 0 ? (
+                    <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No categories found.</p>
+                ) : (
+                    <div className="h-full overflow-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
+                        <table className="min-w-full border-collapse text-xs text-[#4a2518]">
+                            <thead className="sticky top-0 z-10 bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
+                                <tr>
+                                    <th className="min-w-40 px-3 py-2 text-left">Name</th>
+                                    <th className="min-w-48 px-3 py-2 text-left">Path</th>
+                                    <th className="w-28 px-3 py-2 text-center">Status</th>
+                                    <th className="min-w-56 px-3 py-2 text-right"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.map((c, idx) => {
+                                    const isEven = idx % 2 === 0;
 
-                                return (
-                                    <tr key={c.id} className={isEven ? 'bg-[#fdf7ef]' : 'bg-[#f8eddf]'}>
-                                        <td className="px-3 py-2 align-middle text-[11px] font-semibold">{c.name || '—'}</td>
-                                        <td className="px-3 py-2 align-middle text-[11px] text-[#6e4a34]">
-                                            {c.navName ? `/shop/${c.id}/${c.navName}` : '—'}
-                                        </td>
-                                        <td className="px-3 py-2 align-middle text-center text-[11px]">
-                                            {c.isActive ? (
-                                                <span className="rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] uppercase text-white">Active</span>
-                                            ) : (
-                                                <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2 align-middle text-right text-[11px]">
-                                            <div className="flex flex-wrap justify-end gap-2">
-                                                <Link
-                                                    href={`/manage/categories/${c.id}`}
-                                                    className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
-                                                >
-                                                    Edit
-                                                </Link>
-                                                <Link
-                                                    href={`/manage/categories/${c.id}/products`}
-                                                    className={cn(buttonVariants({ variant: 'outline' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
-                                                >
-                                                    All products
-                                                </Link>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                                    return (
+                                        <tr key={c.id} className={isEven ? 'bg-[#fdf7ef]' : 'bg-[#f8eddf]'}>
+                                            <td className="px-3 py-2 align-middle text-[11px] font-semibold">{c.name || '—'}</td>
+                                            <td className="px-3 py-2 align-middle text-[11px] text-[#6e4a34]">
+                                                {c.navName ? `/shop/${c.id}/${c.navName}` : '—'}
+                                            </td>
+                                            <td className="px-3 py-2 align-middle text-center text-[11px]">
+                                                {c.isActive ? (
+                                                    <span className="rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] uppercase text-white">Active</span>
+                                                ) : (
+                                                    <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2 align-middle text-right text-[11px]">
+                                                <div className="flex flex-wrap justify-end gap-2">
+                                                    <Link
+                                                        href={`/manage/categories/${c.id}`}
+                                                        className={cn(buttonVariants({ variant: 'sweet' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
+                                                    >
+                                                        Edit
+                                                    </Link>
+                                                    <Link
+                                                        href={`/manage/categories/${c.id}/products`}
+                                                        className={cn(buttonVariants({ variant: 'outline' }), 'px-3 py-1 text-[10px] tracking-[0.15em]')}
+                                                    >
+                                                        All products
+                                                    </Link>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

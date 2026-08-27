@@ -65,8 +65,8 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
     const listHref = `/manage/users${buildQuery({ page, userName: searchUserName || undefined, lastName: searchLastName || undefined })}`;
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Users</h1>
                 <Link
                     href={`/manage/users/new?returnTo=${encodeURIComponent(listHref)}`}
@@ -76,7 +76,7 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                 </Link>
             </div>
 
-            <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
+            <form onSubmit={handleSearch} className="flex shrink-0 flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Username</span>
                     <Input
@@ -112,7 +112,7 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                 </Button>
             </form>
 
-            <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex shrink-0 flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
                 <p className="w-64">
                     Showing {data.length} of {pagination.total} users
                     {(searchUserName || searchLastName) && ' (filtered)'}.
@@ -146,45 +146,51 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                 )}
             </div>
 
-            {data.length === 0 ? (
-                <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No users found.</p>
-            ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                    {data.map((u) => (
-                        <li key={u.id}>
-                            <article className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 transition-colors">
-                                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{u.userName}</p>
-                                <p className="mt-0.5 text-[11px] text-[#6e4a34]">{[u.firstName, u.lastName].filter(Boolean).join(' ') || '—'}</p>
-                                {u.linkedAccount ? (
-                                    <p className="mt-1 truncate text-[11px] text-[#6e4a34]">
-                                        Account:{' '}
-                                        <Link
-                                            href={`/manage/accounts/${u.linkedAccount.id}?returnTo=${encodeURIComponent(listHref)}`}
-                                            className="font-semibold text-[#4a2518] underline-offset-4 hover:underline"
-                                        >
-                                            {u.linkedAccount.name?.trim() || u.linkedAccount.accountMateId}
-                                        </Link>
-                                    </p>
-                                ) : u.accountMateId?.trim() ? (
-                                    <p className="mt-1 truncate text-[11px] text-[#6e4a34]">AccountMate ID: {u.accountMateId.trim()}</p>
-                                ) : null}
-                                <div className="mt-1 flex gap-1.5">
-                                    {u.isAdmin && <span className="rounded bg-[#4a2518] px-1.5 py-0.5 text-[10px] uppercase text-[#fdf7ef]">Admin</span>}
-                                    {!u.isActive && <span className="rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>}
-                                </div>
-                                <div className="mt-3">
-                                    <Link
-                                        href={`/manage/users/${u.id}?returnTo=${encodeURIComponent(listHref)}`}
-                                        className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
-                                    >
-                                        Edit
-                                    </Link>
-                                </div>
-                            </article>
-                        </li>
-                    ))}
-                </ul>
-            )}
+            <div className="min-h-0 flex-1 overflow-hidden pb-2.5">
+                <div className="h-full overflow-y-auto rounded-md border border-[#c49a78] bg-[#f8eddf] p-3 sm:p-4">
+                    {data.length === 0 ? (
+                        <p className="rounded-2xl border border-[#c49a78] bg-[#fdf7ef] p-6 text-center text-xs text-[#6e4a34]">
+                            No users found.
+                        </p>
+                    ) : (
+                        <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                            {data.map((u) => (
+                                <li key={u.id}>
+                                    <article className="rounded-2xl border border-[#c49a78] bg-[#fdf7ef] p-4 transition-colors">
+                                        <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{u.userName}</p>
+                                        <p className="mt-0.5 text-[11px] text-[#6e4a34]">{[u.firstName, u.lastName].filter(Boolean).join(' ') || '—'}</p>
+                                        {u.linkedAccount ? (
+                                            <p className="mt-1 truncate text-[11px] text-[#6e4a34]">
+                                                Account:{' '}
+                                                <Link
+                                                    href={`/manage/accounts/${u.linkedAccount.id}?returnTo=${encodeURIComponent(listHref)}`}
+                                                    className="font-semibold text-[#4a2518] underline-offset-4 hover:underline"
+                                                >
+                                                    {u.linkedAccount.name?.trim() || u.linkedAccount.accountMateId}
+                                                </Link>
+                                            </p>
+                                        ) : u.accountMateId?.trim() ? (
+                                            <p className="mt-1 truncate text-[11px] text-[#6e4a34]">AccountMate ID: {u.accountMateId.trim()}</p>
+                                        ) : null}
+                                        <div className="mt-1 flex gap-1.5">
+                                            {u.isAdmin && <span className="rounded bg-[#4a2518] px-1.5 py-0.5 text-[10px] uppercase text-[#fdf7ef]">Admin</span>}
+                                            {!u.isActive && <span className="rounded bg-amber-700/80 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>}
+                                        </div>
+                                        <div className="mt-3">
+                                            <Link
+                                                href={`/manage/users/${u.id}?returnTo=${encodeURIComponent(listHref)}`}
+                                                className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
+                                            >
+                                                Edit
+                                            </Link>
+                                        </div>
+                                    </article>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

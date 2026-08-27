@@ -32,12 +32,14 @@ export default async function ManageUsersPage({ searchParams }: Props) {
 
     return (
         <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading users…</div>}>
-            <UsersContent
-                data={data}
-                pagination={result.pagination}
-                searchUserName={userName}
-                searchLastName={lastName}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+                <UsersContent
+                    data={data}
+                    pagination={result.pagination}
+                    searchUserName={userName}
+                    searchLastName={lastName}
+                />
+            </div>
         </Suspense>
     );
 }

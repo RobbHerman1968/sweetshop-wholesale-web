@@ -21,7 +21,9 @@ export default async function ManageCategoriesPage({ searchParams }: Props) {
 
     return (
         <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading categories…</div>}>
-            <CategoriesContent data={result.data} pagination={result.pagination} searchName={name} />
+            <div className="flex h-full min-h-0 flex-col">
+                <CategoriesContent data={result.data} pagination={result.pagination} searchName={name} />
+            </div>
         </Suspense>
     );
 }

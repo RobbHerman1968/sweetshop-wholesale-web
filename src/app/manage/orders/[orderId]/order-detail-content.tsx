@@ -2,10 +2,13 @@ import Link from 'next/link';
 import moment from 'moment-timezone';
 import { RemoteImage } from '@/components/remote-image';
 import type { ManageOrderDetail } from '@/lib/db-pg/actions/order';
+import { SendOrderToDeveloperButton } from './send-order-to-developer-button';
 
 type OrderDetailContentProps = {
     detail: ManageOrderDetail;
     backHref: string;
+    sendEmailFrom: string | null;
+    developerEmail: string | null;
 };
 
 function formatMoney(value: string | number | null | undefined): string {
@@ -65,7 +68,7 @@ function AddressBlock({ address }: { address: ManageOrderDetail['addresses'][num
     );
 }
 
-export function OrderDetailContent({ detail, backHref }: OrderDetailContentProps) {
+export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerEmail }: OrderDetailContentProps) {
     const { order, items, addresses, user } = detail;
     const sortedAddresses = [...addresses].sort((a, b) => addressSortOrder(a.type) - addressSortOrder(b.type));
     const orderLabel = order.orderNumber ?? order.id;
@@ -81,7 +84,14 @@ export function OrderDetailContent({ detail, backHref }: OrderDetailContentProps
             </div>
 
             <header className="space-y-2">
-                <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Order #{orderLabel}</h1>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Order #{orderLabel}</h1>
+                    <SendOrderToDeveloperButton
+                        orderId={order.id}
+                        sendEmailFrom={sendEmailFrom}
+                        developerEmail={developerEmail}
+                    />
+                </div>
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[#6e4a34]">
                     <p>
                         <span className="font-semibold uppercase tracking-[0.12em]">Date:</span> {formatOrderDateCentral(order.orderDate)}

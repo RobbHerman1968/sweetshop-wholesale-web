@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { updateSiteSettingValueFromForm, type SiteSettingRow } from '@/lib/db-pg/actions/site-setting';
+import { formatEmailListForInput } from '@/lib/site-setting-email-list';
+import { getSiteSettingEmailPlaceholder, getSiteSettingHelperText } from '@/lib/site-setting-constants';
 
 type SiteSettingsContentProps = {
     data: SiteSettingRow[];
@@ -39,7 +41,7 @@ export function SiteSettingsContent({ data }: SiteSettingsContentProps) {
                         <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
                             <tr>
                                 <th className="px-3 py-2 text-left min-w-48">Setting</th>
-                                <th className="w-32 px-3 py-2 text-left">Value</th>
+                                <th className="min-w-96 px-3 py-2 text-left">Value</th>
                                 <th className="px-3 py-2 text-right w-28"></th>
                             </tr>
                         </thead>
@@ -67,14 +69,37 @@ type SiteSettingRowFormProps = {
 };
 
 function SiteSettingRowForm({ row, isEven, onSaved }: SiteSettingRowFormProps) {
-    const [value, setValue] = useState(formatSettingValue(row.value));
+    const isEmailList = row.kind === 'emailList';
+    const isEmail = row.kind === 'email';
+    const textFieldClassName =
+        'flex w-full min-w-96 rounded-md border border-[#d1b79a] bg-white px-3 py-2 text-base text-[#4a2b1f] outline-none ring-amber-300 focus:ring sm:text-sm';
+    const [value, setValue] = useState(
+        isEmailList
+            ? formatEmailListForInput(row.textValue)
+            : isEmail
+              ? row.textValue ?? ''
+              : formatSettingValue(row.value),
+    );
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        setValue(formatSettingValue(row.value));
-    }, [row.value]);
+        setValue(
+            isEmailList
+                ? formatEmailListForInput(row.textValue)
+                : isEmail
+                  ? row.textValue ?? ''
+                  : formatSettingValue(row.value),
+        );
+    }, [isEmail, isEmailList, row.textValue, row.value]);
 
-    const isDirty = value !== formatSettingValue(row.value);
+    const savedValue = isEmailList
+        ? formatEmailListForInput(row.textValue)
+        : isEmail
+          ? row.textValue ?? ''
+          : formatSettingValue(row.value);
+    const helperText = getSiteSettingHelperText(row.id, row.kind);
+    const emailPlaceholder = getSiteSettingEmailPlaceholder(row.id);
+    const isDirty = value !== savedValue;
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -103,23 +128,50 @@ function SiteSettingRowForm({ row, isEven, onSaved }: SiteSettingRowFormProps) {
 
     return (
         <tr className={isEven ? 'bg-[#fdf7ef]' : 'bg-[#f8eddf]'}>
-            <td className="px-3 py-2 align-middle text-[11px] font-semibold">{row.name || '—'}</td>
-            <td className="px-3 py-2 align-middle">
+            <td className="px-3 py-2 align-top text-[11px] font-semibold">
+                <div>{row.name || '—'}</div>
+                {helperText ? (
+                    <p className="mt-1 font-normal text-[10px] text-[#6e4a34]">{helperText}</p>
+                ) : null}
+            </td>
+            <td className="min-w-96 px-3 py-2 align-top">
                 <form id={`site-setting-form-${row.id}`} onSubmit={handleSubmit} className="space-y-1">
                     <input type="hidden" name="id" value={row.id} readOnly />
-                    <Input
-                        name="value"
-                        type="number"
-                        step="0.01"
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        className="h-8 w-28 tabular-nums text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        required
-                        aria-label={`Value for ${row.name}`}
-                    />
+                    {isEmailList ? (
+                        <textarea
+                            name="textValue"
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            rows={4}
+                            className={`${textFieldClassName} min-h-[96px]`}
+                            placeholder="manager@example.com"
+                            aria-label={`Email addresses for ${row.name}`}
+                        />
+                    ) : isEmail ? (
+                        <Input
+                            name="textValue"
+                            type="email"
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            className={`${textFieldClassName} h-8`}
+                            placeholder={emailPlaceholder}
+                            aria-label={`Email address for ${row.name}`}
+                        />
+                    ) : (
+                        <Input
+                            name="value"
+                            type="number"
+                            step="0.01"
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            className="h-8 w-28 tabular-nums text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            required
+                            aria-label={`Value for ${row.name}`}
+                        />
+                    )}
                 </form>
             </td>
-            <td className="px-3 py-2 align-middle text-right">
+            <td className="px-3 py-2 align-bottom text-right">
                 <Button
                     type="submit"
                     form={`site-setting-form-${row.id}`}

@@ -49,20 +49,22 @@ export default async function ManageCategoryProductsPage({ params, searchParams 
     const basePath = `/manage/categories/${categoryId}/products`;
 
     return (
-        <div className="space-y-4">
-            <Link href="/manage/categories" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline-offset-4 hover:underline">
+        <div className="flex h-full min-h-0 flex-col gap-4">
+            <Link href="/manage/categories" className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline-offset-4 hover:underline">
                 ← Back to categories
             </Link>
             <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#7c5b44]">Loading products…</div>}>
-                <ProductsContent
-                    data={data}
-                    pagination={result.pagination}
-                    searchName={name}
-                    searchItemNumber={itemNumber}
-                    status={status}
-                    basePath={basePath}
-                    categoryName={category.name ?? undefined}
-                />
+                <div className="flex min-h-0 flex-1 flex-col">
+                    <ProductsContent
+                        data={data}
+                        pagination={result.pagination}
+                        searchName={name}
+                        searchItemNumber={itemNumber}
+                        status={status}
+                        basePath={basePath}
+                        categoryName={category.name ?? undefined}
+                    />
+                </div>
             </Suspense>
         </div>
     );

@@ -7,7 +7,10 @@ import { getShippingLeadTimeForAccount } from '@/lib/account-shipping-lead-time'
 import { FREE_SHIPPING_THRESHOLD_SETTING_ID } from '@/lib/checkout-shipping-cost';
 import type { CheckoutAccountDefaults } from '@/lib/checkout-types';
 import { getAccountByIdForManage } from '@/lib/db-pg/actions/account';
-import { getAccountAddressesForCheckout } from '@/lib/db-pg/actions/account-address';
+import {
+    getAccountAddressesForCheckout,
+    getAccountShippingAddressesForCheckout,
+} from '@/lib/db-pg/actions/account-address';
 import { getSiteSettingByIdForManage } from '@/lib/db-pg/actions/site-setting';
 import { getStateShippingTaxRatesFromDB } from '@/lib/db-pg/actions/state-shipping-tax-rate';
 import { getShopCart } from '@/lib/shop-cart-actions';
@@ -43,16 +46,25 @@ export default async function CheckoutPage() {
         redirect('/cart');
     }
 
-    const [cartResult, minimumOrderSetting, freeShippingSetting, stateRates, savedAddresses, account, shippingLeadTime] =
-        await Promise.all([
-            getShopCart(),
-            getSiteSettingByIdForManage(MINIMUM_ORDER_SETTING_ID),
-            getSiteSettingByIdForManage(FREE_SHIPPING_THRESHOLD_SETTING_ID),
-            getStateShippingTaxRatesFromDB(),
-            getAccountAddressesForCheckout(accountId),
-            getAccountByIdForManage(accountId),
-            getShippingLeadTimeForAccount(accountId),
-        ]);
+    const [
+        cartResult,
+        minimumOrderSetting,
+        freeShippingSetting,
+        stateRates,
+        savedAddresses,
+        savedShippingAddresses,
+        account,
+        shippingLeadTime,
+    ] = await Promise.all([
+        getShopCart(),
+        getSiteSettingByIdForManage(MINIMUM_ORDER_SETTING_ID),
+        getSiteSettingByIdForManage(FREE_SHIPPING_THRESHOLD_SETTING_ID),
+        getStateShippingTaxRatesFromDB(),
+        getAccountAddressesForCheckout(accountId),
+        getAccountShippingAddressesForCheckout(accountId),
+        getAccountByIdForManage(accountId),
+        getShippingLeadTimeForAccount(accountId),
+    ]);
 
     if (!cartResult.ok || cartResult.cart.items.length === 0) {
         redirect('/cart');
@@ -94,6 +106,7 @@ export default async function CheckoutPage() {
                 <CheckoutContent
                     cart={cartResult.cart}
                     savedAddresses={savedAddresses}
+                    savedShippingAddresses={savedShippingAddresses}
                     accountDefaults={accountDefaults}
                     shippingLeadTime={shippingLeadTime}
                     defaultExpectedDeliveryDate={defaultExpectedDeliveryDate}

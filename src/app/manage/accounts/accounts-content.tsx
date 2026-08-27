@@ -140,10 +140,10 @@ export function AccountsContent({ data, menus, pagination, searchName, searchAcc
     const listHref = `/manage/accounts${buildQuery({ page, name: searchName || undefined, accountMateId: searchAccountMateId || undefined })}`;
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
-            <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Accounts</h1>
+        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+            <h1 className="shrink-0 text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Accounts</h1>
 
-            <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
+            <form onSubmit={handleSearch} className="flex shrink-0 flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Account name</span>
                     <Input
@@ -183,13 +183,13 @@ export function AccountsContent({ data, menus, pagination, searchName, searchAcc
             </form>
 
             {reloadProgress ? (
-                <p className="text-xs text-[#6e4a34]">
+                <p className="shrink-0 text-xs text-[#6e4a34]">
                     Reloading {reloadProgress.processed} of {reloadProgress.batchSize} in this batch
                     {reloadProgress.failed > 0 ? ` (${reloadProgress.failed} failed)` : ''}…
                 </p>
             ) : null}
 
-            <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex shrink-0 flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
                 <p className="w-64">
                     Showing {data.length} of {pagination.total} accounts
                     {(searchName || searchAccountMateId) && ' (filtered)'}.
@@ -223,32 +223,38 @@ export function AccountsContent({ data, menus, pagination, searchName, searchAcc
                 )}
             </div>
 
-            {data.length === 0 ? (
-                <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No accounts found.</p>
-            ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                    {data.map((acc) => (
-                        <li key={acc.id}>
-                            <article className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 transition-colors">
-                                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{acc.name || '—'}</p>
-                                <p className="mt-0.5 text-[11px] text-[#6e4a34]">{acc.accountMateId ? `ID: ${acc.accountMateId}` : '—'}</p>
-                                <p className="mt-1 truncate text-[11px] text-[#6e4a34]">{[acc.contactFirstName, acc.contactLastName].filter(Boolean).join(' ') || '—'}</p>
-                                {acc.contactEmail && <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{acc.contactEmail}</p>}
-                                {acc.contactPhone && <p className="mt-0.5 text-[11px] text-[#6e4a34]">{acc.contactPhone}</p>}
-                                <p className="mt-3 truncate text-[11px] text-[#6e4a34]">{resolveAccountMenuName(acc.menuId ?? 0, menus)}</p>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    <Link
-                                        href={`/manage/accounts/${acc.id}?returnTo=${encodeURIComponent(listHref)}`}
-                                        className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
-                                    >
-                                        Edit
-                                    </Link>
-                                </div>
-                            </article>
-                        </li>
-                    ))}
-                </ul>
-            )}
+            <div className="min-h-0 flex-1 overflow-hidden pb-2.5">
+                <div className="h-full overflow-y-auto rounded-md border border-[#c49a78] bg-[#f8eddf] p-3 sm:p-4">
+                    {data.length === 0 ? (
+                        <p className="rounded-2xl border border-[#c49a78] bg-[#fdf7ef] p-6 text-center text-xs text-[#6e4a34]">
+                            No accounts found.
+                        </p>
+                    ) : (
+                        <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                            {data.map((acc) => (
+                                <li key={acc.id}>
+                                    <article className="rounded-2xl border border-[#c49a78] bg-[#fdf7ef] p-4 transition-colors">
+                                        <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{acc.name || '—'}</p>
+                                        <p className="mt-0.5 text-[11px] text-[#6e4a34]">{acc.accountMateId ? `ID: ${acc.accountMateId}` : '—'}</p>
+                                        <p className="mt-1 truncate text-[11px] text-[#6e4a34]">{[acc.contactFirstName, acc.contactLastName].filter(Boolean).join(' ') || '—'}</p>
+                                        {acc.contactEmail && <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{acc.contactEmail}</p>}
+                                        {acc.contactPhone && <p className="mt-0.5 text-[11px] text-[#6e4a34]">{acc.contactPhone}</p>}
+                                        <p className="mt-3 truncate text-[11px] text-[#6e4a34]">{resolveAccountMenuName(acc.menuId ?? 0, menus)}</p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            <Link
+                                                href={`/manage/accounts/${acc.id}?returnTo=${encodeURIComponent(listHref)}`}
+                                                className={cn(buttonVariants({ variant: 'sweet' }), 'text-[11px]')}
+                                            >
+                                                Edit
+                                            </Link>
+                                        </div>
+                                    </article>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

@@ -1,3 +1,5 @@
+import type { PlaceOrder } from '@/lib/db-pg/entities/place-order-entity';
+
 /** Base URL for the separate wholesale Next.js API app (no trailing slash). */
 export function getWholesaleApiBaseUrl(): string {
     const raw = process.env.WHOLESALE_API_URL?.trim();
@@ -25,10 +27,54 @@ export function parseAccountMateId(accountMateId: string | undefined): string | 
     return id;
 }
 
+/** Parses AccountMate `csono` for Postgres `order.accountMateOrderNumber` (integer). */
+export function parseAccountMateOrderNumber(value: string | number | null | undefined): number | null {
+    if (value == null || value === '') {
+        return null;
+    }
+
+    const parsed = typeof value === 'number' ? value : Number.parseInt(String(value).trim(), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 export type WholesaleAccountMateResponse = {
     accountMateId: string;
     account: Record<string, unknown> | null;
 };
+
+export type PlaceWholesaleOrderSuccessResponse = {
+    ok: true;
+    message: string;
+    accountMateSuccess: boolean;
+    accountMateStatus: string | null;
+    data: PlaceOrder;
+};
+
+export type PlaceWholesaleOrderErrorResponse = {
+    ok: false;
+    message: string;
+    error: string;
+    details?: string;
+    accountId?: number;
+    cartId?: number | string;
+    accountMateId?: string | null;
+    itemCount?: number;
+};
+
+export type PlaceWholesaleOrderResponse = PlaceWholesaleOrderSuccessResponse | PlaceWholesaleOrderErrorResponse;
+
+async function readWholesaleApiError(res: Response, body: unknown): Promise<string> {
+    if (body && typeof body === 'object') {
+        if ('error' in body && (body as { error?: string }).error) {
+            return String((body as { error?: string }).error);
+        }
+        if ('message' in body && (body as { message?: string }).message) {
+            return String((body as { message?: string }).message);
+        }
+    }
+
+    return `HTTP ${res.status}`;
+}
 
 /** Loads one AccountMate customer row via the wholesale API (`GET /api/account/:id`). */
 export async function fetchWholesaleAccount(accountMateId: string): Promise<WholesaleAccountMateResponse> {
@@ -44,8 +90,40 @@ export async function fetchWholesaleAccount(accountMateId: string): Promise<Whol
     });
     const body = (await res.json().catch(() => null)) as WholesaleAccountMateResponse | { error?: string } | null;
     if (!res.ok) {
-        const msg = body && typeof body === 'object' && 'error' in body ? String(body.error) : `HTTP ${res.status}`;
-        throw new Error(msg);
+        throw new Error(await readWholesaleApiError(res, body));
     }
     return body as WholesaleAccountMateResponse;
+}
+
+/** Submits an order to AccountMate via the wholesale API (`POST /api/order`). */
+export async function placeWholesaleOrder(payload: PlaceOrder): Promise<PlaceWholesaleOrderResponse> {
+    const url = `${getWholesaleApiBaseUrl()}/api/order`;
+    const res = await fetch(url, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+            ...getWholesaleApiAuthHeaders(),
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+    const body = (await res.json().catch(() => null)) as PlaceWholesaleOrderResponse | null;
+
+    if (!body || typeof body !== 'object' || !('ok' in body)) {
+        throw new Error(await readWholesaleApiError(res, body));
+    }
+
+    if (!res.ok) {
+        if (body.ok === false) {
+            return body;
+        }
+
+        throw new Error(await readWholesaleApiError(res, body));
+    }
+
+    if (body.ok !== true || !body.data) {
+        throw new Error('Invalid order response from wholesale API.');
+    }
+
+    return body;
 }

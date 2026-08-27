@@ -25,6 +25,8 @@ const baseNavItems: NavItem[] = [
     { type: 'link', href: '/manage/users', label: 'User Accounts' },
     { type: 'link', href: '/manage/accounts', label: 'AccountMate Accounts' },
     { type: 'divider' },
+    { type: 'link', href: '/manage/upload-excel-order-sheet', label: 'Upload Excel Order Sheet' },
+    { type: 'divider' },
     { type: 'link', href: '/manage/state-shipping-tax-rates', label: 'State Rates' },
     { type: 'link', href: '/manage/site-settings', label: 'Site Settings' },
     { type: 'divider' },
@@ -73,8 +75,8 @@ export function ManageSidebar() {
     return (
         <>
             {/* Desktop sidebar */}
-            <aside className="hidden w-72 shrink-0 self-stretch border-r border-[#c49a78] bg-[#f8eddf] md:block">
-                <nav className="flex h-full flex-col gap-0.5 py-4 pl-3 pr-2" aria-label="Management">
+            <aside className="hidden w-72 shrink-0 self-stretch overflow-y-auto border-r border-[#c49a78] bg-[#f8eddf] md:block">
+                <nav className="flex flex-col gap-0.5 py-4 pl-3 pr-2" aria-label="Management">
                     {renderNavItems(
                         navItems,
                         pathname,
@@ -84,7 +86,7 @@ export function ManageSidebar() {
                 </nav>
             </aside>
             {/* Mobile horizontal nav */}
-            <nav className="flex gap-1 overflow-x-auto border-b border-[#c49a78] bg-[#f8eddf] px-3 py-2 md:hidden" aria-label="Management">
+            <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-[#c49a78] bg-[#f8eddf] px-3 py-2 md:hidden" aria-label="Management">
                 {renderNavItems(
                     navItems,
                     pathname,

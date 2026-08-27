@@ -3,8 +3,10 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { getServerSession } from 'next-auth';
 import './globals.css';
 import { authOptions } from '@/auth';
+import { AppVersionReload } from '@/components/providers/app-version-reload';
 import { AuthSessionProvider } from '@/components/providers/session-provider';
 import { Toaster } from '@/components/ui/toaster';
+import { APP_BUILD_ID } from '@/lib/app-build-id';
 import { SITE_MAIN_ID } from '@/lib/site-main';
 
 const geistSans = Geist({
@@ -44,6 +46,7 @@ export default async function RootLayout({
                     </a>
                     {children}
                     <Toaster />
+                    <AppVersionReload initialBuildId={APP_BUILD_ID} />
                 </AuthSessionProvider>
             </body>
         </html>

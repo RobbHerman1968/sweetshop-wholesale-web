@@ -298,6 +298,7 @@ export const siteSetting = pgTable("siteSetting", {
 	id: serial().primaryKey().notNull(),
 	name: text().notNull(),
 	value: numeric({ precision: 10, scale:  2 }).notNull(),
+	textValue: text(),
 });
 
 export const accountAddress = pgTable("accountAddress", {
@@ -316,4 +317,22 @@ export const accountAddress = pgTable("accountAddress", {
 	county: text(),
 	emailAddress: text(),
 	phoneNumber: text(),
+});
+
+export const orderLog = pgTable("orderLog", {
+	id: serial().primaryKey().notNull(),
+	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	outcome: text().notNull(),
+	message: text().notNull(),
+	stage: text(),
+	userId: integer(),
+	accountId: integer(),
+	cartId: integer(),
+	orderId: integer(),
+	orderNumber: integer(),
+	accountMateId: text(),
+	accountMateOrderNumber: text(),
+	accountMateTransactionId: text(),
+	accountMateStatus: text(),
+	error: text(),
 });

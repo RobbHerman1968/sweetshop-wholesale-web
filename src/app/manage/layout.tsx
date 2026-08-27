@@ -22,16 +22,16 @@ export default async function ManageLayout({
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-[#f2dfcc] text-[#3f1d12] font-sans">
+        <div className="flex h-screen flex-col overflow-hidden bg-[#f2dfcc] text-[#3f1d12] font-sans">
             <ManageHeader />
             <main
                 id={SITE_MAIN_ID}
                 tabIndex={-1}
-                className={cn('flex min-h-[calc(100vh-3rem)] flex-1 flex-col pt-12', SITE_MAIN_FOCUS_CLASS)}
+                className={cn('flex min-h-0 flex-1 flex-col overflow-hidden pt-12', SITE_MAIN_FOCUS_CLASS)}
             >
-                <div className="flex min-h-[calc(100vh-3rem)] flex-1 flex-col md:flex-row">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
                     <ManageSidebar />
-                    <div className="min-w-0 flex-1 px-3 py-6 sm:px-4 md:px-6 md:py-8">{children}</div>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 py-6 sm:px-4 md:px-6 md:py-8">{children}</div>
                 </div>
             </main>
         </div>

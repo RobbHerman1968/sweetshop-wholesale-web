@@ -144,7 +144,8 @@ async function syncLegacyUserAddressRows(rows: any[]): Promise<UserAddressSyncRe
 
     for (const row of rows) {
         const id = readLegacyAccountAddressId(row);
-        if (id == null) {
+        const accountId = readLegacyAccountAddressAccountId(row);
+        if (id == null || accountId == null) {
             skipped += 1;
             continue;
         }

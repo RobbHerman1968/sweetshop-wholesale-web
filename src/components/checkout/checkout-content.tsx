@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
 import { CheckoutStepBilling } from '@/components/checkout/checkout-step-billing';
 import { CheckoutStepIndicator } from '@/components/checkout/checkout-step-indicator';
@@ -36,13 +37,11 @@ import {
     getCheckoutBillingEmailAddress,
     getShippingFieldErrors,
     mergeCheckoutSavedAddress,
-    normalizePhoneDigits,
     pruneBillingFieldErrors,
     pruneShippingFieldErrors,
     savedAddressToBillingForm,
     shippingFormToBillingForm,
     shippingFormToSavedAddress,
-    selectFirstEmailAddress,
     validatePaymentStep,
     type CheckoutBillingFieldErrors,
     type CheckoutShippingFieldErrors,
@@ -54,12 +53,14 @@ import {
     type CheckoutShippingOptions,
 } from '@/lib/checkout-shipping-cost';
 import { saveCheckoutAccountAddress, saveCheckoutBillingAddress } from '@/lib/db-pg/actions/account-address';
+import { placeCheckoutOrder } from '@/lib/db-pg/actions/place-checkout-order';
 import type { ShopCartView } from '@/lib/shop-cart-view';
 import { cn } from '@/lib/utils';
 
 type CheckoutContentProps = {
     cart: ShopCartView;
     savedAddresses: CheckoutSavedAddress[];
+    savedShippingAddresses: CheckoutSavedAddress[];
     accountDefaults: CheckoutAccountDefaults;
     shippingLeadTime: number;
     defaultExpectedDeliveryDate: string;
@@ -98,12 +99,14 @@ function buildPaymentSummaryForAccount(form: CheckoutPaymentForm, accountIsTerms
 export function CheckoutContent({
     cart,
     savedAddresses,
+    savedShippingAddresses,
     accountDefaults,
     shippingLeadTime,
     defaultExpectedDeliveryDate,
     shippingOptions,
 }: CheckoutContentProps) {
     const [checkoutSavedAddresses, setCheckoutSavedAddresses] = useState(savedAddresses);
+    const [checkoutSavedShippingAddresses, setCheckoutSavedShippingAddresses] = useState(savedShippingAddresses);
 
     const savedBillingAddresses = useMemo(
         () => checkoutSavedAddresses.filter((address) => address.isBillingAddress),
@@ -112,31 +115,10 @@ export function CheckoutContent({
 
     const defaultDeliveryDate = defaultExpectedDeliveryDate;
 
-    const initialShipping = useMemo(() => {
-        if (checkoutSavedAddresses.length > 0) {
-            const first = checkoutSavedAddresses.find((address) => !address.isBillingAddress) ?? checkoutSavedAddresses[0];
-            return {
-                ...buildEmptyShippingForm(accountDefaults, defaultDeliveryDate),
-                selectedAddressId: first.id as number | 'new',
-                updateAddressId: first.id,
-                addressName: first.name,
-                firstName: first.firstName || accountDefaults.firstName,
-                lastName: first.lastName || accountDefaults.lastName,
-                companyName: first.companyName || accountDefaults.companyName,
-                addressLine1: first.addressLine1 || accountDefaults.addressLine1,
-                addressLine2: first.addressLine2 || accountDefaults.addressLine2,
-                city: first.city || accountDefaults.city,
-                state: first.state || accountDefaults.state,
-                zipCode: first.postalCode || accountDefaults.zipCode,
-                country: first.country || 'United States',
-                emailAddress: selectFirstEmailAddress(first.emailAddress) || accountDefaults.emailAddress,
-                phoneNumber: normalizePhoneDigits(first.phoneNumber || accountDefaults.phoneNumber),
-                isBillingAddress: first.isBillingAddress,
-            } satisfies CheckoutShippingForm;
-        }
-
-        return buildEmptyShippingForm(accountDefaults, defaultDeliveryDate);
-    }, [accountDefaults, defaultDeliveryDate, checkoutSavedAddresses]);
+    const initialShipping = useMemo(
+        () => buildEmptyShippingForm(accountDefaults, defaultDeliveryDate),
+        [accountDefaults, defaultDeliveryDate],
+    );
 
     const initialBilling = useMemo(() => {
         if (savedBillingAddresses.length > 0) {
@@ -156,6 +138,8 @@ export function CheckoutContent({
         getCheckoutBillingEmailAddress(initialShipping, accountDefaults, checkoutSavedAddresses, initialBilling),
     );
     const [savingAddress, setSavingAddress] = useState(false);
+    const [placingOrder, setPlacingOrder] = useState(false);
+    const router = useRouter();
     const hasRecordedInitialStep = useRef(false);
 
     const needsBillingStep = checkoutNeedsBillingStep(shippingForm.isBillingAddress);
@@ -250,6 +234,9 @@ export function CheckoutContent({
                 })();
 
                 setCheckoutSavedAddresses(nextSavedAddresses);
+                setCheckoutSavedShippingAddresses((current) =>
+                    mergeCheckoutSavedAddress(current, savedShipping),
+                );
                 setShippingForm((current) => ({
                     ...current,
                     selectedAddressId: result.addressId,
@@ -340,6 +327,43 @@ export function CheckoutContent({
         }
     };
 
+    const handlePlaceOrder = async () => {
+        if (!paymentSummary) {
+            return;
+        }
+
+        setPlacingOrder(true);
+        try {
+            const result = await placeCheckoutOrder({
+                shipping: shippingForm,
+                billing: needsBillingStep ? billingForm : shippingFormToBillingForm(shippingForm),
+                billingSameAsShipping: !needsBillingStep,
+                payment: paymentForm,
+                shippingCost: checkoutShipping,
+                tax: checkoutTax,
+                estimatedTotal,
+            });
+
+            if (!result.ok) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Unable to place order',
+                    description: result.error,
+                });
+                return;
+            }
+
+            toast({
+                title: 'Order placed',
+                description: result.orderNumber ? `Order #${result.orderNumber} was submitted.` : 'Your order was submitted.',
+            });
+            router.push(`/account/orders/${result.orderId}`);
+            router.refresh();
+        } finally {
+            setPlacingOrder(false);
+        }
+    };
+
     const currentStepIndex = getCheckoutStepIndex(flowSteps, currentStep);
     const isReviewStep = isCheckoutReviewStep(currentStep);
 
@@ -361,7 +385,7 @@ export function CheckoutContent({
                     {currentStep === 'shipping' ? (
                         <CheckoutStepShipping
                             form={shippingForm}
-                            savedAddresses={checkoutSavedAddresses.filter((address) => !address.isBillingAddress)}
+                            savedAddresses={checkoutSavedShippingAddresses}
                             shippingLeadTime={shippingLeadTime}
                             defaultExpectedDeliveryDate={defaultExpectedDeliveryDate}
                             shippingCost={checkoutShipping}
@@ -458,9 +482,18 @@ export function CheckoutContent({
                                 {savingAddress ? 'Saving…' : 'Continue'}
                             </button>
                         ) : (
-                            <p className={cn('text-sm text-[#6e4a34]', checkoutTextClass)}>
-                                Order placement is not available yet. Review your details above; submission will be enabled in a future update.
-                            </p>
+                            <button
+                                type="button"
+                                disabled={placingOrder}
+                                onClick={() => void handlePlaceOrder()}
+                                className={cn(
+                                    'inline-flex items-center justify-center rounded-md bg-[#4a2518] px-5 py-2.5',
+                                    'text-[11px] font-semibold uppercase tracking-[0.18em] text-[#fdf7ef] transition-colors hover:bg-[#3a1b11]',
+                                    placingOrder && 'cursor-not-allowed opacity-60',
+                                )}
+                            >
+                                {placingOrder ? 'Placing order…' : 'Place order'}
+                            </button>
                         )}
                     </div>
                 </div>

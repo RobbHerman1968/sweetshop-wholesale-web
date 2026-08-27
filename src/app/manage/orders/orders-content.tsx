@@ -5,15 +5,14 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { DatePicker, parseIsoDate } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
 import moment from 'moment-timezone';
 
-const DATE_INPUT_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 function isValidDateParam(s: string): boolean {
-    if (!DATE_INPUT_REGEX.test(s)) return false;
-    const d = new Date(s + 'T12:00:00.000Z');
-    return !Number.isNaN(d.getTime());
+    return parseIsoDate(s) != null;
 }
 
 /** DB stores UTC; ensure we parse as UTC then show in Central (handles driver returning string without Z). */
@@ -39,17 +38,34 @@ type OrdersContentProps = {
     pagination: { total: number; page: number; limit: number; totalPages: number };
     dateFrom?: string;
     dateTo?: string;
+    searchAccountMateId: string;
+    searchEmail: string;
 };
 
-function buildQuery(params: { page?: number; from?: string; to?: string }) {
+function buildQuery(params: {
+    page?: number;
+    from?: string;
+    to?: string;
+    accountMateId?: string;
+    email?: string;
+}) {
     const q = new URLSearchParams();
     if (params.page != null && params.page > 1) q.set('page', String(params.page));
     if (params.from) q.set('from', params.from);
     if (params.to) q.set('to', params.to);
+    if (params.accountMateId?.trim()) q.set('accountMateId', params.accountMateId.trim());
+    if (params.email?.trim()) q.set('email', params.email.trim());
     return q.toString() ? `?${q.toString()}` : '';
 }
 
-export function OrdersContent({ data, pagination, dateFrom, dateTo }: OrdersContentProps) {
+export function OrdersContent({
+    data,
+    pagination,
+    dateFrom,
+    dateTo,
+    searchAccountMateId,
+    searchEmail,
+}: OrdersContentProps) {
     const { page, totalPages } = pagination;
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -57,43 +73,60 @@ export function OrdersContent({ data, pagination, dateFrom, dateTo }: OrdersCont
     const [fromInput, setFromInput] = useState(dateFrom ?? '');
     const [toInput, setToInput] = useState(dateTo ?? '');
 
+    const applyFilters = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
 
-    const applyFromInputs = () => {
-        const from = fromInput.trim();
-        const to = toInput.trim();
+        let from = fromInput.trim();
+        let to = toInput.trim();
+        const accountMateId = (e.currentTarget.elements.namedItem('accountMateId') as HTMLInputElement).value.trim();
+        const email = (e.currentTarget.elements.namedItem('email') as HTMLInputElement).value.trim();
+
         const params = new URLSearchParams(searchParams.toString());
         params.delete('page');
-        if (!from && !to) {
-            params.delete('from');
-            params.delete('to');
+
+        if (from && isValidDateParam(from)) {
+            params.set('from', from);
         } else {
-            const fromOk = !from || isValidDateParam(from);
-            const toOk = !to || isValidDateParam(to);
-            if (fromOk && toOk) {
-                if (from) params.set('from', from);
-                else params.delete('from');
-                if (to) params.set('to', to);
-                else params.delete('to');
-                const fromDate = from ? new Date(from + 'T12:00:00.000Z') : null;
-                const toDate = to ? new Date(to + 'T12:00:00.000Z') : null;
-                if (fromDate && toDate && fromDate > toDate) {
-                    params.set('from', to);
-                    params.set('to', from);
-                }
-            }
+            params.delete('from');
+            from = '';
         }
+
+        if (to && isValidDateParam(to)) {
+            params.set('to', to);
+        } else {
+            params.delete('to');
+            to = '';
+        }
+
+        const fromDate = from ? new Date(from + 'T12:00:00.000Z') : null;
+        const toDate = to ? new Date(to + 'T12:00:00.000Z') : null;
+        if (fromDate && toDate && fromDate > toDate) {
+            params.set('from', to);
+            params.set('to', from);
+        }
+
+        if (accountMateId) params.set('accountMateId', accountMateId);
+        else params.delete('accountMateId');
+
+        if (email) params.set('email', email);
+        else params.delete('email');
+
         router.push(`/manage/orders${params.toString() ? `?${params.toString()}` : ''}`);
     };
 
-    const clearRange = () => {
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete('page');
-        params.delete('from');
-        params.delete('to');
-        router.push(`/manage/orders${params.toString() ? `?${params.toString()}` : ''}`);
+    const clearFilters = () => {
+        router.push('/manage/orders');
     };
 
-    const listHref = `/manage/orders${buildQuery({ page, from: dateFrom, to: dateTo })}`;
+    const listHref = `/manage/orders${buildQuery({
+        page,
+        from: dateFrom,
+        to: dateTo,
+        accountMateId: searchAccountMateId || undefined,
+        email: searchEmail || undefined,
+    })}`;
+
+    const isFiltered = Boolean(dateFrom || dateTo || searchAccountMateId || searchEmail);
 
     const pageNumbers: (number | 'ellipsis')[] = [];
     if (totalPages <= 7) {
@@ -109,46 +142,82 @@ export function OrdersContent({ data, pagination, dateFrom, dateTo }: OrdersCont
     }
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
-            <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Orders</h1>
+        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+            <h1 className="shrink-0 text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Orders</h1>
 
-            <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <div className="flex flex-nowrap items-center gap-2">
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            <label className="text-[11px] font-medium uppercase tracking-wider text-[#7c5b44]">From</label>
-                            <Input
-                                type="date"
-                                value={fromInput}
-                                onChange={(e) => setFromInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFromInputs()}
-                                className="h-8 w-34 text-xs"
-                            />
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            <label className="text-[11px] font-medium uppercase tracking-wider text-[#7c5b44]">To</label>
-                            <Input
-                                type="date"
-                                value={toInput}
-                                onChange={(e) => setToInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFromInputs()}
-                                className="h-8 w-34 text-xs"
-                            />
-                        </div>
-                        <Button variant="outline" onClick={applyFromInputs} className="shrink-0">
-                            Apply
-                        </Button>
-                        <Button variant="outline" onClick={clearRange} className="shrink-0">
-                            Clear
-                        </Button>
-                    </div>
-                    <p className="w-64 shrink-0">
-                        Showing {data.length} of {pagination.total} orders.
-                    </p>
+            <form
+                onSubmit={applyFilters}
+                className="flex shrink-0 flex-wrap items-end gap-3 rounded-md border border-[#c49a78] bg-[#fdf7ef] px-3 py-2 text-xs text-[#6e4a34]"
+            >
+                <DatePicker
+                    label="From"
+                    value={fromInput || undefined}
+                    onChange={(value) => setFromInput(value ?? '')}
+                    placeholder="Start date"
+                />
+                <DatePicker
+                    label="To"
+                    value={toInput || undefined}
+                    onChange={(value) => setToInput(value ?? '')}
+                    placeholder="End date"
+                />
+                <label className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">AccountMate ID</span>
+                    <Input
+                        name="accountMateId"
+                        type="search"
+                        placeholder="Search by AM ID"
+                        defaultValue={searchAccountMateId}
+                        className="h-8 w-36 min-w-0 sm:w-40"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchAccountMateId, () =>
+                                router.push(
+                                    `/manage/orders${buildQuery({
+                                        page: 1,
+                                        from: dateFrom,
+                                        to: dateTo,
+                                        email: searchEmail || undefined,
+                                    })}`,
+                                ),
+                            )
+                        }
+                    />
+                </label>
+                <label className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Email</span>
+                    <Input
+                        name="email"
+                        type="search"
+                        placeholder="Search by email"
+                        defaultValue={searchEmail}
+                        className="h-8 w-44 min-w-0 sm:w-52"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchEmail, () =>
+                                router.push(
+                                    `/manage/orders${buildQuery({
+                                        page: 1,
+                                        from: dateFrom,
+                                        to: dateTo,
+                                        accountMateId: searchAccountMateId || undefined,
+                                    })}`,
+                                ),
+                            )
+                        }
+                    />
+                </label>
+                <div className="flex items-center gap-2">
+                    <Button type="submit" variant="outline" className="h-8 shrink-0 px-3">
+                        Apply
+                    </Button>
+                    <Button type="button" variant="outline" onClick={clearFilters} className="h-8 shrink-0 px-3">
+                        Clear
+                    </Button>
                 </div>
-
-                {totalPages > 1 && (
-                    <Pagination>
+                <p className="pb-1 sm:ml-auto">
+                    Showing {data.length} of {pagination.total} orders{isFiltered ? ' (filtered)' : ''}.
+                </p>
+                {totalPages > 1 ? (
+                    <Pagination className="pb-0.5 sm:ml-auto">
                         <PaginationContent>
                             {pageNumbers.map((n, i) =>
                                 n === 'ellipsis' ? (
@@ -162,6 +231,8 @@ export function OrdersContent({ data, pagination, dateFrom, dateTo }: OrdersCont
                                                 page: n,
                                                 from: dateFrom,
                                                 to: dateTo,
+                                                accountMateId: searchAccountMateId || undefined,
+                                                email: searchEmail || undefined,
                                             })}`}
                                             isActive={page === n}
                                         >
@@ -172,15 +243,16 @@ export function OrdersContent({ data, pagination, dateFrom, dateTo }: OrdersCont
                             )}
                         </PaginationContent>
                     </Pagination>
-                )}
-            </div>
+                ) : null}
+            </form>
 
-            {data.length === 0 ? (
-                <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No orders found.</p>
-            ) : (
-                <div className="overflow-x-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
-                    <table className="min-w-full border-collapse text-xs text-[#4a2518]">
-                        <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
+            <div className="min-h-0 flex-1 overflow-hidden pb-2.5">
+                {data.length === 0 ? (
+                    <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">No orders found.</p>
+                ) : (
+                    <div className="h-full overflow-auto rounded-md border border-[#c49a78] bg-[#f8eddf]">
+                        <table className="min-w-full border-collapse text-xs text-[#4a2518]">
+                            <thead className="sticky top-0 z-10 bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
                             <tr>
                                 <th className="px-3 py-2 text-center w-28">Order #</th>
                                 <th className="px-3 py-2 text-center w-28">AM Order #</th>
@@ -221,8 +293,9 @@ export function OrdersContent({ data, pagination, dateFrom, dateTo }: OrdersCont
                             })}
                         </tbody>
                     </table>
-                </div>
-            )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

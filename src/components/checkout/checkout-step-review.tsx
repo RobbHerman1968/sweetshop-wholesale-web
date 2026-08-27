@@ -165,9 +165,6 @@ export function CheckoutStepReview({
                         <dd className="text-2xl font-bold tabular-nums text-[#4a2518]">{formatCheckoutCurrency(estimatedTotal)}</dd>
                     </div>
                 </dl>
-                <p className={cn('mt-2', checkoutTextClass)}>
-                    Review your order details below. Order submission is not enabled yet.
-                </p>
             </section>
         </div>
     );
