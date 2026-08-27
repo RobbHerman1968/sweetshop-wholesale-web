@@ -11,7 +11,7 @@ type MenusContentProps = {
 
 export function MenusContent({ menus }: MenusContentProps) {
     return (
-        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+        <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden">
             <div className="flex shrink-0 flex-nowrap items-center justify-between gap-4 overflow-x-auto">
                 <div className="flex min-w-0 flex-nowrap items-baseline gap-3">
                     <h1 className="shrink-0 text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Menus</h1>

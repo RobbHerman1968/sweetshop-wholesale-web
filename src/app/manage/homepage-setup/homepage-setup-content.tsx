@@ -598,7 +598,7 @@ export function HomepageSetupContent({ initialContent, categories }: HomepageSet
     const isBusy = isSavingHero || savingSectionIndex != null || isSavingSectionOrder || isResetting;
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">HomePage Setup</h1>

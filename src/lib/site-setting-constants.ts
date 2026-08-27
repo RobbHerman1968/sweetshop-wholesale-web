@@ -1,3 +1,5 @@
+import { HOMEPAGE_CONTENT_SETTING_ID } from '@/lib/homepage-content';
+
 /** Site setting id for the order subtotal above which ground shipping is free. */
 export const FREE_SHIPPING_THRESHOLD_SETTING_ID = 1;
 
@@ -20,6 +22,9 @@ export const DEVELOPER_EMAIL_SETTING_ID = 5;
 export const COPY_ORDER_EMAIL_SETTING_ID = 6;
 export const SALES_ORDER_EMAIL_SETTING_ID = COPY_ORDER_EMAIL_SETTING_ID;
 
+/** Rows stored in siteSetting that must not appear or be edited under Site Settings. */
+export const HIDDEN_SITE_SETTING_IDS = new Set<number>([HOMEPAGE_CONTENT_SETTING_ID]);
+
 export const EMAIL_LIST_SITE_SETTING_IDS = new Set<number>([NOTIFY_ACCOUNTMATE_FAILURE_SETTING_ID]);
 
 export const SINGLE_EMAIL_SITE_SETTING_IDS = new Set<number>([
@@ -27,6 +32,10 @@ export const SINGLE_EMAIL_SITE_SETTING_IDS = new Set<number>([
     DEVELOPER_EMAIL_SETTING_ID,
     SALES_ORDER_EMAIL_SETTING_ID,
 ]);
+
+export function isHiddenSiteSetting(id: number): boolean {
+    return HIDDEN_SITE_SETTING_IDS.has(id);
+}
 
 export function isEmailListSiteSetting(id: number): boolean {
     return EMAIL_LIST_SITE_SETTING_IDS.has(id);

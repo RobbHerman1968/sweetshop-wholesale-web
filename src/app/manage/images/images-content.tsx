@@ -208,7 +208,7 @@ export function ImagesContent({ data, pagination, searchName, imageType }: Image
     const { page, totalPages } = pagination;
 
     return (
-        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+        <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden">
             <Dialog open={imageToDelete != null} onOpenChange={(open) => !open && setImageToDelete(null)}>
                 <DialogContent>
                     <DialogHeader>

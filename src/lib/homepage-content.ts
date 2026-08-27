@@ -1,3 +1,4 @@
+/** Internal siteSetting row id for HomePage Setup JSON (hidden from Site Settings UI). */
 export const HOMEPAGE_CONTENT_SETTING_ID = 7;
 export const HOMEPAGE_SECTION_PRODUCT_COUNT = 3;
 export const HOMEPAGE_SECTION_DESCRIPTION_MAX_LENGTH = 500;

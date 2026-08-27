@@ -25,7 +25,7 @@ export function SiteSettingsContent({ data }: SiteSettingsContentProps) {
     const router = useRouter();
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
             <div>
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Site Settings</h1>
                 <p className="mt-2 text-xs text-[#6e4a34]">Global configuration values used across the site.</p>

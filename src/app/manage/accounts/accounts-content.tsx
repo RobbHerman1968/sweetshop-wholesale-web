@@ -140,7 +140,7 @@ export function AccountsContent({ data, menus, pagination, searchName, searchAcc
     const listHref = `/manage/accounts${buildQuery({ page, name: searchName || undefined, accountMateId: searchAccountMateId || undefined })}`;
 
     return (
-        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+        <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden">
             <h1 className="shrink-0 text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Accounts</h1>
 
             <form onSubmit={handleSearch} className="flex shrink-0 flex-wrap items-end gap-3">

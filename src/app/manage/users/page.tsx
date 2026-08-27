@@ -31,7 +31,7 @@ export default async function ManageUsersPage({ searchParams }: Props) {
     });
 
     return (
-        <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading users…</div>}>
+        <Suspense fallback={<div className="mx-auto w-full max-w-7xl text-xs text-[#6e4a34]">Loading users…</div>}>
             <div className="flex h-full min-h-0 flex-col">
                 <UsersContent
                     data={data}

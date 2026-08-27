@@ -47,7 +47,7 @@ export function ActiveCartsContent({ data, pagination }: ActiveCartsContentProps
     }
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
             <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Active Carts</h1>
 
             <div className="flex flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">

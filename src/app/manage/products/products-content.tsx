@@ -132,7 +132,7 @@ export function ProductsContent({
     }
 
     return (
-        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+        <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden">
             <EditProductSheet key={editingProductId ?? 'closed'} productId={editingProductId} onClose={() => setEditingProductId(null)} onSaved={() => router.refresh()} />
 
             <h1 className="shrink-0 text-[15px] font-bold uppercase tracking-[0.3em] text-[#4a2518]">

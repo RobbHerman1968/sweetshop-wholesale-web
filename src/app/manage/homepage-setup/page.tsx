@@ -6,7 +6,7 @@ export default async function ManageHomepageSetupPage() {
     const [content, categories] = await Promise.all([getHomePageContentForManage(), getActiveCategoriesForHomepageSetup()]);
 
     return (
-        <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading homepage setup…</div>}>
+        <Suspense fallback={<div className="mx-auto w-full max-w-7xl text-xs text-[#6e4a34]">Loading homepage setup…</div>}>
             <HomepageSetupContent initialContent={content} categories={categories} />
         </Suspense>
     );

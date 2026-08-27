@@ -3,7 +3,7 @@ import { CategoryForm } from '../category-form';
 
 export default function ManageAddCategoryPage() {
     return (
-        <div className="mx-auto max-w-4xl space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
             <div className="flex flex-wrap items-center gap-3">
                 <Link
                     href="/manage/categories"

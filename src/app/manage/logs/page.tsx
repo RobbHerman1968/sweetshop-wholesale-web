@@ -18,7 +18,7 @@ export default async function ManageLogsPage({ searchParams }: Props) {
     });
 
     return (
-        <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading logs…</div>}>
+        <Suspense fallback={<div className="mx-auto w-full max-w-7xl text-xs text-[#6e4a34]">Loading logs…</div>}>
             <LogsContent data={result.data} pagination={result.pagination} />
         </Suspense>
     );

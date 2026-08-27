@@ -24,7 +24,7 @@ export default async function ManageAccountsPage({ searchParams }: Props) {
     const menus = await getShoppingMenusFromDB();
 
     return (
-        <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#6e4a34]">Loading accounts…</div>}>
+        <Suspense fallback={<div className="mx-auto w-full max-w-7xl text-xs text-[#6e4a34]">Loading accounts…</div>}>
             <div className="flex h-full min-h-0 flex-col">
                 <AccountsContent
                     data={result.data}

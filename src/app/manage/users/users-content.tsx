@@ -65,7 +65,7 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
     const listHref = `/manage/users${buildQuery({ page, userName: searchUserName || undefined, lastName: searchLastName || undefined })}`;
 
     return (
-        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+        <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden">
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Users</h1>
                 <Link

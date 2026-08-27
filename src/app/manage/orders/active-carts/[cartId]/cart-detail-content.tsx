@@ -242,7 +242,7 @@ export function ManageCartDetailContent({ cartId, initialCart, backHref, minimum
         minimumOrderAmount != null && cart.items.length > 0 && cart.subTotal < minimumOrderAmount;
 
     return (
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
             <div className="flex flex-wrap items-center gap-3">
                 <Link href={backHref} className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline-offset-4 hover:underline">
                     ← Back to active carts

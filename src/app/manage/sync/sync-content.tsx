@@ -237,7 +237,7 @@ export function SyncContent() {
     }
 
     return (
-        <div className="mx-auto max-w-7xl h-full min-h-full">
+        <div className="mx-auto w-full max-w-7xl h-full min-h-full">
             <h1 className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#7c5b44]">Sync</h1>
             <p className="mt-2 mb-4 text-xs text-[#6e4a34]">Import and sync data from the legacy Sweetshop database. Available on localhost only.</p>
 

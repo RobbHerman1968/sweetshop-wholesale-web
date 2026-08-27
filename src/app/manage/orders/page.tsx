@@ -26,7 +26,7 @@ export default async function ManageOrdersPage({ searchParams }: Props) {
     });
 
     return (
-        <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#7c5b44]">Loading orders…</div>}>
+        <Suspense fallback={<div className="mx-auto w-full max-w-7xl text-xs text-[#7c5b44]">Loading orders…</div>}>
             <OrdersContent
                 key={`${dateFrom ?? ''}-${dateTo ?? ''}-${accountMateId}-${email}`}
                 data={result.data}

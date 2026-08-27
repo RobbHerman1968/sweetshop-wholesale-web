@@ -131,7 +131,7 @@ export function UploadExcelOrderSheetContent() {
     }
 
     return (
-        <div className="mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-6">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-col gap-6">
             <div>
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">
                     Upload Excel Order Sheet

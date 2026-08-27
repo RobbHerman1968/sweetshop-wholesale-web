@@ -31,7 +31,9 @@ export default async function ManageLayout({
             >
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
                     <ManageSidebar />
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 py-6 sm:px-4 md:px-6 md:py-8">{children}</div>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 py-6 sm:px-4 md:px-6 md:py-8">
+                        <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">{children}</div>
+                    </div>
                 </div>
             </main>
         </div>

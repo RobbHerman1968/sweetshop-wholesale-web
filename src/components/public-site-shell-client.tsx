@@ -30,7 +30,7 @@ export function PublicSiteShellClient({
     const [isLoginOpen, setIsLoginOpen] = useState(false);
 
     return (
-        <div className="min-h-screen min-w-0 bg-white text-[#3c251a] font-sans">
+        <div className="flex min-h-screen min-w-0 flex-col bg-white text-[#3c251a] font-sans">
             <SiteHeader
                 onLoginClick={() => setIsLoginOpen(true)}
                 brandBarCategories={brandBarCategories}
@@ -39,7 +39,7 @@ export function PublicSiteShellClient({
                 initialAccountDisplayName={initialAccountDisplayName}
                 initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />
-            <div className="min-w-0 overflow-x-clip">{children}</div>
+            <div className="min-w-0 flex-1 overflow-x-clip">{children}</div>
             <SiteFooter termsPageHref={termsPageHref} privacyPageHref={privacyPageHref} />
             <LoginDialog open={isLoginOpen} onOpenChange={setIsLoginOpen} />
         </div>

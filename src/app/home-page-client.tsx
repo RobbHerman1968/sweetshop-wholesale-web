@@ -95,7 +95,7 @@ export function HomePageClient({
     const { hero, sections } = content;
 
     return (
-        <div className="min-h-screen min-w-0 bg-white text-[#3c251a] font-sans">
+        <div className="flex min-h-screen min-w-0 flex-col bg-white text-[#3c251a] font-sans">
             <SiteHeader
                 onLoginClick={() => setIsLoginOpen(true)}
                 brandBarCategories={brandBarCategories}
@@ -105,7 +105,7 @@ export function HomePageClient({
                 initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />
 
-            <main id={SITE_MAIN_ID} tabIndex={-1} className={cn('mx-auto flex max-w-6xl flex-col gap-10 overflow-x-clip px-3 pb-14 pt-1 sm:px-4 sm:pb-16 sm:pt-1', SITE_MAIN_FOCUS_CLASS)}>
+            <main id={SITE_MAIN_ID} tabIndex={-1} className={cn('mx-auto flex w-full max-w-6xl flex-1 flex-col gap-10 overflow-x-clip px-3 pb-14 pt-1 sm:px-4 sm:pb-16 sm:pt-1', SITE_MAIN_FOCUS_CLASS)}>
                 <section className="relative min-h-[280px] overflow-hidden rounded-2xl border border-[#b89572] bg-gradient-to-r from-[#3d2518] via-[#5c3820] to-[#3d2518] text-[#fdf7ef] shadow-lg sm:min-h-[320px] sm:rounded-3xl">
                     {hero.videoUrl ? <video className="absolute inset-0 h-full w-full object-cover" src={hero.videoUrl} autoPlay muted loop playsInline aria-hidden /> : null}
                     <div className="absolute inset-0 bg-gradient-to-r from-[#3d2518]/85 via-[#2a1810]/70 to-[#3d2518]/85" aria-hidden />

@@ -49,7 +49,7 @@ export function CategoriesContent({ data, pagination, searchName }: CategoriesCo
     }
 
     return (
-        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+        <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden">
             <h1 className="shrink-0 text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Categories</h1>
 
             <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">

@@ -18,7 +18,7 @@ export default async function ManageActiveCartsPage({ searchParams }: Props) {
     });
 
     return (
-        <Suspense fallback={<div className="mx-auto max-w-7xl text-xs text-[#7c5b44]">Loading active carts…</div>}>
+        <Suspense fallback={<div className="mx-auto w-full max-w-7xl text-xs text-[#7c5b44]">Loading active carts…</div>}>
             <ActiveCartsContent data={result.data} pagination={result.pagination} />
         </Suspense>
     );

@@ -55,7 +55,7 @@ export function LogsContent({ data, pagination }: LogsContentProps) {
     }
 
     return (
-        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 overflow-hidden">
+        <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden">
             <div className="shrink-0">
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Log</h1>
                 <p className="mt-2 text-xs text-[#6e4a34]">

@@ -59,7 +59,7 @@ export function SiteFooter({ termsPageHref = null, privacyPageHref = null }: Sit
     const hasLegalLinks = Boolean(termsPageHref || privacyPageHref);
 
     return (
-        <footer className="mt-8 border-t border-[#b89572] bg-[#3d2818] text-[#fdf7ef]">
+        <footer className="mt-8 shrink-0 border-t border-[#b89572] bg-[#3d2818] text-[#fdf7ef]">
             <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 text-xs md:flex-row md:justify-between">
                 <section className="space-y-2" aria-labelledby="footer-stay-connected">
                     <h2 id="footer-stay-connected" className="text-xs font-normal uppercase tracking-[0.25em] text-[#f5d9b8]">
