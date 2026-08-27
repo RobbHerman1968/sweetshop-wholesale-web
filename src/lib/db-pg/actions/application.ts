@@ -1,8 +1,14 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
+import { getServerSession } from 'next-auth';
 import { count, desc, eq, ilike, or } from 'drizzle-orm';
+import { authOptions } from '@/auth';
 import { db } from '@/lib/db-pg';
+import { getApplyNowEmailAddress, getSendEmailFromAddress } from '@/lib/db-pg/actions/site-setting';
 import { application } from '@/lib/drizzle/schema';
+import { buildWholesaleApplicationEmailContent } from '@/lib/email/wholesale-application-email-template';
+import { sendEmailViaResend } from '@/lib/resend-email';
 
 export type ManageApplicationListRow = {
     id: number;
@@ -14,7 +20,6 @@ export type ManageApplicationListRow = {
     phone: string;
     city: string;
     state: string;
-    emailSent: boolean;
 };
 
 export type ManageApplicationDetail = {
@@ -34,6 +39,8 @@ export type ManageApplicationDetail = {
     email: string;
     emailSent: boolean;
 };
+
+type FormResult = { ok: true } | { ok: false; error: string };
 
 export async function getPaginatedApplicationsFromDB({
     page = 1,
@@ -71,7 +78,6 @@ export async function getPaginatedApplicationsFromDB({
                 phone: application.phone,
                 city: application.city,
                 state: application.state,
-                emailSent: application.emailSent,
             })
             .from(application)
             .where(where)
@@ -122,4 +128,57 @@ export async function getApplicationByIdForManage(applicationId: number): Promis
         .limit(1);
 
     return row ?? null;
+}
+
+export async function resendApplicationEmail(applicationId: number): Promise<FormResult> {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
+        return { ok: false, error: 'Unauthorized.' };
+    }
+
+    const detail = await getApplicationByIdForManage(applicationId);
+    if (!detail) {
+        return { ok: false, error: 'Application not found.' };
+    }
+
+    const [fromEmail, toEmail] = await Promise.all([getSendEmailFromAddress(), getApplyNowEmailAddress()]);
+    if (!fromEmail) {
+        return { ok: false, error: 'Configure Send Email From in Site Settings before sending.' };
+    }
+    if (!toEmail) {
+        return { ok: false, error: 'Configure Apply Now Email Address in Site Settings before sending.' };
+    }
+
+    const { subject, html, text } = buildWholesaleApplicationEmailContent({
+        businessName: detail.businessName,
+        taxId: detail.taxId,
+        contactFirstName: detail.contactFirstName,
+        contactLastName: detail.contactLastName,
+        billingAddress1: detail.billingAddress1,
+        billingAddress2: detail.billingAddress2 ?? undefined,
+        city: detail.city,
+        state: detail.state,
+        zipCode: detail.zipCode,
+        phone: detail.phone,
+        fax: detail.fax ?? undefined,
+        email: detail.email,
+    });
+
+    const result = await sendEmailViaResend({
+        from: fromEmail,
+        to: toEmail,
+        subject,
+        html,
+        text,
+    });
+
+    if (!result.ok) {
+        return result;
+    }
+
+    await db.update(application).set({ emailSent: true }).where(eq(application.id, applicationId));
+    revalidatePath(`/manage/applications/${applicationId}`);
+    revalidatePath('/manage/applications');
+
+    return { ok: true };
 }

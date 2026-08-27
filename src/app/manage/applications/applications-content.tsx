@@ -128,7 +128,6 @@ export function ApplicationsContent({ data, pagination, search }: ApplicationsCo
                                 <th className="px-3 py-2 text-left">Email</th>
                                 <th className="px-3 py-2 text-left">Phone</th>
                                 <th className="px-3 py-2 text-left">Location</th>
-                                <th className="px-3 py-2 text-left">Email sent</th>
                                 <th className="px-3 py-2 text-right w-20"></th>
                             </tr>
                         </thead>
@@ -144,16 +143,6 @@ export function ApplicationsContent({ data, pagination, search }: ApplicationsCo
                                     <td className="whitespace-nowrap px-3 py-2 align-middle">{formatPhoneDisplay(row.phone)}</td>
                                     <td className="px-3 py-2 align-middle">
                                         {[row.city.trim(), row.state.trim()].filter(Boolean).join(', ') || '—'}
-                                    </td>
-                                    <td className="px-3 py-2 align-middle">
-                                        <span
-                                            className={cn(
-                                                'inline-flex rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]',
-                                                row.emailSent ? 'bg-[#dcefd8] text-[#24531f]' : 'bg-[#f8d7d7] text-[#7a1f1f]',
-                                            )}
-                                        >
-                                            {row.emailSent ? 'Sent' : 'Not sent'}
-                                        </span>
                                     </td>
                                     <td className="px-3 py-2 align-middle text-right">
                                         <Link

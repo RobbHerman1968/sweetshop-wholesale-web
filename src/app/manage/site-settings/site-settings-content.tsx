@@ -44,8 +44,8 @@ export function SiteSettingsContent({ data }: SiteSettingsContentProps) {
                     <table className="min-w-full border-collapse text-xs text-[#4a2518]">
                         <thead className="bg-[#e3cbb0] text-[11px] uppercase tracking-[0.16em]">
                             <tr>
-                                <th className="px-3 py-2 text-left min-w-48">Setting</th>
-                                <th className="min-w-96 px-3 py-2 text-left">Value</th>
+                                <th className="px-3 py-2 text-left">Setting</th>
+                                <th className="w-[45%] px-3 py-2 text-left">Value</th>
                                 <th className="px-3 py-2 text-right w-28"></th>
                             </tr>
                         </thead>
@@ -76,7 +76,7 @@ function SiteSettingRowForm({ row, isEven, onSaved }: SiteSettingRowFormProps) {
     const isEmailList = row.kind === 'emailList';
     const isEmail = row.kind === 'email';
     const textFieldClassName =
-        'flex w-full min-w-96 rounded-md border border-[#d1b79a] bg-white px-3 py-2 text-base text-[#4a2b1f] outline-none ring-amber-300 focus:ring sm:text-sm';
+        'flex w-full rounded-md border border-[#d1b79a] bg-white px-3 py-2 text-base text-[#4a2b1f] outline-none ring-amber-300 focus:ring sm:text-sm';
     const [value, setValue] = useState(
         isEmailList
             ? formatEmailListForInput(row.textValue)
@@ -138,8 +138,8 @@ function SiteSettingRowForm({ row, isEven, onSaved }: SiteSettingRowFormProps) {
                     <p className="mt-1 font-normal text-[10px] text-[#6e4a34]">{helperText}</p>
                 ) : null}
             </td>
-            <td className="min-w-96 px-3 py-2 align-top">
-                <form id={`site-setting-form-${row.id}`} onSubmit={handleSubmit} className="space-y-1">
+            <td className="w-[45%] px-3 py-2 align-top">
+                <form id={`site-setting-form-${row.id}`} onSubmit={handleSubmit} className="w-full space-y-1">
                     <input type="hidden" name="id" value={row.id} readOnly />
                     {isEmailList ? (
                         <textarea

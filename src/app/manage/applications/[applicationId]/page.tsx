@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import moment from 'moment-timezone';
-import { buttonVariants } from '@/components/ui/button';
 import { getApplicationByIdForManage } from '@/lib/db-pg/actions/application';
+import { getApplyNowEmailAddress, getSendEmailFromAddress } from '@/lib/db-pg/actions/site-setting';
 import { formatPhoneDisplay } from '@/lib/checkout-utils';
-import { cn } from '@/lib/utils';
+import { ApplicationEmailActions } from './application-email-actions';
 
 type Props = {
     params: Promise<{ applicationId: string }>;
@@ -27,6 +27,8 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
     );
 }
 
+const detailLinkClassName = 'font-semibold text-[#4a2518] underline-offset-4 hover:underline';
+
 export default async function ManageApplicationDetailPage({ params, searchParams }: Props) {
     const { applicationId: applicationIdParam } = await params;
     const { returnTo } = await searchParams;
@@ -36,7 +38,11 @@ export default async function ManageApplicationDetailPage({ params, searchParams
         notFound();
     }
 
-    const detail = await getApplicationByIdForManage(applicationId);
+    const [detail, sendEmailFrom, applyNowEmail] = await Promise.all([
+        getApplicationByIdForManage(applicationId),
+        getSendEmailFromAddress(),
+        getApplyNowEmailAddress(),
+    ]);
     if (!detail) {
         notFound();
     }
@@ -55,14 +61,12 @@ export default async function ManageApplicationDetailPage({ params, searchParams
                     <h1 className="mt-3 text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Application #{detail.id}</h1>
                     <p className="mt-2 text-xs text-[#6e4a34]">Submitted {submittedAt}</p>
                 </div>
-                <span
-                    className={cn(
-                        'inline-flex w-fit rounded px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]',
-                        detail.emailSent ? 'bg-[#dcefd8] text-[#24531f]' : 'bg-[#f8d7d7] text-[#7a1f1f]',
-                    )}
-                >
-                    {detail.emailSent ? 'Notification sent' : 'Notification not sent'}
-                </span>
+                <ApplicationEmailActions
+                    applicationId={detail.id}
+                    emailSent={detail.emailSent}
+                    applyNowEmail={applyNowEmail}
+                    sendEmailFrom={sendEmailFrom}
+                />
             </div>
 
             <section className="space-y-5 rounded-2xl border border-[#c49a78] bg-[#fdf7ef] p-6">
@@ -80,7 +84,7 @@ export default async function ManageApplicationDetailPage({ params, searchParams
                     <DetailRow
                         label="Email"
                         value={
-                            <a href={`mailto:${detail.email}`} className={cn(buttonVariants({ variant: 'link' }), 'h-auto p-0 text-sm')}>
+                            <a href={`mailto:${detail.email}`} className={detailLinkClassName}>
                                 {detail.email}
                             </a>
                         }
@@ -88,7 +92,7 @@ export default async function ManageApplicationDetailPage({ params, searchParams
                     <DetailRow
                         label="Phone"
                         value={
-                            <a href={`tel:+1${detail.phone}`} className={cn(buttonVariants({ variant: 'link' }), 'h-auto p-0 text-sm')}>
+                            <a href={`tel:+1${detail.phone}`} className={detailLinkClassName}>
                                 {formatPhoneDisplay(detail.phone)}
                             </a>
                         }
