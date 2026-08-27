@@ -18,12 +18,12 @@ export function getWholesaleApiAuthHeaders(): HeadersInit {
     return { Authorization: `Bearer ${secret}` };
 }
 
-/** Rejects empty or suspicious AccountMate id path segments. */
+/** Rejects empty or suspicious AccountMate id path segments. Always returns uppercase. */
 export function parseAccountMateId(accountMateId: string | undefined): string | null {
     if (!accountMateId?.trim()) return null;
-    const id = accountMateId.trim();
+    const id = accountMateId.trim().toUpperCase();
     if (id.length > 50) return null;
-    if (!/^[A-Za-z0-9._-]+$/.test(id)) return null;
+    if (!/^[A-Z0-9._-]+$/.test(id)) return null;
     return id;
 }
 

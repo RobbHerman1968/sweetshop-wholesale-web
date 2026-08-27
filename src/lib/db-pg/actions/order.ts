@@ -6,8 +6,9 @@ import { getOrderExpectedDeliveryDatesFromSweetshopOld } from '@/lib/db-sweetsho
 import { and, asc, desc, eq, gte, ilike, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { orderMapper } from '../mappers/order-mapper';
 import { Order } from '../entities/order-entity';
-import { account, order, orderAddress, orderItem, user } from '@/lib/drizzle/schema';
+import { account, order, orderAddress, orderItem, orderLog, user } from '@/lib/drizzle/schema';
 import moment from 'moment-timezone';
+import { getUserAccounts } from '@/lib/db-pg/actions/account';
 
 export type OrderDailyStat = {
     date: string;
@@ -240,12 +241,76 @@ export type ManageOrderUserSummary = {
     accountMateId: string | null;
 };
 
+export type ManageOrderAccountSummary = {
+    id: number;
+    name: string | null;
+    accountMateId: string | null;
+};
+
 export type ManageOrderDetail = {
     order: typeof order.$inferSelect;
     items: (typeof orderItem.$inferSelect)[];
     addresses: (typeof orderAddress.$inferSelect)[];
     user: ManageOrderUserSummary | null;
+    account: ManageOrderAccountSummary | null;
 };
+
+async function resolveAccountForManageOrder(
+    orderId: number,
+    orderUser: ManageOrderUserSummary | null,
+): Promise<ManageOrderAccountSummary | null> {
+    const [fromLog] = await db
+        .select({ accountId: orderLog.accountId })
+        .from(orderLog)
+        .where(and(eq(orderLog.orderId, orderId), isNotNull(orderLog.accountId)))
+        .orderBy(desc(orderLog.id))
+        .limit(1);
+
+    if (fromLog?.accountId != null) {
+        const [row] = await db
+            .select({
+                id: account.id,
+                name: account.name,
+                accountMateId: account.accountMateId,
+            })
+            .from(account)
+            .where(eq(account.id, fromLog.accountId))
+            .limit(1);
+        if (row) {
+            return row;
+        }
+    }
+
+    const accountMateId = orderUser?.accountMateId?.trim() || null;
+    if (accountMateId) {
+        const [row] = await db
+            .select({
+                id: account.id,
+                name: account.name,
+                accountMateId: account.accountMateId,
+            })
+            .from(account)
+            .where(eq(account.accountMateId, accountMateId))
+            .limit(1);
+        if (row) {
+            return row;
+        }
+    }
+
+    if (orderUser?.id) {
+        const linked = await getUserAccounts(orderUser.id);
+        const first = linked[0];
+        if (first) {
+            return {
+                id: first.id,
+                name: first.name?.trim() || null,
+                accountMateId: first.accountMateId?.trim() || null,
+            };
+        }
+    }
+
+    return null;
+}
 
 export async function getOrderByIdForManage(orderId: number): Promise<ManageOrderDetail | null> {
     const row = await db.query.order.findFirst({
@@ -278,11 +343,15 @@ export async function getOrderByIdForManage(orderId: number): Promise<ManageOrde
             .limit(1),
     ]);
 
+    const orderUser = userRows[0] ?? null;
+    const orderAccount = await resolveAccountForManageOrder(orderId, orderUser);
+
     return {
         order: row,
         items,
         addresses,
-        user: userRows[0] ?? null,
+        user: orderUser,
+        account: orderAccount,
     };
 }
 
@@ -386,6 +455,7 @@ export async function getOrderByIdForUser(orderId: number, userId: number): Prom
         items,
         addresses,
         user: userRows[0] ?? null,
+        account: await resolveAccountForManageOrder(orderId, userRows[0] ?? null),
     };
 }
 
@@ -428,7 +498,6 @@ export async function getPaginatedOrdersFromDB({
     const offset = (page - 1) * limit;
     const accountMateIdTerm = accountMateId?.trim() ?? '';
     const emailTerm = email?.trim().toLowerCase() ?? '';
-    const needsAccountJoin = accountMateIdTerm.length > 0 || emailTerm.length > 0;
 
     const conditions = [];
     if (dateFrom) {
@@ -438,18 +507,22 @@ export async function getPaginatedOrdersFromDB({
         conditions.push(lte(order.orderDate, `${dateTo}T23:59:59.999Z`));
     }
     if (accountMateIdTerm) {
+        // Prefix / exact match only — leading-wildcard ILIKE + correlated EXISTS was a full scan of ~47k orders.
+        const normalized = accountMateIdTerm.toUpperCase();
         conditions.push(
-            or(
-                ilike(user.accountMateId, `%${accountMateIdTerm}%`),
-                ilike(account.accountMateId, `%${accountMateIdTerm}%`),
-            ),
+            sql`upper(trim(coalesce(${user.accountMateId}, ''))) like ${`${normalized}%`}`,
         );
     }
     if (emailTerm) {
         conditions.push(
             or(
-                ilike(sql`lower(trim(coalesce(${account.contactEmail}, '')))`, `%${emailTerm}%`),
                 ilike(sql`lower(trim(coalesce(${user.userName}, '')))`, `%${emailTerm}%`),
+                sql`exists (
+                    select 1 from account a
+                    where nullif(trim(coalesce(${user.accountMateId}, '')), '') is not null
+                      and lower(trim(coalesce(a."accountMateId", ''))) = lower(trim(${user.accountMateId}))
+                      and lower(trim(coalesce(a."contactEmail", ''))) like ${`%${emailTerm}%`}
+                )`,
                 sql`exists (
                     select 1 from "orderAddress" oa
                     where oa."orderId" = ${order.id}
@@ -470,15 +543,54 @@ export async function getPaginatedOrdersFromDB({
             total: order.total,
             shippingCode: order.shippingCode,
             isNewCustomerOrder: order.isNewCustomerOrder,
-            customerName: sql<string | null>`coalesce(nullif(trim(concat(${user.firstName}, ' ', ${user.lastName})), ''), nullif(trim(${user.userName}), ''))`,
+            customerName: sql<string | null>`(
+                select case
+                    when label is not null and amid is not null then label || ' (' || amid || ')'
+                    else coalesce(label, amid)
+                end
+                from (
+                    select
+                        coalesce(
+                            (
+                                select upper(nullif(trim(concat(coalesce(oa."firstName", ''), ' ', coalesce(oa."lastName", ''))), ''))
+                                from "orderAddress" oa
+                                where oa."orderId" = ${order.id}
+                                  and (
+                                    lower(trim(oa.type)) = 'b'
+                                    or lower(trim(oa.type)) like '%bill%'
+                                  )
+                                order by oa.id
+                                limit 1
+                            ),
+                            (
+                                select nullif(trim(oa."emailAddress"), '')
+                                from "orderAddress" oa
+                                where oa."orderId" = ${order.id}
+                                  and (
+                                    lower(trim(oa.type)) = 'b'
+                                    or lower(trim(oa.type)) like '%bill%'
+                                  )
+                                order by oa.id
+                                limit 1
+                            )
+                        ) as label,
+                        coalesce(
+                            (
+                                select upper(nullif(trim(a."accountMateId"), ''))
+                                from account a
+                                where nullif(trim(coalesce(${user.accountMateId}, '')), '') is not null
+                                  and lower(trim(coalesce(a."accountMateId", ''))) = lower(trim(${user.accountMateId}))
+                                order by a.id
+                                limit 1
+                            ),
+                            upper(nullif(trim(${user.accountMateId}), ''))
+                        ) as amid
+                ) customer_parts
+            )`,
         })
         .from(order)
         .leftJoin(user, eq(order.userId, user.id))
         .$dynamic();
-
-    if (needsAccountJoin) {
-        baseQuery = baseQuery.leftJoin(account, eq(order.userId, account.id));
-    }
 
     baseQuery = baseQuery.orderBy(desc(order.orderDate), desc(order.id)).limit(limit).offset(offset);
 
@@ -489,10 +601,6 @@ export async function getPaginatedOrdersFromDB({
         .from(order)
         .leftJoin(user, eq(order.userId, user.id))
         .$dynamic();
-
-    if (needsAccountJoin) {
-        countQuery = countQuery.leftJoin(account, eq(order.userId, account.id));
-    }
 
     const countResult = whereClause ? await countQuery.where(whereClause) : await countQuery;
     const count = Number(countResult[0]?.count ?? 0);
