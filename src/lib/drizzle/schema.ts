@@ -314,6 +314,32 @@ export const siteSetting = pgTable("siteSetting", {
 	textValue: text(),
 });
 
+/** Singleton row for HomePage Setup JSON (not a site setting). */
+export const homepageContent = pgTable("homepageContent", {
+	id: integer().primaryKey().notNull(),
+	content: text().notNull(),
+	updatedAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+});
+
+/** Wholesale Apply Now form submissions. */
+export const application = pgTable("application", {
+	id: serial().primaryKey().notNull(),
+	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	businessName: text().notNull(),
+	taxId: text().notNull(),
+	contactFirstName: text().notNull(),
+	contactLastName: text().notNull(),
+	billingAddress1: text().notNull(),
+	billingAddress2: text(),
+	city: text().notNull(),
+	state: text().notNull(),
+	zipCode: text().notNull(),
+	phone: text().notNull(),
+	fax: text(),
+	email: text().notNull(),
+	emailSent: boolean().default(false).notNull(),
+});
+
 export const accountAddress = pgTable("accountAddress", {
 	id: serial().primaryKey().notNull(),
 	accountId: integer().notNull(),

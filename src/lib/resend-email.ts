@@ -6,6 +6,7 @@ export type SendEmailInput = {
     subject: string;
     html: string;
     text?: string;
+    replyTo?: string | string[];
 };
 
 export type SendEmailResult = { ok: true; id: string } | { ok: false; error: string };
@@ -39,12 +40,14 @@ export async function sendEmailViaResend(input: SendEmailInput): Promise<SendEma
     const resend = new Resend(apiKey);
 
     try {
+        const replyTo = input.replyTo ? normalizeRecipients(input.replyTo) : [];
         const result = await resend.emails.send({
             from,
             to,
             subject,
             html: input.html,
             text: input.text,
+            ...(replyTo.length > 0 ? { replyTo } : {}),
         });
 
         if (result.error) {

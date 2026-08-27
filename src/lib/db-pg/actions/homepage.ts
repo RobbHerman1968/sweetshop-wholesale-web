@@ -5,11 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db-pg';
 import { getShopCategoryById } from '@/lib/db-pg/actions/category';
-import { category, product, productCategory, productImage, siteSetting, vercelImage } from '@/lib/drizzle/schema';
+import { category, homepageContent, product, productCategory, productImage, vercelImage } from '@/lib/drizzle/schema';
 import { buildShopCategoryPath } from '@/lib/shop-category-path';
 import {
     DEFAULT_HOME_PAGE_CONTENT,
-    HOMEPAGE_CONTENT_SETTING_ID,
+    HOMEPAGE_CONTENT_ROW_ID,
     HOMEPAGE_SECTION_DESCRIPTION_MAX_LENGTH,
     HOMEPAGE_SECTION_PRODUCT_COUNT,
     HOMEPAGE_SECTION_TITLE_MAX_LENGTH,
@@ -40,35 +40,43 @@ export type HomepageProductOption = {
 };
 
 async function readHomePageContentRaw(): Promise<string | null> {
-    const [row] = await db
-        .select({ textValue: siteSetting.textValue })
-        .from(siteSetting)
-        .where(eq(siteSetting.id, HOMEPAGE_CONTENT_SETTING_ID))
-        .limit(1);
+    try {
+        const [row] = await db
+            .select({ content: homepageContent.content })
+            .from(homepageContent)
+            .where(eq(homepageContent.id, HOMEPAGE_CONTENT_ROW_ID))
+            .limit(1);
 
-    return row?.textValue?.trim() || null;
+        return row?.content?.trim() || null;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        if (message.includes('homepageContent') && message.includes('does not exist')) {
+            return null;
+        }
+        throw error;
+    }
 }
 
-async function upsertHomePageContentTextValue(textValue: string): Promise<FormResult> {
+async function upsertHomePageContentTextValue(content: string): Promise<FormResult> {
     try {
         await db
-            .insert(siteSetting)
+            .insert(homepageContent)
             .values({
-                id: HOMEPAGE_CONTENT_SETTING_ID,
-                name: 'Homepage Content',
-                value: '0',
-                textValue,
+                id: HOMEPAGE_CONTENT_ROW_ID,
+                content,
+                updatedAt: new Date().toISOString(),
             })
             .onConflictDoUpdate({
-                target: siteSetting.id,
+                target: homepageContent.id,
                 set: {
-                    textValue,
+                    content,
+                    updatedAt: new Date().toISOString(),
                 },
             });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to save homepage content.';
-        if (message.includes('"textValue"') && message.includes('does not exist')) {
-            return { ok: false, error: 'Apply src/lib/drizzle/0013_site_setting_text_value.sql before saving homepage content.' };
+        if (message.includes('homepageContent') && message.includes('does not exist')) {
+            return { ok: false, error: 'Apply src/lib/drizzle/0021_homepage_content_table.sql before saving homepage content.' };
         }
 
         return { ok: false, error: message };

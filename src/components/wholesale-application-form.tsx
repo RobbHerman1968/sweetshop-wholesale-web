@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { formatPhoneDisplay, normalizePhoneDigits } from '@/lib/checkout-utils';
 import { submitWholesaleApplication } from '@/lib/wholesale-application-actions';
 import {
     wholesaleApplicationSchema,
@@ -301,21 +302,25 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
                             <Input
                                 id={phoneId}
                                 type="tel"
-                                value={form.phone}
-                                onChange={(e) => updateField('phone', e.target.value)}
+                                inputMode="numeric"
+                                value={formatPhoneDisplay(form.phone)}
+                                onChange={(e) => updateField('phone', normalizePhoneDigits(e.target.value))}
                                 className={inputClass('phone')}
                                 aria-invalid={fieldErrors.phone ? true : undefined}
                                 autoComplete="tel"
+                                placeholder="(xxx)-xxx-xxxx"
                             />
                         </FormField>
-                        <FormField id={faxId} label="Fax number">
+                        <FormField id={faxId} label="Fax number" error={fieldErrors.fax}>
                             <Input
                                 id={faxId}
                                 type="tel"
-                                value={form.fax ?? ''}
-                                onChange={(e) => updateField('fax', e.target.value)}
+                                inputMode="numeric"
+                                value={formatPhoneDisplay(form.fax ?? '')}
+                                onChange={(e) => updateField('fax', normalizePhoneDigits(e.target.value))}
+                                className={inputClass('fax')}
                                 autoComplete="tel-extension"
-                                placeholder="Optional"
+                                placeholder="(xxx)-xxx-xxxx (optional)"
                             />
                         </FormField>
                         <FormField id={emailId} label="Email address" required error={fieldErrors.email} className="sm:col-span-2">

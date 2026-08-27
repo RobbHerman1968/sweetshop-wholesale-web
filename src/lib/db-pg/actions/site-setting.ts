@@ -12,11 +12,11 @@ import {
 } from '@/lib/site-setting-email-list';
 import {
     siteSettingKind,
-    isHiddenSiteSetting,
     NOTIFY_ACCOUNTMATE_FAILURE_SETTING_ID,
     SEND_EMAIL_FROM_SETTING_ID,
     DEVELOPER_EMAIL_SETTING_ID,
     SALES_ORDER_EMAIL_SETTING_ID,
+    APPLY_NOW_EMAIL_SETTING_ID,
     type SiteSettingKind,
 } from '@/lib/site-setting-constants';
 
@@ -143,12 +143,11 @@ async function selectSiteSettingRowById(id: number): Promise<SiteSettingDbRow | 
 
 export async function getSiteSettingsFromDB(): Promise<SiteSettingRow[]> {
     const rows = await selectSiteSettingsRows();
-    return rows.filter((row) => !isHiddenSiteSetting(row.id)).map(mapSiteSettingRow);
+    return rows.map(mapSiteSettingRow);
 }
 
 export async function getSiteSettingByIdForManage(id: number): Promise<SiteSettingRow | null> {
     if (!Number.isFinite(id) || id <= 0) return null;
-    if (isHiddenSiteSetting(id)) return null;
 
     const row = await selectSiteSettingRowById(id);
     return row ? mapSiteSettingRow(row) : null;
@@ -181,6 +180,12 @@ export async function getSalesOrderEmailAddress(): Promise<string | null> {
     return email || null;
 }
 
+export async function getApplyNowEmailAddress(): Promise<string | null> {
+    const setting = await getSiteSettingByIdForManage(APPLY_NOW_EMAIL_SETTING_ID);
+    const email = setting?.textValue?.trim();
+    return email || null;
+}
+
 async function updateSiteSettingTextValue(id: number, textValue: string | null): Promise<FormResult> {
     try {
         await db
@@ -204,10 +209,6 @@ export async function updateSiteSettingValueFromForm(formData: FormData): Promis
     const id = Number(formData.get('id'));
     if (!Number.isFinite(id) || id <= 0) {
         return { ok: false, error: 'Invalid site setting.' };
-    }
-
-    if (isHiddenSiteSetting(id)) {
-        return { ok: false, error: 'This value is managed elsewhere and cannot be edited here.' };
     }
 
     const existing = await getSiteSettingByIdForManage(id);

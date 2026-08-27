@@ -24,6 +24,7 @@ const baseNavItems: NavItem[] = [
     { type: 'divider' },
     { type: 'link', href: '/manage/users', label: 'User Accounts' },
     { type: 'link', href: '/manage/accounts', label: 'AccountMate Accounts' },
+    { type: 'link', href: '/manage/applications', label: 'Applications' },
     { type: 'divider' },
     { type: 'link', href: '/manage/upload-excel-order-sheet', label: 'Upload Excel Order Sheet' },
     { type: 'divider' },
