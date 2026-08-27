@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-const POLL_INTERVAL_MS = 15_000;
+const POLL_INTERVAL_MS = 45_000;
 
 type AppVersionReloadProps = {
     initialBuildId: string;
