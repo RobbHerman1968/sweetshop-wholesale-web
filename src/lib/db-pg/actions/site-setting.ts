@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db-pg';
 import { siteSetting } from '@/lib/drizzle/schema';
 import { asc, eq } from 'drizzle-orm';
-import { parseEmailList, normalizeEmailListInput, normalizeSingleEmailInput } from '@/lib/site-setting-email-list';
+import {
+    parseEmailList,
+    normalizeEmailFromInput,
+    normalizeEmailListInput,
+    normalizeSingleEmailInput,
+} from '@/lib/site-setting-email-list';
 import {
     siteSettingKind,
     NOTIFY_ACCOUNTMATE_FAILURE_SETTING_ID,
@@ -210,7 +215,9 @@ export async function updateSiteSettingValueFromForm(formData: FormData): Promis
     }
 
     if (existing.kind === 'email') {
-        const normalized = normalizeSingleEmailInput(String(formData.get('textValue') ?? ''));
+        const raw = String(formData.get('textValue') ?? '');
+        const normalized =
+            id === SEND_EMAIL_FROM_SETTING_ID ? normalizeEmailFromInput(raw) : normalizeSingleEmailInput(raw);
         if (!normalized.ok) {
             return normalized;
         }

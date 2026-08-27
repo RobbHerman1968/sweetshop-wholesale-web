@@ -7,7 +7,11 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { updateSiteSettingValueFromForm, type SiteSettingRow } from '@/lib/db-pg/actions/site-setting';
 import { formatEmailListForInput } from '@/lib/site-setting-email-list';
-import { getSiteSettingEmailPlaceholder, getSiteSettingHelperText } from '@/lib/site-setting-constants';
+import {
+    getSiteSettingEmailPlaceholder,
+    getSiteSettingHelperText,
+    isEmailFromSiteSetting,
+} from '@/lib/site-setting-constants';
 
 type SiteSettingsContentProps = {
     data: SiteSettingRow[];
@@ -150,12 +154,16 @@ function SiteSettingRowForm({ row, isEven, onSaved }: SiteSettingRowFormProps) {
                     ) : isEmail ? (
                         <Input
                             name="textValue"
-                            type="email"
+                            type={isEmailFromSiteSetting(row.id) ? 'text' : 'email'}
                             value={value}
                             onChange={(e) => setValue(e.target.value)}
                             className={`${textFieldClassName} h-8`}
                             placeholder={emailPlaceholder}
-                            aria-label={`Email address for ${row.name}`}
+                            aria-label={
+                                isEmailFromSiteSetting(row.id)
+                                    ? `From header for ${row.name}`
+                                    : `Email address for ${row.name}`
+                            }
                         />
                     ) : (
                         <Input

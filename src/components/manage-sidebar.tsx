@@ -36,10 +36,11 @@ const baseNavItems: NavItem[] = [
     { type: 'link', href: '/manage/categories', label: 'Categories' },
     { type: 'link', href: '/manage/pages', label: 'Pages' },
     { type: 'link', href: '/manage/menus', label: 'Menus' },
+    { type: 'divider' },
+    { type: 'link', href: '/manage/logs', label: 'Log' },
 ];
 
 const localhostNavItems: NavItem[] = [
-    { type: 'divider' },
     { type: 'link', href: '/manage/sync', label: 'Sync' },
 ];
 

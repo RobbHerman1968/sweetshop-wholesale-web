@@ -3,10 +3,22 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { getOrderAddressesFromSweetshopOld, getOrderItemsFromSweetshopOld, getOrdersFromSweetshopOld, getProductImagesFromSweetshopOld, getProductsFromSweetshopOld } from '@/lib/db-sweetshop-old';
-import { getMaxOrderId, getMaxOrderItemId, processOldOrders, processOldOrderItems, getMaxOrderAddressId, processOldOrderAddresses, processOldProducts, processOldProductImages, syncAccountsFromLegacy, syncExpectedDeliveryDatesFromOldOrders, syncUsersFromLegacy, syncUserAddressesFromLegacy, createDefaultUser } from '@/lib/db-pg/server';
+import { syncAccountsFromLegacy } from '@/lib/db-pg/actions/account';
+import {
+    getMaxOrderAddressId,
+    getMaxOrderId,
+    getMaxOrderItemId,
+    processOldOrderAddresses,
+    processOldOrderItems,
+    processOldOrders,
+    syncExpectedDeliveryDatesFromOldOrders,
+} from '@/lib/db-pg/actions/order';
+import { loadProductOldImagesFromLegacy } from '@/lib/db-pg/actions/process-product-old-images';
 import { syncProductCategoriesFromLegacy } from '@/lib/db-pg/actions/process-product-categories';
 import { cleanProductNamesInDatabase } from '@/lib/db-pg/actions/process-product-names';
-import { loadProductOldImagesFromLegacy } from '@/lib/db-pg/actions/process-product-old-images';
+import { syncUserAddressesFromLegacy } from '@/lib/db-pg/actions/process-user-addresses';
+import { createDefaultUser, syncUsersFromLegacy } from '@/lib/db-pg/actions/process-users';
+import { processOldProductImages, processOldProducts } from '@/lib/db-pg/actions/product';
 
 export function SyncContent() {
     const [loading, setLoading] = useState(false);

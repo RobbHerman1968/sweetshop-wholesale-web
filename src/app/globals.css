@@ -94,3 +94,26 @@ nextjs-portal {
   left: unset;
   top: unset;
 }
+
+.tiptap-editor-content table.table-show-borders,
+.tiptap-editor-content table.table-show-borders td,
+.tiptap-editor-content table.table-show-borders th,
+.cms-page-content table.table-show-borders,
+.cms-page-content table.table-show-borders td,
+.cms-page-content table.table-show-borders th {
+  border: 1px solid #d1d5db;
+}
+
+.tiptap-editor-content table.table-show-borders th {
+  background-color: #f3f4f6;
+}
+
+.cms-page-content table.table-show-borders,
+.cms-page-content table.table-show-borders td,
+.cms-page-content table.table-show-borders th {
+  border-color: #d1b79a;
+}
+
+.cms-page-content table.table-show-borders th {
+  background-color: #f6ebdd;
+}

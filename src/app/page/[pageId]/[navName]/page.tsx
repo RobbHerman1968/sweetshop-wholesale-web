@@ -8,6 +8,7 @@ import { buildPagePath, pageNavNamesMatch } from '@/lib/page-path';
 import { SITE_MAIN_FOCUS_CLASS, SITE_MAIN_ID } from '@/lib/site-main';
 import { cn } from '@/lib/utils';
 import { RICH_TEXT_IMAGE_ALIGN_CLASSES } from '@/components/ui/editor/tiptap-image-align';
+import { RICH_TEXT_TABLE_BASE_CLASSES } from '@/components/ui/editor/tiptap-table-borders';
 
 type Props = {
     params: Promise<{
@@ -66,7 +67,8 @@ export default async function CmsPage({ params }: Props) {
 
                         <article
                             className={cn(
-                                'cms-page-content text-xs leading-relaxed text-[#5c4032] [&_a]:text-[#4a2518] [&_a]:underline [&_a]:underline-offset-4 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:uppercase [&_h1]:tracking-[0.2em] [&_h1]:text-[#4a2518] [&_h2]:mb-3 [&_h2]:mt-6 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-[0.18em] [&_h2]:text-[#5c4032] [&_img]:my-4 [&_img]:max-w-full [&_li]:ml-5 [&_ol]:my-4 [&_ol]:list-decimal [&_p]:my-3 [&_table]:my-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[#d1b79a] [&_td]:p-2 [&_th]:border [&_th]:border-[#d1b79a] [&_th]:bg-[#f6ebdd] [&_th]:p-2 [&_th]:text-left [&_ul]:my-4 [&_ul]:list-disc',
+                                'cms-page-content text-xs leading-relaxed text-[#5c4032] [&_a]:text-[#4a2518] [&_a]:underline [&_a]:underline-offset-4 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:uppercase [&_h1]:tracking-[0.2em] [&_h1]:text-[#4a2518] [&_h2]:mb-3 [&_h2]:mt-6 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-[0.18em] [&_h2]:text-[#5c4032] [&_img]:my-4 [&_img]:max-w-full [&_li]:ml-5 [&_ol]:my-4 [&_ol]:list-decimal [&_p]:my-3 [&_ul]:my-4 [&_ul]:list-disc',
+                                RICH_TEXT_TABLE_BASE_CLASSES,
                                 RICH_TEXT_IMAGE_ALIGN_CLASSES,
                             )}
                             dangerouslySetInnerHTML={{ __html: page.content }}

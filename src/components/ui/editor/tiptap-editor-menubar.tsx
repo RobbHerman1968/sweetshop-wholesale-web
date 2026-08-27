@@ -92,6 +92,7 @@ export default function TipTapMenuBar({ editor, onOpenImagePicker }: TipTapMenuB
                     canDeleteTable: false,
                     canMergeCells: false,
                     canSplitCell: false,
+                    tableShowBorders: true,
                     fontSize: DEFAULT_FONT_SIZE,
                     textColor: DEFAULT_TEXT_COLOR,
                 };
@@ -144,6 +145,7 @@ export default function TipTapMenuBar({ editor, onOpenImagePicker }: TipTapMenuB
                 canDeleteTable: ctx.editor.can().chain().focus().deleteTable().run() ?? false,
                 canMergeCells: ctx.editor.can().chain().focus().mergeCells().run() ?? false,
                 canSplitCell: ctx.editor.can().chain().focus().splitCell().run() ?? false,
+                tableShowBorders: (ctx.editor.getAttributes('table').showBorders as boolean | undefined) ?? true,
                 fontSize: (ctx.editor.getAttributes('textStyle').fontSize as string | undefined) ?? DEFAULT_FONT_SIZE,
                 textColor: (ctx.editor.getAttributes('textStyle').color as string | undefined) ?? DEFAULT_TEXT_COLOR,
             };
@@ -277,6 +279,19 @@ export default function TipTapMenuBar({ editor, onOpenImagePicker }: TipTapMenuB
             </button>
             {editorState?.isInTable && (
                 <>
+                    <button
+                        type="button"
+                        onClick={() => editor.chain().focus().toggleTableBorders().run()}
+                        className={`rounded border border-gray-500 px-2 py-1 text-[10px] font-medium text-black ${editorState?.tableShowBorders ? 'bg-gray-700 text-white' : ''}`}
+                        title={
+                            editorState?.tableShowBorders
+                                ? 'Hide borders on this table'
+                                : 'Show borders on this table'
+                        }
+                        aria-pressed={editorState?.tableShowBorders}
+                    >
+                        Table borders
+                    </button>
                     <button type="button" onClick={() => editor.chain().focus().addRowBefore().run()} className="rounded border border-gray-500 p-1 text-black" title="Add row above" disabled={!editorState?.canAddRowBefore}>
                         <Rows3 size={18} />
                     </button>

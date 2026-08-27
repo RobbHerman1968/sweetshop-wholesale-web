@@ -12,6 +12,8 @@ type PublicSiteShellClientProps = {
     initialCartItemCount: number;
     initialAccountDisplayName?: string | null;
     initialAccountShippingLeadTime?: number | null;
+    termsPageHref?: string | null;
+    privacyPageHref?: string | null;
 };
 
 export function PublicSiteShellClient({
@@ -20,6 +22,8 @@ export function PublicSiteShellClient({
     initialCartItemCount,
     initialAccountDisplayName = null,
     initialAccountShippingLeadTime = null,
+    termsPageHref = null,
+    privacyPageHref = null,
 }: PublicSiteShellClientProps) {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
 
@@ -33,7 +37,7 @@ export function PublicSiteShellClient({
                 initialAccountShippingLeadTime={initialAccountShippingLeadTime}
             />
             {children}
-            <SiteFooter />
+            <SiteFooter termsPageHref={termsPageHref} privacyPageHref={privacyPageHref} />
             <LoginDialog open={isLoginOpen} onOpenChange={setIsLoginOpen} />
         </div>
     );

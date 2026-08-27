@@ -4,13 +4,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { TableKit } from '@tiptap/extension-table';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import 'prosemirror-tables/style/tables.css';
 
 import TipTapMenuBar from './tiptap-editor-menubar';
 import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle, Color, FontSize } from '@tiptap/extension-text-style';
 import { ImageWithAlign, RICH_TEXT_IMAGE_ALIGN_CLASSES } from './tiptap-image-align';
+import {
+    RICH_TEXT_TABLE_BASE_CLASSES,
+    TableWithBorders,
+} from './tiptap-table-borders';
 import { EditorImagePickerDialog } from './editor-image-picker-dialog';
 import type { ImagePickerItem } from '@/lib/db-pg/actions/image';
 
@@ -20,6 +24,8 @@ interface Props {
     className?: string;
     maxHeight?: string;
 }
+
+const TABLE_EDITOR_CLASSES = RICH_TEXT_TABLE_BASE_CLASSES;
 
 function imageNodePosFromClick(editor: NonNullable<ReturnType<typeof useEditor>>, target: HTMLImageElement, clientX: number, clientY: number): number | null {
     try {
@@ -46,12 +52,13 @@ export default function TiptapEditor({ name, defaultValue = '', className, maxHe
             TextStyle,
             Color.configure({ types: ['textStyle'] }),
             FontSize,
-            TableKit.configure({
-                table: {
-                    resizable: true,
-                    handleWidth: 8,
-                },
+            TableWithBorders.configure({
+                resizable: true,
+                handleWidth: 8,
             }),
+            TableRow,
+            TableHeader,
+            TableCell,
             TextAlign.configure({
                 types: ['heading', 'paragraph'],
                 alignments: ['left', 'center', 'right', 'justify'],
@@ -141,7 +148,7 @@ export default function TiptapEditor({ name, defaultValue = '', className, maxHe
             <TipTapMenuBar editor={editor} onOpenImagePicker={openImagePicker} />
             <EditorContent
                 editor={editor}
-                className={`tiptap-editor-content text-[14px] text-black ${className ?? 'rounded border p-3'} ${RICH_TEXT_IMAGE_ALIGN_CLASSES} [&_.ProseMirror]:text-[14px] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:cursor-pointer [&_img]:rounded [&_img]:ring-offset-1 hover:[&_img]:ring-2 hover:[&_img]:ring-[#c49a78] [&_.ProseMirror-selectednode_img]:ring-2 [&_.ProseMirror-selectednode_img]:ring-[#6e4a34] [&_table]:border [&_table]:border-collapse [&_table]:w-full [&_th]:border [&_th]:border-gray-300 [&_th]:bg-gray-100 [&_th]:p-2 [&_th]:text-left [&_td]:border [&_td]:border-gray-300 [&_td]:p-2`}
+                className={`tiptap-editor-content text-[14px] text-black ${className ?? 'rounded border p-3'} ${RICH_TEXT_IMAGE_ALIGN_CLASSES} [&_.ProseMirror]:text-[14px] [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:cursor-pointer [&_img]:rounded [&_img]:ring-offset-1 hover:[&_img]:ring-2 hover:[&_img]:ring-[#c49a78] [&_.ProseMirror-selectednode_img]:ring-2 [&_.ProseMirror-selectednode_img]:ring-[#6e4a34] ${TABLE_EDITOR_CLASSES}`}
                 style={{
                     maxHeight,
                     overflowY: 'auto',

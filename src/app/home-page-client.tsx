@@ -17,6 +17,8 @@ type HomePageClientProps = {
     initialCartItemCount: number;
     initialAccountDisplayName?: string | null;
     initialAccountShippingLeadTime?: number | null;
+    termsPageHref?: string | null;
+    privacyPageHref?: string | null;
 };
 
 export function HomePageClient({
@@ -24,6 +26,8 @@ export function HomePageClient({
     initialCartItemCount,
     initialAccountDisplayName = null,
     initialAccountShippingLeadTime = null,
+    termsPageHref = null,
+    privacyPageHref = null,
 }: HomePageClientProps) {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
 
@@ -113,7 +117,7 @@ export function HomePageClient({
 
             <LoginDialog open={isLoginOpen} onOpenChange={setIsLoginOpen} />
 
-            <SiteFooter />
+            <SiteFooter termsPageHref={termsPageHref} privacyPageHref={privacyPageHref} />
         </div>
     );
 }

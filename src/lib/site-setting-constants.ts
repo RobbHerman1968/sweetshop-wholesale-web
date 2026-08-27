@@ -10,6 +10,9 @@ export const NOTIFY_ACCOUNTMATE_FAILURE_SETTING_ID = 3;
 /** Site setting id for the from address used when sending site emails. */
 export const SEND_EMAIL_FROM_SETTING_ID = 4;
 
+/** Default Resend from header: display name plus angle-bracket email. */
+export const DEFAULT_SEND_EMAIL_FROM = 'Sweetshopusawholesale <no-reply@sweetshopusawholesale.com>';
+
 /** Site setting id for the developer email address used for order support. */
 export const DEVELOPER_EMAIL_SETTING_ID = 5;
 
@@ -46,7 +49,7 @@ export function getSiteSettingHelperText(id: number, kind: SiteSettingKind): str
     }
 
     if (id === SEND_EMAIL_FROM_SETTING_ID) {
-        return 'From address used when sending site emails.';
+        return 'From header for site emails. Use display name plus email, e.g. Sweetshopusawholesale <no-reply@sweetshopusawholesale.com>. The domain must be verified in Resend.';
     }
 
     if (id === DEVELOPER_EMAIL_SETTING_ID) {
@@ -61,6 +64,10 @@ export function getSiteSettingHelperText(id: number, kind: SiteSettingKind): str
 }
 
 export function getSiteSettingEmailPlaceholder(id: number): string {
+    if (id === SEND_EMAIL_FROM_SETTING_ID) {
+        return DEFAULT_SEND_EMAIL_FROM;
+    }
+
     if (id === DEVELOPER_EMAIL_SETTING_ID) {
         return 'developer@example.com';
     }
@@ -70,4 +77,8 @@ export function getSiteSettingEmailPlaceholder(id: number): string {
     }
 
     return 'noreply@sweetshopusa.com';
+}
+
+export function isEmailFromSiteSetting(id: number): boolean {
+    return id === SEND_EMAIL_FROM_SETTING_ID;
 }

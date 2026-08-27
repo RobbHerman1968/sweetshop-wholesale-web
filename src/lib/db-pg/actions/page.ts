@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db-pg';
 import { page } from '@/lib/drizzle/schema';
-import { and, asc, eq, ilike, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, or, sql } from 'drizzle-orm';
 import { buildPagePath, slugifyPageNavName } from '@/lib/page-path';
 
 export type SitePage = {
@@ -55,6 +55,68 @@ export const getPageById = cache(async (pageId: number): Promise<SitePage | null
     if (!match) return null;
 
     return mapPageRow(match);
+});
+
+type FooterLegalPageLinks = {
+    termsPageHref: string | null;
+    privacyPageHref: string | null;
+};
+
+async function getActivePagePathByPatterns(options: {
+    defaultName: string;
+    namePattern: string;
+    navPattern: string;
+}): Promise<string | null> {
+    const navSlug = slugifyPageNavName(options.defaultName);
+
+    const [row] = await db
+        .select({
+            id: page.id,
+            navName: page.navName,
+            name: page.name,
+        })
+        .from(page)
+        .where(
+            and(
+                eq(page.isActive, true),
+                or(
+                    eq(page.navName, navSlug),
+                    ilike(page.name, options.namePattern),
+                    ilike(page.navName, options.navPattern),
+                ),
+            ),
+        )
+        .orderBy(asc(page.id))
+        .limit(1);
+
+    if (!row) {
+        return null;
+    }
+
+    return buildPagePath(row.id, row.navName?.trim() || row.name?.trim() || navSlug);
+}
+
+export const getFooterLegalPageLinks = cache(async (): Promise<FooterLegalPageLinks> => {
+    const [termsPageHref, privacyPageHref] = await Promise.all([
+        getActivePagePathByPatterns({
+            defaultName: 'Terms and Conditions',
+            namePattern: '%terms%condition%',
+            navPattern: '%terms%condition%',
+        }),
+        getActivePagePathByPatterns({
+            defaultName: 'Privacy Policy',
+            namePattern: '%privacy%policy%',
+            navPattern: '%privacy%policy%',
+        }),
+    ]);
+
+    return { termsPageHref, privacyPageHref };
+});
+
+/** @deprecated Use getFooterLegalPageLinks instead. */
+export const getTermsAndConditionsPagePath = cache(async (): Promise<string | null> => {
+    const links = await getFooterLegalPageLinks();
+    return links.termsPageHref;
 });
 
 export async function getPageByIdForManage(pageId: number): Promise<SitePage | null> {
@@ -159,6 +221,7 @@ function revalidatePagePaths(pageId: number, navName: string) {
     revalidatePath(`/manage/pages/${pageId}`);
     revalidatePath(buildPagePath(pageId, navName));
     revalidatePath(`/page/${pageId}`);
+    revalidatePath('/');
 }
 
 export async function createPageFromForm(formData: FormData): Promise<PageFormResult> {
