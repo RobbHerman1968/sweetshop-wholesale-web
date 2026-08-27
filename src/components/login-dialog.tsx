@@ -55,7 +55,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             });
 
             if (result?.error) {
-                setSubmitError('Invalid email/username or password.');
+                setSubmitError('Invalid email, AccountMate ID, or password.');
                 return;
             }
             if (result?.ok) {
@@ -93,7 +93,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                             </DialogClose>
                         </div>
                         <DialogDescription className="mt-2 text-xs text-[#7c5b44]">
-                            Enter your username and password to access your wholesale account.
+                            Enter your email or AccountMate ID and password to access your wholesale account.
                         </DialogDescription>
                     </DialogHeader>
                     <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
@@ -103,12 +103,12 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                             </p>
                         )}
                         <div className="space-y-1">
-                            <Label htmlFor="login-email">Email / Username</Label>
+                            <Label htmlFor="login-email">Email / AccountMate ID</Label>
                             <Input
                                 id="login-email"
                                 type="text"
                                 autoComplete="username"
-                                placeholder="you@example.com"
+                                placeholder="you@example.com or AccountMate ID"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className={errors.email ? 'border-red-500' : ''}

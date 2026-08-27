@@ -43,7 +43,7 @@ export function EditUserContent({ user, linkedAccount, backHref }: Props) {
                 <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                         <Label htmlFor="edit-user-userName" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                            Username / email
+                            Email
                         </Label>
                         <Input id="edit-user-userName" name="userName" type="email" defaultValue={user.userName} className="w-full" required />
                     </div>

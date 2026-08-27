@@ -1,6 +1,15 @@
 'use client';
 
-import { CheckoutFormRow, CheckoutSectionTitle, checkoutFieldClass, checkoutFieldInvalidClass, checkoutSelectClass, checkoutTextClass } from '@/components/checkout/checkout-form-row';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    CheckoutFormRow,
+    CheckoutSectionTitle,
+    checkoutFieldInvalidClass,
+    checkoutInputClass,
+    checkoutSelectTriggerClass,
+    checkoutTextClass,
+} from '@/components/checkout/checkout-form-row';
 import type { CheckoutPaymentForm } from '@/lib/checkout-types';
 import {
     detectCardType,
@@ -66,16 +75,16 @@ export function CheckoutStepPayment({ form, accountIsTerms, accountTerms, onChan
 
             <section className="rounded-sm border border-[#e8dfd4] bg-white px-3 sm:px-4">
                 <CheckoutFormRow label="Name on Card" required>
-                    <input
-                        className={checkoutFieldClass}
+                    <Input
+                        className={checkoutInputClass}
                         value={form.cardName}
                         onChange={(e) => patch({ cardName: e.target.value })}
                         autoComplete="cc-name"
                     />
                 </CheckoutFormRow>
                 <CheckoutFormRow label="Card Number" required>
-                    <input
-                        className={cn(checkoutFieldClass, cardNumberError && checkoutFieldInvalidClass)}
+                    <Input
+                        className={cn(checkoutInputClass, cardNumberError && checkoutFieldInvalidClass)}
                         value={formattedCardNumber}
                         onChange={(e) => onChange(handleCardNumberChange(form, e.target.value))}
                         autoComplete="cc-number"
@@ -91,8 +100,8 @@ export function CheckoutStepPayment({ form, accountIsTerms, accountTerms, onChan
                     ) : null}
                 </CheckoutFormRow>
                 <CheckoutFormRow label="Card Type">
-                    <input
-                        className={cn(checkoutFieldClass, 'bg-[#fafafa]', cardNumberError && checkoutFieldInvalidClass)}
+                    <Input
+                        className={cn(checkoutInputClass, 'bg-[#fafafa]', cardNumberError && checkoutFieldInvalidClass)}
                         value={cardTypeLabel}
                         readOnly
                         tabIndex={-1}
@@ -102,43 +111,47 @@ export function CheckoutStepPayment({ form, accountIsTerms, accountTerms, onChan
                 </CheckoutFormRow>
                 <CheckoutFormRow label="Expiration" required>
                     <div className="grid gap-2 sm:grid-cols-2">
-                        <select
-                            className={checkoutSelectClass}
-                            value={form.cardMonth}
-                            onChange={(e) => patch({ cardMonth: e.target.value })}
-                            autoComplete="cc-exp-month"
+                        <Select
+                            value={form.cardMonth || undefined}
+                            onValueChange={(value) => patch({ cardMonth: value })}
                         >
-                            <option value="">Month</option>
-                            {Array.from({ length: 12 }, (_, index) => {
-                                const month = String(index + 1).padStart(2, '0');
-                                return (
-                                    <option key={month} value={month}>
-                                        {month}
-                                    </option>
-                                );
-                            })}
-                        </select>
-                        <select
-                            className={checkoutSelectClass}
-                            value={form.cardYear}
-                            onChange={(e) => patch({ cardYear: e.target.value })}
-                            autoComplete="cc-exp-year"
+                            <SelectTrigger className={checkoutSelectTriggerClass}>
+                                <SelectValue placeholder="Month" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Array.from({ length: 12 }, (_, index) => {
+                                    const month = String(index + 1).padStart(2, '0');
+                                    return (
+                                        <SelectItem key={month} value={month} className="normal-case">
+                                            {month}
+                                        </SelectItem>
+                                    );
+                                })}
+                            </SelectContent>
+                        </Select>
+                        <Select
+                            value={form.cardYear || undefined}
+                            onValueChange={(value) => patch({ cardYear: value })}
                         >
-                            <option value="">Year</option>
-                            {Array.from({ length: 12 }, (_, index) => {
-                                const year = String(new Date().getFullYear() + index);
-                                return (
-                                    <option key={year} value={year}>
-                                        {year}
-                                    </option>
-                                );
-                            })}
-                        </select>
+                            <SelectTrigger className={checkoutSelectTriggerClass}>
+                                <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Array.from({ length: 12 }, (_, index) => {
+                                    const year = String(new Date().getFullYear() + index);
+                                    return (
+                                        <SelectItem key={year} value={year} className="normal-case">
+                                            {year}
+                                        </SelectItem>
+                                    );
+                                })}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CheckoutFormRow>
                 <CheckoutFormRow label="Security Code" required className="border-b-0">
-                    <input
-                        className={checkoutFieldClass}
+                    <Input
+                        className={checkoutInputClass}
                         value={form.cardCcv}
                         onChange={(e) => patch({ cardCcv: normalizeCardDigits(e.target.value).slice(0, cvvMaxLength) })}
                         autoComplete="cc-csc"

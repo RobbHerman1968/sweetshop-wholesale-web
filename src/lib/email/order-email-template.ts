@@ -236,13 +236,8 @@ function renderTotalsBox(data: OrderEmailData): string {
 }
 
 function renderPaymentSummary(payment: OrderEmailPayment): string {
-    const lastFour = payment.lastFour?.trim();
-    const masked = lastFour ? `•••• ${escapeHtml(lastFour.replace(/^\*+/, ''))}` : '—';
-
     return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
         ${renderMetaRow('Card type', escapeHtmlOrDash(payment.cardType))}
-        ${renderMetaRow('Last four', masked)}
-        ${renderMetaRow('Expiration', escapeHtmlOrDash(payment.expiration))}
     </table>`;
 }
 
@@ -250,7 +245,6 @@ function renderFulfillmentSummary(fulfillment: OrderEmailFulfillment): string {
     return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
         ${renderMetaRow('Expected delivery', escapeHtml(formatExpectedDeliveryDate(fulfillment.expectedDeliveryDate)))}
         ${renderMetaRow('Ship code', escapeHtmlOrDash(fulfillment.shippingCode))}
-        ${renderMetaRow('AccountMate order #', fulfillment.accountMateOrderNumber != null ? escapeHtml(String(fulfillment.accountMateOrderNumber)) : '—')}
     </table>`;
 }
 
@@ -408,11 +402,13 @@ export function buildOrderEmail(data: OrderEmailData, options: BuildOrderEmailOp
                     <tr>
                         <td style="padding:28px;background:${BRAND.cream};border:1px solid ${BRAND.tan};border-top:none;border-radius:0 0 16px 16px;">
                             ${introBlock}
-                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;margin-bottom:24px;">
-                                ${renderMetaRow('Customer', escapeHtml(data.customer.name))}
-                                ${data.customer.email ? renderMetaRow('Email', escapeHtml(data.customer.email)) : ''}
-                                ${showOrderType && data.isNewCustomerOrder ? renderMetaRow('Order type', 'New customer order') : ''}
-                            </table>
+                            ${
+                                showOrderType && data.isNewCustomerOrder
+                                    ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;margin-bottom:24px;">
+                                ${renderMetaRow('Order type', 'New customer order')}
+                            </table>`
+                                    : ''
+                            }
 
                             ${addressSection ? `<div style="margin-bottom:24px;">${renderSectionTitle('Addresses')}${addressSection}</div>` : ''}
 
@@ -443,10 +439,8 @@ export function buildOrderEmail(data: OrderEmailData, options: BuildOrderEmailOp
         `Sweet Shop USA Order #${data.orderNumber}`,
         `Placed: ${formatOrderDate(data.orderDate)}`,
         '',
-        `Customer: ${data.customer.name}`,
-        data.customer.email ? `Email: ${data.customer.email}` : null,
         showOrderType && data.isNewCustomerOrder ? 'Order type: New customer order' : null,
-        '',
+        showOrderType && data.isNewCustomerOrder ? '' : null,
         ...sortedAddresses.flatMap(renderPlainAddress),
         'Line items:',
         ...data.items.map(
@@ -466,8 +460,6 @@ export function buildOrderEmail(data: OrderEmailData, options: BuildOrderEmailOp
                   '',
                   'Payment:',
                   `Card type: ${data.payment.cardType?.trim() || '—'}`,
-                  `Last four: ${data.payment.lastFour?.trim() || '—'}`,
-                  `Expiration: ${data.payment.expiration?.trim() || '—'}`,
               ].join('\n')
             : null,
         showFulfillment
@@ -476,7 +468,6 @@ export function buildOrderEmail(data: OrderEmailData, options: BuildOrderEmailOp
                   'Fulfillment:',
                   `Expected delivery: ${formatExpectedDeliveryDate(data.fulfillment.expectedDeliveryDate)}`,
                   `Ship code: ${data.fulfillment.shippingCode?.trim() || '—'}`,
-                  `AccountMate order #: ${data.fulfillment.accountMateOrderNumber ?? '—'}`,
               ].join('\n')
             : null,
         data.comment ? `\nComment:\n${data.comment}` : null,
@@ -547,7 +538,5 @@ export function buildOrderDeveloperEmailContent(detail: ManageOrderDetail): Orde
         subject: `Sweet Shop USA Order #${detail.order.orderNumber ?? detail.order.id}`,
         headline: `Order #${detail.order.orderNumber ?? detail.order.id}`,
         preheader: 'Order details sent for developer review.',
-        introHtml: 'An administrator requested that this wholesale order be sent for developer review.',
-        introText: 'An administrator requested that this wholesale order be sent for developer review.',
     });
 }

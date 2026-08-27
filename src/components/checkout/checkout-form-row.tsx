@@ -37,13 +37,15 @@ export const checkoutLabelClass = 'text-sm font-bold text-[#4a2518]';
 
 export const checkoutChoiceClass = 'inline-flex items-center gap-2 text-sm text-[#4a2518]';
 
-export const checkoutFieldInvalidClass = 'border-red-500';
+export const checkoutFieldInvalidClass = 'border-red-500 focus:ring-red-300';
 
-const checkoutControlBaseClass =
-    'flex h-9 min-w-0 rounded-sm border border-[#cfcfcf] bg-white px-2 py-1 text-base leading-normal text-[#4a2518] outline-none placeholder:text-base placeholder:text-[#6e4a34] sm:text-sm sm:placeholder:text-sm';
+/** Checkout overrides for shadcn Input / Textarea (keep form look consistent). */
+export const checkoutInputClass = 'border-[#cfcfcf] text-[#4a2518] placeholder:text-[#6e4a34]';
 
-export const checkoutFieldClass = cn(checkoutControlBaseClass, 'w-full');
+/** Checkout overrides for shadcn SelectTrigger (form-field look vs manage uppercase chrome). */
+export const checkoutSelectTriggerClass =
+    'border-[#cfcfcf] bg-white text-sm font-normal normal-case tracking-normal text-[#4a2518] shadow-none focus-visible:ring-amber-300';
 
-export const checkoutSelectClass = cn(checkoutControlBaseClass, 'w-full');
-
-export const checkoutCompactFieldClass = cn(checkoutControlBaseClass, 'w-36 shrink-0');
+export const checkoutCompactFieldClass = cn(
+    'inline-flex h-9 w-36 shrink-0 items-center justify-between gap-2 rounded-md border border-[#cfcfcf] bg-white px-3 py-2 text-sm text-[#4a2518] outline-none ring-amber-300 focus:ring',
+);

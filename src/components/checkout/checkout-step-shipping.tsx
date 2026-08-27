@@ -3,16 +3,19 @@
 import { useMemo, useState } from 'react';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import {
     CheckoutFormRow,
     CheckoutSectionTitle,
     checkoutChoiceClass,
     checkoutCompactFieldClass,
-    checkoutFieldClass,
     checkoutFieldInvalidClass,
+    checkoutInputClass,
     checkoutLabelClass,
-    checkoutSelectClass,
+    checkoutSelectTriggerClass,
     checkoutTextClass,
 } from '@/components/checkout/checkout-form-row';
 import {
@@ -102,23 +105,29 @@ export function CheckoutStepShipping({
 
                 <div className="rounded-sm border border-[#e8dfd4] bg-white px-3 sm:px-4">
                     <CheckoutFormRow label="Address" required>
-                        <select
-                            className={checkoutSelectClass}
+                        <Select
                             value={form.selectedAddressId === 'new' ? 'new' : String(form.selectedAddressId)}
-                            onChange={(e) => handleAddressSelection(e.target.value)}
+                            onValueChange={handleAddressSelection}
                         >
-                            <option value="new">New Address</option>
-                            {savedAddresses.map((address) => (
-                                <option key={address.id} value={address.id}>
-                                    {address.name || `${address.firstName} ${address.lastName}`.trim() || `Address ${address.id}`}
-                                </option>
-                            ))}
-                        </select>
+                            <SelectTrigger className={checkoutSelectTriggerClass}>
+                                <SelectValue placeholder="New Address" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="new" className="normal-case">
+                                    New Address
+                                </SelectItem>
+                                {savedAddresses.map((address) => (
+                                    <SelectItem key={address.id} value={String(address.id)} className="normal-case">
+                                        {address.name || `${address.firstName} ${address.lastName}`.trim() || `Address ${address.id}`}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="Address Name" required>
-                        <input
-                            className={fieldClass('addressName', checkoutFieldClass)}
+                        <Input
+                            className={fieldClass('addressName', checkoutInputClass)}
                             value={form.addressName}
                             onChange={(e) => patch({ addressName: e.target.value })}
                             aria-invalid={invalid('addressName') || undefined}
@@ -126,8 +135,8 @@ export function CheckoutStepShipping({
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="First Name" required>
-                        <input
-                            className={fieldClass('firstName', checkoutFieldClass)}
+                        <Input
+                            className={fieldClass('firstName', checkoutInputClass)}
                             value={form.firstName}
                             onChange={(e) => patch({ firstName: e.target.value })}
                             aria-invalid={invalid('firstName') || undefined}
@@ -135,8 +144,8 @@ export function CheckoutStepShipping({
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="Last Name" required>
-                        <input
-                            className={fieldClass('lastName', checkoutFieldClass)}
+                        <Input
+                            className={fieldClass('lastName', checkoutInputClass)}
                             value={form.lastName}
                             onChange={(e) => patch({ lastName: e.target.value })}
                             aria-invalid={invalid('lastName') || undefined}
@@ -144,16 +153,16 @@ export function CheckoutStepShipping({
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="Company Name">
-                        <input
-                            className={checkoutFieldClass}
+                        <Input
+                            className={checkoutInputClass}
                             value={form.companyName}
                             onChange={(e) => patch({ companyName: e.target.value })}
                         />
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="Address" required>
-                        <input
-                            className={fieldClass('addressLine1', checkoutFieldClass)}
+                        <Input
+                            className={fieldClass('addressLine1', checkoutInputClass)}
                             value={form.addressLine1}
                             onChange={(e) => patch({ addressLine1: e.target.value })}
                             aria-invalid={invalid('addressLine1') || undefined}
@@ -161,16 +170,16 @@ export function CheckoutStepShipping({
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="Address Line 2">
-                        <input
-                            className={checkoutFieldClass}
+                        <Input
+                            className={checkoutInputClass}
                             value={form.addressLine2}
                             onChange={(e) => patch({ addressLine2: e.target.value })}
                         />
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="City" required>
-                        <input
-                            className={fieldClass('city', checkoutFieldClass)}
+                        <Input
+                            className={fieldClass('city', checkoutInputClass)}
                             value={form.city}
                             onChange={(e) => patch({ city: e.target.value })}
                             aria-invalid={invalid('city') || undefined}
@@ -179,21 +188,26 @@ export function CheckoutStepShipping({
 
                     <CheckoutFormRow label="State" required>
                         <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem]">
-                            <select
-                                className={fieldClass('state', checkoutSelectClass)}
-                                value={form.state}
-                                onChange={(e) => patch({ state: e.target.value })}
-                                aria-invalid={invalid('state') || undefined}
+                            <Select
+                                value={form.state || undefined}
+                                onValueChange={(value) => patch({ state: value })}
                             >
-                                <option value="">Please Select</option>
-                                {US_STATE_OPTIONS.map((state) => (
-                                    <option key={state.abbr} value={state.abbr}>
-                                        {state.name}
-                                    </option>
-                                ))}
-                            </select>
-                            <input
-                                className={fieldClass('zipCode', cn(checkoutFieldClass, 'text-center'))}
+                                <SelectTrigger
+                                    className={fieldClass('state', checkoutSelectTriggerClass)}
+                                    aria-invalid={invalid('state') || undefined}
+                                >
+                                    <SelectValue placeholder="Please Select" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {US_STATE_OPTIONS.map((state) => (
+                                        <SelectItem key={state.abbr} value={state.abbr} className="normal-case">
+                                            {state.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                className={fieldClass('zipCode', cn(checkoutInputClass, 'text-center'))}
                                 value={form.zipCode}
                                 onChange={(e) => patch({ zipCode: e.target.value })}
                                 placeholder="Zip"
@@ -204,26 +218,31 @@ export function CheckoutStepShipping({
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="Country" required>
-                        <select
-                            className={fieldClass('country', checkoutSelectClass)}
-                            value={form.country}
-                            onChange={(e) => patch({ country: e.target.value })}
-                            aria-invalid={invalid('country') || undefined}
+                        <Select
+                            value={form.country || undefined}
+                            onValueChange={(value) => patch({ country: value })}
                         >
-                            <option value="">Please Select</option>
-                            {CHECKOUT_COUNTRIES.map((country) => (
-                                <option key={country} value={country}>
-                                    {country}
-                                </option>
-                            ))}
-                        </select>
+                            <SelectTrigger
+                                className={fieldClass('country', checkoutSelectTriggerClass)}
+                                aria-invalid={invalid('country') || undefined}
+                            >
+                                <SelectValue placeholder="Please Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {CHECKOUT_COUNTRIES.map((country) => (
+                                    <SelectItem key={country} value={country} className="normal-case">
+                                        {country}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="Email Address" required>
                         <div className="space-y-1">
-                            <input
+                            <Input
                                 type="email"
-                                className={fieldClass('emailAddress', checkoutFieldClass)}
+                                className={fieldClass('emailAddress', checkoutInputClass)}
                                 value={form.emailAddress}
                                 onChange={(e) => patch({ emailAddress: e.target.value })}
                                 aria-invalid={invalid('emailAddress') || undefined}
@@ -238,9 +257,9 @@ export function CheckoutStepShipping({
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="Phone Number" required>
-                        <input
+                        <Input
                             type="tel"
-                            className={fieldClass('phoneNumber', checkoutFieldClass)}
+                            className={fieldClass('phoneNumber', checkoutInputClass)}
                             value={formatPhoneDisplay(form.phoneNumber)}
                             onChange={(e) => patch({ phoneNumber: normalizePhoneDigits(e.target.value) })}
                             inputMode="numeric"
@@ -280,8 +299,8 @@ export function CheckoutStepShipping({
                 <p className={checkoutTextClass}>
                     Please format your gift message or comment by entering up to {CHECKOUT_COMMENT_MAX_LENGTH} characters
                 </p>
-                <textarea
-                    className={fieldClass('comment', cn(checkoutFieldClass, 'min-h-28 resize-y py-2'))}
+                <Textarea
+                    className={fieldClass('comment', cn(checkoutInputClass, 'min-h-28 resize-y'))}
                     maxLength={CHECKOUT_COMMENT_MAX_LENGTH}
                     value={form.comment}
                     onChange={(e) => patch({ comment: e.target.value })}
@@ -316,10 +335,7 @@ export function CheckoutStepShipping({
                                     type="button"
                                     className={fieldClass(
                                         'expectedDeliveryDate',
-                                        cn(
-                                            checkoutCompactFieldClass,
-                                            'inline-flex items-center justify-between gap-2 text-left whitespace-nowrap',
-                                        ),
+                                        cn(checkoutCompactFieldClass, 'text-left whitespace-nowrap'),
                                     )}
                                     aria-invalid={invalid('expectedDeliveryDate') || undefined}
                                 >
@@ -337,7 +353,9 @@ export function CheckoutStepShipping({
                                     disabled={(date) => date < minDeliveryDate || isWeekendDate(date)}
                                     onSelect={(date) => {
                                         if (!date) return;
-                                        patch({ expectedDeliveryDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` });
+                                        patch({
+                                            expectedDeliveryDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+                                        });
                                         setCalendarOpen(false);
                                     }}
                                 />

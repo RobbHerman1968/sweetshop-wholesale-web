@@ -1,6 +1,10 @@
 import { notFound } from 'next/navigation';
 import { getOrderByIdForManage } from '@/lib/db-pg/actions/order';
-import { getDeveloperEmailAddress, getSendEmailFromAddress } from '@/lib/db-pg/actions/site-setting';
+import {
+    getDeveloperEmailAddress,
+    getSalesOrderEmailAddress,
+    getSendEmailFromAddress,
+} from '@/lib/db-pg/actions/site-setting';
 import { OrderDetailContent } from './order-detail-content';
 
 type Props = {
@@ -19,10 +23,11 @@ export default async function ManageOrderDetailPage({ params, searchParams }: Pr
     const { orderId: orderIdParam } = await params;
     const { returnTo } = await searchParams;
     const orderId = parseInt(orderIdParam, 10);
-    const [detail, sendEmailFrom, developerEmail] = await Promise.all([
+    const [detail, sendEmailFrom, developerEmail, salesEmail] = await Promise.all([
         Number.isFinite(orderId) ? getOrderByIdForManage(orderId) : Promise.resolve(null),
         getSendEmailFromAddress(),
         getDeveloperEmailAddress(),
+        getSalesOrderEmailAddress(),
     ]);
 
     if (!detail) {
@@ -35,6 +40,7 @@ export default async function ManageOrderDetailPage({ params, searchParams }: Pr
             backHref={resolveBackHref(returnTo)}
             sendEmailFrom={sendEmailFrom}
             developerEmail={developerEmail}
+            salesEmail={salesEmail}
         />
     );
 }

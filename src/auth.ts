@@ -1,7 +1,7 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import * as argon2 from 'argon2';
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db-pg';
 import { user } from '@/lib/drizzle/schema';
 import { loginSchema } from '@/lib/validations/auth';
@@ -10,6 +10,41 @@ import { syncUserAccountFromAccountMate } from '@/lib/db-pg/actions/account';
 import { isHebAccountMateId } from '@/lib/shop-shopping-menu';
 
 export { loginSchema } from '@/lib/validations/auth';
+
+async function findUserForLogin(loginId: string) {
+    const normalized = loginId.trim().toLowerCase();
+    if (!normalized) {
+        return null;
+    }
+
+    const [byUserName] = await db
+        .select()
+        .from(user)
+        .where(sql`lower(trim(${user.userName})) = ${normalized}`)
+        .limit(1);
+
+    if (byUserName) {
+        return byUserName;
+    }
+
+    const byAccountMateId = await db
+        .select()
+        .from(user)
+        .where(
+            and(
+                sql`lower(trim(coalesce(${user.accountMateId}, ''))) = ${normalized}`,
+                eq(user.isActive, true),
+            ),
+        )
+        .limit(2);
+
+    // Ambiguous AccountMate IDs should not authenticate.
+    if (byAccountMateId.length === 1) {
+        return byAccountMateId[0];
+    }
+
+    return null;
+}
 
 const authOptions: NextAuthOptions = {
     providers: [
@@ -26,8 +61,7 @@ const authOptions: NextAuthOptions = {
                 }
 
                 const { email: loginId, password } = parsed.data;
-
-                const [found] = await db.select().from(user).where(eq(user.userName, loginId)).limit(1);
+                const found = await findUserForLogin(loginId);
 
                 if (!found || !found.isActive) {
                     return null;

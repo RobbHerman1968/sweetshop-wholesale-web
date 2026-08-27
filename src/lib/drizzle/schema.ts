@@ -32,6 +32,19 @@ export const user = pgTable("user", {
 	unique("user_username_unique").on(table.userName),
 ]);
 
+export const userReset = pgTable("userReset", {
+	id: serial().primaryKey().notNull(),
+	userId: integer().notNull(),
+	resetValue: integer().notNull(),
+	validUntil: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "userReset_user_id_fk"
+		}),
+]);
+
 export const account = pgTable("account", {
 	id: serial().primaryKey().notNull(),
 	accountMateId: text(),

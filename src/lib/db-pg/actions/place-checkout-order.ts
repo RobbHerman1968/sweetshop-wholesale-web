@@ -26,7 +26,7 @@ import { getEffectiveWholesaleAccountIdForShopCatalog } from '@/lib/wholesale-ac
 import { parseUserId } from '@/lib/user-id';
 import { insertOrderLog, isAccountMateSuccessStatus } from '@/lib/db-pg/actions/order-log';
 import { sendOrderConfirmationEmails } from '@/lib/db-pg/actions/send-order-confirmation-emails';
-import { placeWholesaleOrder, parseAccountMateOrderNumber } from '@/lib/wholesale-api';
+import { placeWholesaleOrder, parseAccountMateId, parseAccountMateOrderNumber } from '@/lib/wholesale-api';
 import { normalizeCardDigits } from '@/lib/checkout-payment-validation';
 
 export type PlaceCheckoutOrderInput = {
@@ -55,10 +55,12 @@ function toExpectedDeliveryTimestamp(value: string): string {
     return `${value.trim()}T12:00:00.000Z`;
 }
 
+const WEB_ORDER_NUMBER_START = 60000;
+
 async function allocateNextOrderNumber(): Promise<number> {
-    const [result] = await db.select({ max: sql<number>`coalesce(max(${order.orderNumber}), 9999)` }).from(order);
-    const next = Number(result?.max ?? 9999) + 1;
-    return next < 10000 ? 10000 : next;
+    const [result] = await db.select({ max: sql<number>`coalesce(max(${order.orderNumber}), ${WEB_ORDER_NUMBER_START - 1})` }).from(order);
+    const next = Number(result?.max ?? WEB_ORDER_NUMBER_START - 1) + 1;
+    return next < WEB_ORDER_NUMBER_START ? WEB_ORDER_NUMBER_START : next;
 }
 
 async function clearCartAfterOrder(cartId: number): Promise<void> {
@@ -77,7 +79,7 @@ async function clearCartAfterOrder(cartId: number): Promise<void> {
 }
 
 async function persistAccountMateId(accountId: number, userId: number, accountMateId: string): Promise<void> {
-    const trimmed = accountMateId.trim();
+    const trimmed = parseAccountMateId(accountMateId);
     if (!trimmed) {
         return;
     }

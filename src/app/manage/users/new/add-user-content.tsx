@@ -30,7 +30,10 @@ export function AddUserContent({ backHref }: Props) {
         <form onSubmit={handleSubmit} className="space-y-8">
             <header className="space-y-1">
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Add User</h1>
-                <p className="text-xs text-[#6e4a34]">Create a new wholesale login. All fields are required except AccountMate ID and access flags.</p>
+                <p className="text-xs text-[#6e4a34]">
+                    Create a new wholesale login. If an AccountMate ID is entered, the account must exist locally or in
+                    AccountMate before the user is created.
+                </p>
             </header>
 
             {error ? (
@@ -45,7 +48,7 @@ export function AddUserContent({ backHref }: Props) {
                 <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                         <Label htmlFor="add-user-userName" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                            Username / email
+                            Email
                         </Label>
                         <Input id="add-user-userName" name="userName" type="email" autoComplete="off" className="w-full" required />
                     </div>

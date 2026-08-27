@@ -159,7 +159,10 @@ export async function updateAccountFromForm(formData: FormData) {
     await db
         .update(account)
         .set({
-            accountMateId: trimFormValue(formData.get('accountMateId')),
+            accountMateId: (() => {
+                const raw = trimFormValue(formData.get('accountMateId'));
+                return raw ? parseAccountMateId(raw) : null;
+            })(),
             isSkipTax: readCheckbox(formData, 'isSkipTax'),
             isSkipShipping: readCheckbox(formData, 'isSkipShipping'),
             isFreeGroundShipping: readCheckbox(formData, 'isFreeGroundShipping'),
@@ -184,6 +187,74 @@ export async function updateAccountFromForm(formData: FormData) {
     revalidatePath('/shop', 'layout');
 }
 
+/**
+ * Ensures a local account exists for an AccountMate id.
+ * Uses the account table first; if missing, loads from AccountMate and inserts.
+ * Does not create anything when AccountMate has no match.
+ */
+export async function ensureAccountExistsForAccountMateId(
+    accountMateId: string,
+    options?: { contactEmail?: string | null },
+): Promise<{ ok: true; accountId: number; created: boolean } | { ok: false; error: string }> {
+    const parsed = parseAccountMateId(accountMateId);
+    if (!parsed) {
+        return { ok: false, error: 'Invalid AccountMate ID.' };
+    }
+
+    const [existing] = await db
+        .select({ id: account.id })
+        .from(account)
+        .where(eq(account.accountMateId, parsed))
+        .limit(1);
+
+    if (existing) {
+        return { ok: true, accountId: existing.id, created: false };
+    }
+
+    try {
+        const { account: accountMateRow } = await fetchWholesaleAccount(parsed);
+        if (!accountMateRow) {
+            return { ok: false, error: 'AccountMate ID was not found in AccountMate.' };
+        }
+
+        const mapped = mapAccountMateRowToAccountFields(accountMateRow);
+        const contactEmail = options?.contactEmail?.trim().toLowerCase() || null;
+
+        const [inserted] = await db
+            .insert(account)
+            .values({
+                accountMateId: parsed,
+                name: mapped.name,
+                contactFirstName: mapped.contactFirstName,
+                contactLastName: mapped.contactLastName,
+                contactPhone: mapped.contactPhone,
+                contactAddress1: mapped.contactAddress1,
+                contactAddress2: mapped.contactAddress2,
+                contactCity: mapped.contactCity,
+                contactState: mapped.contactState,
+                contactZipCode: mapped.contactZipCode,
+                terms: mapped.terms,
+                isTerms: mapped.isTerms,
+                contactEmail,
+                menuId: WHOLESALE_SHOPPING_MENU_ID,
+            })
+            .returning({ id: account.id });
+
+        if (!inserted) {
+            return { ok: false, error: 'Failed to create account.' };
+        }
+
+        revalidatePath('/manage/accounts');
+        return { ok: true, accountId: inserted.id, created: true };
+    } catch (err) {
+        console.error('[ensure account from AccountMate]', err);
+        return {
+            ok: false,
+            error: err instanceof Error ? err.message : 'Failed to load account from AccountMate.',
+        };
+    }
+}
+
 export async function reloadAccountFromAccountMate(
     accountId: number,
     accountMateId: string,
@@ -198,7 +269,7 @@ export async function reloadAccountFromAccountMate(
         return { ok: false as const, error: 'Account not found' };
     }
 
-    const trimmedAccountMateId = accountMateId.trim();
+    const trimmedAccountMateId = parseAccountMateId(accountMateId);
     if (!trimmedAccountMateId) {
         return { ok: false as const, error: 'AccountMate ID is required' };
     }

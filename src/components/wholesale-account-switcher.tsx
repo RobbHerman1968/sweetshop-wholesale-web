@@ -56,6 +56,7 @@ export function WholesaleAccountSwitcher({
     const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
     const [selectedAccountDisplayName, setSelectedAccountDisplayName] = useState<string | null>(null);
     const [shouldPersistCookie, setShouldPersistCookie] = useState(false);
+    const [shouldClearCookie, setShouldClearCookie] = useState(false);
     const [isAdminShopAs, setIsAdminShopAs] = useState(false);
     const [canShopAsAnyAccount, setCanShopAsAnyAccount] = useState(false);
     const [hasOwnedAccounts, setHasOwnedAccounts] = useState(false);
@@ -74,6 +75,7 @@ export function WholesaleAccountSwitcher({
             setSelectedAccountId(next.selectedAccountId);
             setSelectedAccountDisplayName(next.selectedAccountDisplayName);
             setShouldPersistCookie(next.shouldPersistCookie);
+            setShouldClearCookie(next.shouldClearCookie);
             setIsAdminShopAs(next.isAdminShopAs);
             setCanShopAsAnyAccount(next.canShopAsAnyAccount);
             setHasOwnedAccounts(next.hasOwnedAccounts);
@@ -93,6 +95,7 @@ export function WholesaleAccountSwitcher({
             setSelectedAccountId(null);
             setSelectedAccountDisplayName(null);
             setShouldPersistCookie(false);
+            setShouldClearCookie(false);
             setIsAdminShopAs(false);
             setCanShopAsAnyAccount(false);
             setHasOwnedAccounts(false);
@@ -105,7 +108,7 @@ export function WholesaleAccountSwitcher({
         void refreshState();
     }, [status, refreshState]);
 
-    /** After sign-in or when cookie is missing, persist the default (first) account so the header stays aligned with the server. */
+    /** After sign-in or when cookie is missing, persist the AccountMate default account. */
     useEffect(() => {
         if (status !== 'authenticated' || loading || !shouldPersistCookie || selectedAccountId == null) return;
         void (async () => {
@@ -116,6 +119,21 @@ export function WholesaleAccountSwitcher({
             router.refresh();
         })();
     }, [status, loading, shouldPersistCookie, selectedAccountId, router]);
+
+    /** Clear stale selection cookies when default is none (no user.accountMateId account). */
+    useEffect(() => {
+        if (status !== 'authenticated' || loading || !shouldClearCookie) return;
+        void (async () => {
+            const { ok } = await setWholesaleSelectedAccount(null);
+            if (!ok) return;
+            setShouldClearCookie(false);
+            setSelectedAccountId(null);
+            setSelectedAccountDisplayName(null);
+            useShopCartStore.getState().setAccountId(null);
+            useShopCartStore.getState().setAccountDisplayName(null);
+            router.refresh();
+        })();
+    }, [status, loading, shouldClearCookie, router]);
 
     useEffect(() => {
         if (!canShopAsAnyAccount || !open) {
@@ -218,7 +236,9 @@ export function WholesaleAccountSwitcher({
         return null;
     }
 
-    const selectedLabel = selectedAccountDisplayName?.trim() || 'Account';
+    const selectedLabel =
+        selectedAccountDisplayName?.trim() ||
+        (canShopAsAnyAccount && selectedAccountId == null ? 'Shop as account' : 'Account');
     const showAccountPicker = canShopAsAnyAccount || accounts.length > 1;
 
     if (!showAccountPicker && !loading) {

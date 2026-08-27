@@ -15,7 +15,7 @@ import {
     NOTIFY_ACCOUNTMATE_FAILURE_SETTING_ID,
     SEND_EMAIL_FROM_SETTING_ID,
     DEVELOPER_EMAIL_SETTING_ID,
-    COPY_ORDER_EMAIL_SETTING_ID,
+    SALES_ORDER_EMAIL_SETTING_ID,
     type SiteSettingKind,
 } from '@/lib/site-setting-constants';
 
@@ -170,7 +170,11 @@ export async function getDeveloperEmailAddress(): Promise<string | null> {
 }
 
 export async function getCopyOrderEmailAddress(): Promise<string | null> {
-    const setting = await getSiteSettingByIdForManage(COPY_ORDER_EMAIL_SETTING_ID);
+    return getSalesOrderEmailAddress();
+}
+
+export async function getSalesOrderEmailAddress(): Promise<string | null> {
+    const setting = await getSiteSettingByIdForManage(SALES_ORDER_EMAIL_SETTING_ID);
     const email = setting?.textValue?.trim();
     return email || null;
 }

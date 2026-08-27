@@ -2,13 +2,14 @@ import Link from 'next/link';
 import moment from 'moment-timezone';
 import { RemoteImage } from '@/components/remote-image';
 import type { ManageOrderDetail } from '@/lib/db-pg/actions/order';
-import { SendOrderToDeveloperButton } from './send-order-to-developer-button';
+import { OrderEmailActions } from './order-email-actions';
 
 type OrderDetailContentProps = {
     detail: ManageOrderDetail;
     backHref: string;
     sendEmailFrom: string | null;
     developerEmail: string | null;
+    salesEmail: string | null;
 };
 
 function formatMoney(value: string | number | null | undefined): string {
@@ -68,12 +69,27 @@ function AddressBlock({ address }: { address: ManageOrderDetail['addresses'][num
     );
 }
 
-export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerEmail }: OrderDetailContentProps) {
-    const { order, items, addresses, user } = detail;
+export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerEmail, salesEmail }: OrderDetailContentProps) {
+    const { order, items, addresses, user, account } = detail;
     const sortedAddresses = [...addresses].sort((a, b) => addressSortOrder(a.type) - addressSortOrder(b.type));
     const orderLabel = order.orderNumber ?? order.id;
     const customerName =
-        [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || user?.userName?.trim() || `User #${order.userId}`;
+        account?.name?.trim() ||
+        [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+        user?.userName?.trim() ||
+        (account ? `Account #${account.id}` : `User #${order.userId}`);
+    const accountMateId = account?.accountMateId?.trim() || user?.accountMateId?.trim() || null;
+    const billingEmail =
+        sortedAddresses.find((address) => {
+            const type = address.type.trim().toLowerCase();
+            return type === 'b' || type.includes('bill');
+        })?.emailAddress?.trim() || null;
+    const shippingEmail =
+        sortedAddresses.find((address) => {
+            const type = address.type.trim().toLowerCase();
+            return type === 's' || type.includes('ship');
+        })?.emailAddress?.trim() || null;
+    const customerEmail = billingEmail || shippingEmail || user?.userName?.trim() || null;
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -86,10 +102,13 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
             <header className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Order #{orderLabel}</h1>
-                    <SendOrderToDeveloperButton
+                    <OrderEmailActions
                         orderId={order.id}
                         sendEmailFrom={sendEmailFrom}
                         developerEmail={developerEmail}
+                        salesEmail={salesEmail}
+                        customerEmail={customerEmail}
+                        actions={['customer', 'sales']}
                     />
                 </div>
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[#6e4a34]">
@@ -112,12 +131,22 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                 <section className="space-y-4 rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 sm:p-6">
-                    <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Customer</h2>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Customer</h2>
+                        {account ? (
+                            <Link
+                                href={`/manage/accounts/${account.id}`}
+                                className="inline-flex items-center rounded-md border border-[#c49a78] bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#5c4032] transition-colors hover:bg-[#f3e0cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
+                            >
+                                Manage account
+                            </Link>
+                        ) : null}
+                    </div>
                     <div className="space-y-1 text-xs text-[#4a2518]">
                         <p className="font-semibold">{customerName}</p>
-                        {user?.accountMateId ? <p>AccountMate ID: {user.accountMateId}</p> : null}
+                        {accountMateId ? <p>AccountMate ID: {accountMateId}</p> : null}
                         {user?.userName ? <p>{user.userName}</p> : null}
-                        <p className="text-[#6e4a34]">User ID: {order.userId}</p>
+                        {account ? <p className="text-[#6e4a34]">Account ID: {account.id}</p> : null}
                     </div>
                 </section>
 
@@ -253,6 +282,17 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
                     <p className="whitespace-pre-wrap text-xs text-[#4a2518]">{order.comment.trim()}</p>
                 </section>
             ) : null}
+
+            <div className="flex justify-end border-t border-[#d4c4b0] pt-4">
+                <OrderEmailActions
+                    orderId={order.id}
+                    sendEmailFrom={sendEmailFrom}
+                    developerEmail={developerEmail}
+                    salesEmail={salesEmail}
+                    customerEmail={customerEmail}
+                    actions={['developer']}
+                />
+            </div>
         </div>
     );
 }

@@ -16,15 +16,16 @@ export const DEFAULT_SEND_EMAIL_FROM = 'Sweetshopusawholesale <no-reply@sweetsho
 /** Site setting id for the developer email address used for order support. */
 export const DEVELOPER_EMAIL_SETTING_ID = 5;
 
-/** Site setting id for the internal copy of order confirmation emails. */
+/** Site setting id for the sales order notification / order copy email address. */
 export const COPY_ORDER_EMAIL_SETTING_ID = 6;
+export const SALES_ORDER_EMAIL_SETTING_ID = COPY_ORDER_EMAIL_SETTING_ID;
 
 export const EMAIL_LIST_SITE_SETTING_IDS = new Set<number>([NOTIFY_ACCOUNTMATE_FAILURE_SETTING_ID]);
 
 export const SINGLE_EMAIL_SITE_SETTING_IDS = new Set<number>([
     SEND_EMAIL_FROM_SETTING_ID,
     DEVELOPER_EMAIL_SETTING_ID,
-    COPY_ORDER_EMAIL_SETTING_ID,
+    SALES_ORDER_EMAIL_SETTING_ID,
 ]);
 
 export function isEmailListSiteSetting(id: number): boolean {
@@ -56,8 +57,8 @@ export function getSiteSettingHelperText(id: number, kind: SiteSettingKind): str
         return 'Developer address for order troubleshooting and resend requests.';
     }
 
-    if (id === COPY_ORDER_EMAIL_SETTING_ID) {
-        return 'Internal address that receives a copy of order confirmation emails.';
+    if (id === SALES_ORDER_EMAIL_SETTING_ID) {
+        return 'Sales address used for order confirmations and Send to sales.';
     }
 
     return kind === 'email' ? 'Enter a valid email address.' : null;
@@ -72,7 +73,7 @@ export function getSiteSettingEmailPlaceholder(id: number): string {
         return 'developer@example.com';
     }
 
-    if (id === COPY_ORDER_EMAIL_SETTING_ID) {
+    if (id === SALES_ORDER_EMAIL_SETTING_ID) {
         return 'sales@sweetshopusa.com';
     }
 

@@ -140,7 +140,7 @@ export function SiteHeader({
     );
 
     return (
-        <header className="min-w-0 overflow-x-clip">
+        <header className="sticky top-0 z-50 min-w-0 overflow-x-clip border-b border-[#d4c4b0]/80 bg-[#f6ebdd] shadow-[0_1px_0_rgba(92,64,50,0.06)]">
             <div className="bg-[#f6ebdd]">
                 <div className="mx-auto flex min-w-0 max-w-6xl flex-col gap-2 px-3 pt-1.5 pb-1 sm:px-4 sm:pt-2 sm:pb-1">
                     {/* Top utility navigation with logo */}

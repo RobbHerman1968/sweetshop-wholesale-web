@@ -1,15 +1,15 @@
 'use server';
 
 import * as argon2 from 'argon2';
-import { getUserAccounts, syncUserAccountFromAccountMate } from '@/lib/db-pg/actions/account';
-import { userResetMapper, userMapper } from '../mappers/user-mapper';
+import { ensureAccountExistsForAccountMateId, getUserAccounts } from '@/lib/db-pg/actions/account';
+import { userMapper } from '../mappers/user-mapper';
 import { User } from '../entities/user-entity';
 import { db } from '@/lib/db-pg';
 import { user } from '@/lib/drizzle/schema';
 import { and, asc, eq, ilike, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import moment from 'moment';
+import { parseAccountMateId } from '@/lib/wholesale-api';
 
 export type ManageUser = {
     id: number;
@@ -84,7 +84,8 @@ export async function updateUserFromForm(formData: FormData) {
     const userName = trimOrNull(formData.get('userName'))?.toLowerCase() ?? existing.userName;
     const firstName = trimOrNull(formData.get('firstName'));
     const lastName = trimOrNull(formData.get('lastName'));
-    const accountMateId = trimOrNull(formData.get('accountMateId'));
+    const accountMateIdRaw = trimOrNull(formData.get('accountMateId'));
+    const accountMateId = accountMateIdRaw ? parseAccountMateId(accountMateIdRaw) : null;
     const isAdmin = parseCheckbox(formData, 'isAdmin');
     const isActive = parseCheckbox(formData, 'isActive');
     const newPassword = trimOrNull(formData.get('newPassword'));
@@ -133,13 +134,13 @@ export async function createUserFromForm(formData: FormData): Promise<CreateUser
     const userName = trimOrNull(formData.get('userName'))?.toLowerCase();
     const firstName = trimOrNull(formData.get('firstName'));
     const lastName = trimOrNull(formData.get('lastName'));
-    const accountMateId = trimOrNull(formData.get('accountMateId'));
+    const rawAccountMateId = trimOrNull(formData.get('accountMateId'));
     const password = trimOrNull(formData.get('password'));
     const isAdmin = parseCheckbox(formData, 'isAdmin');
     const isActive = parseCheckbox(formData, 'isActive');
 
     if (!userName) {
-        return { ok: false, error: 'Username is required.' };
+        return { ok: false, error: 'Email is required.' };
     }
     if (!firstName) {
         return { ok: false, error: 'First name is required.' };
@@ -151,13 +152,29 @@ export async function createUserFromForm(formData: FormData): Promise<CreateUser
         return { ok: false, error: 'Password must be at least 6 characters.' };
     }
 
+    const accountMateId = rawAccountMateId ? parseAccountMateId(rawAccountMateId) : null;
+    if (rawAccountMateId && !accountMateId) {
+        return { ok: false, error: 'Invalid AccountMate ID.' };
+    }
+
     const [conflict] = await db
         .select({ id: user.id })
         .from(user)
         .where(eq(user.userName, userName))
         .limit(1);
     if (conflict) {
-        return { ok: false, error: 'That username is already in use.' };
+        return { ok: false, error: 'That email is already in use.' };
+    }
+
+    // Resolve/create the account before inserting the user so a missing AccountMate
+    // customer never leaves a dangling login.
+    if (accountMateId) {
+        const accountResult = await ensureAccountExistsForAccountMateId(accountMateId, {
+            contactEmail: userName,
+        });
+        if (!accountResult.ok) {
+            return { ok: false, error: accountResult.error };
+        }
     }
 
     const [{ maxId }] = await db.select({ maxId: sql<number>`coalesce(max(${user.id}), 0)` }).from(user);
@@ -174,14 +191,6 @@ export async function createUserFromForm(formData: FormData): Promise<CreateUser
         isAdmin,
         isActive,
     });
-
-    if (accountMateId) {
-        try {
-            await syncUserAccountFromAccountMate(nextId);
-        } catch (err) {
-            console.error('[create user account sync]', err);
-        }
-    }
 
     revalidatePath('/manage/users');
     redirect(`/manage/users/${nextId}`);
@@ -330,19 +339,3 @@ export const getAllUsers = async () => {
     });
     return out;
 };
-
-// export async function createUserResetCode(uid: string) {
-//     const resetCode = Math.round(Math.random() * (999999 - 111111) + 111111);
-//     const now = new Date();
-//     const dt = moment.utc(new Date()).toDate().toDateString();
-
-//     const data = await db.insert(userReset).values({ userId: uid, resetValue: resetCode, validUntil: dt }).returning();
-//     return data[0];
-// }
-
-// export async function getUserReset(uid: string, passCode: string) {
-//     const returnUser = await db.query.userReset.findFirst({
-//         where: and(eq(userReset.userId, uid), eq(userReset.resetValue, Number(passCode))),
-//     });
-//     return await userResetMapper(returnUser);
-// }
