@@ -15,6 +15,7 @@ import { EditorImagePickerDialog } from '@/components/ui/editor/editor-image-pic
 import { RemoteImage } from '@/components/remote-image';
 import type { ImagePickerItem } from '@/lib/db-pg/actions/image';
 import { cn } from '@/lib/utils';
+import { ProductCategoryChecklist } from './product-category-checklist';
 
 type Props = {
     open: boolean;
@@ -112,157 +113,130 @@ export function AddProductSheet({ open, onClose, onCreated }: Props) {
     return (
         <Sheet open={open} onOpenChange={handleOpenChange}>
             <SheetContent side="right" className="flex h-full w-full flex-col overflow-hidden sm:!max-w-xl lg:!max-w-4xl">
-                <form key={formKey} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <form key={formKey} onSubmit={handleSubmit} className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                     <SheetHeader className="shrink-0 pb-4">
                         <SheetTitle className="text-lg font-semibold text-[#4a2518]">Add Product</SheetTitle>
                         <SheetDescription>Set name, price, image, categories, description, download, ingredients, and nutrition.</SheetDescription>
                     </SheetHeader>
 
-                    <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto py-2">
-                        {error ? (
-                            <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
-                                {error}
-                            </p>
-                        ) : null}
+                    {error ? (
+                        <p className="mb-4 shrink-0 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+                            {error}
+                        </p>
+                    ) : null}
 
-                        <section className="space-y-4">
-                            <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Basic info</h3>
-                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                                <div className="space-y-2">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Product image</p>
-                                    <button
-                                        type="button"
-                                        onClick={() => setDialogOpen(true)}
-                                        className={cn(
-                                            'group relative aspect-square w-full max-w-[200px] overflow-hidden rounded-xl border-2 border-[#c49a78] bg-white transition-colors hover:border-[#8b6342]',
-                                            !imagePath && 'border-dashed bg-[#f8eddf]',
-                                        )}
-                                    >
-                                        {imagePath ? (
-                                            <>
-                                                <RemoteImage src={imagePath} alt={imageName || 'Product image'} sizes="200px" className="brightness-110" />
-                                                <span className="absolute inset-x-0 bottom-0 bg-[#4a2518]/75 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#fdf7ef] opacity-0 transition-opacity group-hover:opacity-100">
-                                                    Change image
-                                                </span>
-                                            </>
-                                        ) : (
-                                            <span className="flex h-full flex-col items-center justify-center gap-1 px-3 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-[#6e4a34]">
-                                                <span>No image</span>
-                                                <span className="text-[10px] normal-case tracking-normal text-[#8b6342]">Click to add</span>
+                    <section className="shrink-0 space-y-4 pb-4">
+                        <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Basic info</h3>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                            <div className="space-y-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Product image</p>
+                                <button
+                                    type="button"
+                                    onClick={() => setDialogOpen(true)}
+                                    className={cn(
+                                        'group relative aspect-square w-full max-w-[200px] overflow-hidden rounded-xl border-2 border-[#c49a78] bg-white transition-colors hover:border-[#8b6342]',
+                                        !imagePath && 'border-dashed bg-[#f8eddf]',
+                                    )}
+                                >
+                                    {imagePath ? (
+                                        <>
+                                            <RemoteImage src={imagePath} alt={imageName || 'Product image'} sizes="200px" className="brightness-110" />
+                                            <span className="absolute inset-x-0 bottom-0 bg-[#4a2518]/75 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#fdf7ef] opacity-0 transition-opacity group-hover:opacity-100">
+                                                Change image
                                             </span>
-                                        )}
-                                    </button>
-                                </div>
+                                        </>
+                                    ) : (
+                                        <span className="flex h-full flex-col items-center justify-center gap-1 px-3 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-[#6e4a34]">
+                                            <span>No image</span>
+                                            <span className="text-[10px] normal-case tracking-normal text-[#8b6342]">Click to add</span>
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
 
-                                <div className="min-w-0 flex-1 space-y-4">
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="add-name" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                                                Name
-                                            </Label>
-                                            <Input id="add-name" name="name" className="w-full" required />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="add-itemNumber" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                                                Item number
-                                            </Label>
-                                            <Input id="add-itemNumber" name="itemNumber" className="w-full" required />
-                                        </div>
+                            <div className="min-w-0 flex-1 space-y-4">
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="add-name" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                                            Name
+                                        </Label>
+                                        <Input id="add-name" name="name" className="w-full" required />
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-6">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="add-price" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                                                Price
-                                            </Label>
-                                            <Input id="add-price" name="price" type="number" step="0.01" min="0" defaultValue="0" className="w-32" required />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="add-pieces" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                                                Pieces
-                                            </Label>
-                                            <Input id="add-pieces" name="pieces" defaultValue="1" className="w-32" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="add-weightInOunces" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                                                Weight (oz)
-                                            </Label>
-                                            <Input id="add-weightInOunces" name="weightInOunces" type="number" step="0.01" min="0" defaultValue="0" className="w-32" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="add-shippingBoxFactor" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                                                Shipping box factor
-                                            </Label>
-                                            <Input id="add-shippingBoxFactor" name="shippingBoxFactor" type="number" step="0.001" min="0" defaultValue="1" className="w-32" />
-                                        </div>
-                                        <div className="flex items-center gap-2 pt-6">
-                                            <input type="checkbox" id="add-isActive" name="isActive" defaultChecked className="h-4 w-4 rounded border-[#c49a78]" />
-                                            <Label htmlFor="add-isActive" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                                                Active
-                                            </Label>
-                                        </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="add-itemNumber" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                                            Item number
+                                        </Label>
+                                        <Input id="add-itemNumber" name="itemNumber" className="w-full" required />
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="add-price" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                                            Price
+                                        </Label>
+                                        <Input id="add-price" name="price" type="number" step="0.01" min="0" defaultValue="0" className="w-32" required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="add-pieces" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                                            Pieces
+                                        </Label>
+                                        <Input id="add-pieces" name="pieces" defaultValue="1" className="w-32" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="add-weightInOunces" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                                            Weight (oz)
+                                        </Label>
+                                        <Input id="add-weightInOunces" name="weightInOunces" type="number" step="0.01" min="0" defaultValue="0" className="w-32" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="add-shippingBoxFactor" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                                            Shipping box factor
+                                        </Label>
+                                        <Input id="add-shippingBoxFactor" name="shippingBoxFactor" type="number" step="0.001" min="0" defaultValue="1" className="w-32" />
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-6">
+                                        <input type="checkbox" id="add-isActive" name="isActive" defaultChecked className="h-4 w-4 rounded border-[#c49a78]" />
+                                        <Label htmlFor="add-isActive" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                                            Active
+                                        </Label>
                                     </div>
                                 </div>
                             </div>
-                        </section>
+                        </div>
+                    </section>
 
-                        <section className="flex min-h-0 flex-1 flex-col space-y-2">
-                            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
-                                <TabsList className="h-auto w-full shrink-0 justify-start rounded-md border border-[#c49a78] bg-[#f8eddf] p-1.5">
-                                    {RICH_TEXT_FIELDS.map(({ name, label }) => (
-                                        <TabsTrigger key={name} value={name} className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
-                                            {label}
-                                        </TabsTrigger>
-                                    ))}
-                                    <TabsTrigger value="categories" className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
-                                        Categories
+                    <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                            <TabsList className="h-auto w-full shrink-0 justify-start rounded-md border border-[#c49a78] bg-[#f8eddf] p-1.5">
+                                {RICH_TEXT_FIELDS.map(({ name, label }) => (
+                                    <TabsTrigger key={name} value={name} className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
+                                        {label}
                                     </TabsTrigger>
-                                </TabsList>
-                                <div className="min-h-0 flex-1 pt-2">
-                                    <TabsContent value="categories" className="mt-0 data-[state=inactive]:hidden">
-                                        <p className="mb-3 text-xs text-[#6e4a34]">Choose which shop categories include this product.</p>
-                                        {categories.length === 0 ? (
-                                            <p className="rounded-md border border-dashed border-[#c49a78] bg-[#f8eddf] px-3 py-2 text-xs text-[#6e4a34]">
-                                                No categories yet. Add categories under Manage Categories first.
-                                            </p>
-                                        ) : (
-                                            <ul className="grid gap-2 sm:grid-cols-2">
-                                                {categories.map((category) => {
-                                                    const inputId = `add-category-${category.id}`;
-                                                    const checked = selectedCategoryIds.includes(category.id);
-                                                    return (
-                                                        <li key={category.id}>
-                                                            <label htmlFor={inputId} className="flex cursor-pointer items-center gap-2 rounded-md border border-[#c49a78] bg-[#f8eddf] px-3 py-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id={inputId}
-                                                                    checked={checked}
-                                                                    onChange={(e) => toggleCategory(category.id, e.target.checked)}
-                                                                    className="h-4 w-4 shrink-0 rounded border-[#c49a78]"
-                                                                />
-                                                                <span className="flex min-w-0 flex-wrap items-center gap-2 text-[12px] font-semibold text-[#4a2518]">
-                                                                    {category.name || 'Untitled'}
-                                                                    {!category.isActive ? (
-                                                                        <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>
-                                                                    ) : null}
-                                                                </span>
-                                                            </label>
-                                                        </li>
-                                                    );
-                                                })}
-                                            </ul>
-                                        )}
+                                ))}
+                                <TabsTrigger value="categories" className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
+                                    Categories
+                                </TabsTrigger>
+                            </TabsList>
+                            <div className="min-h-0 flex-1 overflow-y-auto pt-2">
+                                <TabsContent value="categories" className="mt-0 data-[state=inactive]:hidden">
+                                    <p className="mb-3 text-xs text-[#6e4a34]">Choose which shop categories include this product.</p>
+                                    <ProductCategoryChecklist
+                                        categories={categories}
+                                        selectedCategoryIds={selectedCategoryIds}
+                                        onToggle={toggleCategory}
+                                        idPrefix="add"
+                                    />
+                                </TabsContent>
+                                {RICH_TEXT_FIELDS.map(({ name }) => (
+                                    <TabsContent key={name} value={name} className="mt-0 data-[state=inactive]:hidden">
+                                        <div className="min-h-[260px]">
+                                            <TiptapEditor name={name} defaultValue="" className="min-h-[200px]" maxHeight={EDITOR_MAX_HEIGHT} />
+                                        </div>
                                     </TabsContent>
-                                    {RICH_TEXT_FIELDS.map(({ name }) => (
-                                        <TabsContent key={name} value={name} className="mt-0 h-full min-h-[280px] data-[state=inactive]:hidden">
-                                            <div className="h-full min-h-[260px]">
-                                                <TiptapEditor name={name} defaultValue="" className="min-h-[200px]" maxHeight={EDITOR_MAX_HEIGHT} />
-                                            </div>
-                                        </TabsContent>
-                                    ))}
-                                </div>
-                            </Tabs>
-                        </section>
-                    </div>
+                                ))}
+                            </div>
+                        </Tabs>
+                    </section>
 
                     <SheetFooter className="shrink-0 border-t border-[#e3cbb0] pt-4">
                         <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
