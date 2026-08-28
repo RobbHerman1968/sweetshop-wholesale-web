@@ -2,6 +2,7 @@
 
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db-pg';
+import { insertOrderLog } from '@/lib/db-pg/actions/order-log';
 import { getApplyNowEmailAddress, getSendEmailFromAddress } from '@/lib/db-pg/actions/site-setting';
 import { application } from '@/lib/drizzle/schema';
 import { buildWholesaleApplicationEmailContent } from '@/lib/email/wholesale-application-email-template';
@@ -76,6 +77,12 @@ export async function submitWholesaleApplication(
 
     if (!fromEmail || !toEmail) {
         console.error('[Wholesale application] missing email settings', { hasFrom: Boolean(fromEmail), hasTo: Boolean(toEmail) });
+        await insertOrderLog({
+            outcome: 'failure',
+            stage: 'email',
+            message: `Wholesale application email skipped for application #${applicationId} — email settings incomplete.`,
+            error: !fromEmail ? 'Send Email From is not configured.' : 'Apply Now Email Address is not configured.',
+        });
         return { ok: true };
     }
 
@@ -86,6 +93,10 @@ export async function submitWholesaleApplication(
         subject,
         html,
         text,
+        logContext: {
+            stage: 'email',
+            message: `Wholesale application email failed for application #${applicationId}.`,
+        },
     });
 
     if (!result.ok) {

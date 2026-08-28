@@ -170,6 +170,10 @@ export async function resendApplicationEmail(applicationId: number): Promise<For
         subject,
         html,
         text,
+        logContext: {
+            stage: 'email',
+            message: `Wholesale application email failed for application #${applicationId}.`,
+        },
     });
 
     if (!result.ok) {

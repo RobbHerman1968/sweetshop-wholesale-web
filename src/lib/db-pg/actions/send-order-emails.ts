@@ -86,6 +86,14 @@ export async function sendOrderToCustomer(orderId: number): Promise<SendOrderEma
         subject,
         html,
         text,
+        logContext: {
+            stage: 'email',
+            message: `Manual customer order email failed for order #${gate.detail.order.orderNumber ?? orderId}.`,
+            orderId: gate.detail.order.id,
+            orderNumber: gate.detail.order.orderNumber ?? undefined,
+            accountId: gate.detail.account?.id ?? undefined,
+            userId: gate.detail.order.userId,
+        },
     });
 
     if (!result.ok) {
@@ -118,6 +126,14 @@ export async function sendOrderToSales(orderId: number): Promise<SendOrderEmailR
         subject,
         html,
         text,
+        logContext: {
+            stage: 'email',
+            message: `Manual sales order email failed for order #${gate.detail.order.orderNumber ?? orderId}.`,
+            orderId: gate.detail.order.id,
+            orderNumber: gate.detail.order.orderNumber ?? undefined,
+            accountId: gate.detail.account?.id ?? undefined,
+            userId: gate.detail.order.userId,
+        },
     });
 
     if (!result.ok) {
@@ -145,6 +161,14 @@ export async function sendOrderToDeveloper(orderId: number): Promise<SendOrderEm
         subject,
         html,
         text,
+        logContext: {
+            stage: 'email',
+            message: `Manual developer order email failed for order #${gate.detail.order.orderNumber ?? orderId}.`,
+            orderId: gate.detail.order.id,
+            orderNumber: gate.detail.order.orderNumber ?? undefined,
+            accountId: gate.detail.account?.id ?? undefined,
+            userId: gate.detail.order.userId,
+        },
     });
 
     if (!result.ok) {

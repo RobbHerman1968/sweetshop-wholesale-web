@@ -358,7 +358,7 @@ export const accountAddress = pgTable("accountAddress", {
 	phoneNumber: text(),
 });
 
-export const orderLog = pgTable("orderLog", {
+export const log = pgTable("log", {
 	id: serial().primaryKey().notNull(),
 	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	outcome: text().notNull(),

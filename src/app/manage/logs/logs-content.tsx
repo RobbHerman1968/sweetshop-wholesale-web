@@ -4,10 +4,10 @@ import Link from 'next/link';
 import moment from 'moment-timezone';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { cn } from '@/lib/utils';
-import type { ManageOrderLogRow } from '@/lib/db-pg/actions/order-log';
+import type { ManageLogRow } from '@/lib/db-pg/actions/log';
 
 type LogsContentProps = {
-    data: ManageOrderLogRow[];
+    data: ManageLogRow[];
     pagination: { total: number; page: number; limit: number; totalPages: number };
 };
 
@@ -23,7 +23,7 @@ function formatLogTimestamp(value: string) {
     return moment.utc(value).local().format('MM/DD/YYYY hh:mm:ss A');
 }
 
-function OutcomeBadge({ outcome }: { outcome: ManageOrderLogRow['outcome'] }) {
+function OutcomeBadge({ outcome }: { outcome: ManageLogRow['outcome'] }) {
     const isSuccess = outcome === 'success';
 
     return (
@@ -59,7 +59,7 @@ export function LogsContent({ data, pagination }: LogsContentProps) {
             <div className="shrink-0">
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Log</h1>
                 <p className="mt-2 text-xs text-[#6e4a34]">
-                    Order and checkout activity, newest first. Showing {data.length} of {total}{' '}
+                    Order, checkout, and email activity, newest first. Showing {data.length} of {total}{' '}
                     {total === 1 ? 'entry' : 'entries'}.
                 </p>
             </div>
@@ -115,7 +115,7 @@ export function LogsContent({ data, pagination }: LogsContentProps) {
                                     </td>
                                     <td className="px-3 py-2 align-top">
                                         {row.error ? (
-                                            <span className="line-clamp-4 whitespace-pre-wrap text-[#7a1f1f]">{row.error}</span>
+                                            <span className="whitespace-pre-wrap break-words text-[#7a1f1f]">{row.error}</span>
                                         ) : (
                                             '—'
                                         )}

@@ -6,7 +6,7 @@ import { getOrderExpectedDeliveryDatesFromSweetshopOld } from '@/lib/db-sweetsho
 import { and, asc, desc, eq, gte, ilike, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { orderMapper } from '../mappers/order-mapper';
 import { Order } from '../entities/order-entity';
-import { account, order, orderAddress, orderItem, orderLog, user } from '@/lib/drizzle/schema';
+import { account, order, orderAddress, orderItem, log, user } from '@/lib/drizzle/schema';
 import moment from 'moment-timezone';
 import { getUserAccounts } from '@/lib/db-pg/actions/account';
 
@@ -260,10 +260,10 @@ async function resolveAccountForManageOrder(
     orderUser: ManageOrderUserSummary | null,
 ): Promise<ManageOrderAccountSummary | null> {
     const [fromLog] = await db
-        .select({ accountId: orderLog.accountId })
-        .from(orderLog)
-        .where(and(eq(orderLog.orderId, orderId), isNotNull(orderLog.accountId)))
-        .orderBy(desc(orderLog.id))
+        .select({ accountId: log.accountId })
+        .from(log)
+        .where(and(eq(log.orderId, orderId), isNotNull(log.accountId)))
+        .orderBy(desc(log.id))
         .limit(1);
 
     if (fromLog?.accountId != null) {

@@ -4,6 +4,7 @@ export * from './actions/auth';
 export * from './actions/account';
 export * from './actions/users';
 export * from './actions/order';
+export * from './actions/log';
 export * from './actions/order-log';
 export * from './actions/product';
 export * from './actions/process-users';

@@ -104,6 +104,11 @@ export async function requestPasswordResetCode(email: string): Promise<PasswordR
         subject: content.subject,
         html: content.html,
         text: content.text,
+        logContext: {
+            stage: 'email',
+            message: `Password reset email failed for user #${found.id}.`,
+            userId: found.id,
+        },
     });
 
     if (!sendResult.ok) {

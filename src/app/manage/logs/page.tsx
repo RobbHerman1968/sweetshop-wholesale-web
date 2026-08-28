@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { getPaginatedOrderLogsFromDB } from '@/lib/db-pg/actions/order-log';
+import { getPaginatedLogsFromDB } from '@/lib/db-pg/actions/log';
 import { LogsContent } from './logs-content';
 
 const PER_PAGE = 50;
@@ -12,7 +12,7 @@ export default async function ManageLogsPage({ searchParams }: Props) {
     const params = await searchParams;
     const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1);
 
-    const result = await getPaginatedOrderLogsFromDB({
+    const result = await getPaginatedLogsFromDB({
         page,
         limit: PER_PAGE,
     });
