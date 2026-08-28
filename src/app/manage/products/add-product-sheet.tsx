@@ -107,8 +107,8 @@ export function AddProductSheet({ open, onClose, onCreated }: Props) {
         if (!nextOpen) onClose();
     }
 
-    const imagePath = selectedImage?.path?.trim() || null;
-    const imageName = selectedImage?.name?.trim() || selectedImage?.imageName?.trim() || null;
+    const imagePath = selectedImage?.publicUrl?.trim() || null;
+    const imageName = selectedImage?.name?.trim() || null;
 
     return (
         <Sheet open={open} onOpenChange={handleOpenChange}>
