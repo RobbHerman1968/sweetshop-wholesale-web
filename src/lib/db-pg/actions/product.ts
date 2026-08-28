@@ -2,13 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db-pg';
-import { product, productGroup, productGroupProduct, productImage, productCategory, productOldImage, vercelImage } from '@/lib/drizzle/schema';
-import { count, ilike, eq, and, or, inArray, asc, desc, sql, max } from 'drizzle-orm';
+import { product, productGroup, productGroupProduct, productImage, productCategory, vercelImage } from '@/lib/drizzle/schema';
+import { count, ilike, eq, and, or, inArray, asc, sql, max } from 'drizzle-orm';
 import { Product } from '../entities/product-entity';
 import { productMapper } from '../mappers/product-mapper';
 import { SHOP_PRODUCT_FACETS } from '@/lib/shop-product-facets';
 import { cleanHtmlEntitySymbols } from '@/lib/clean-html-entities';
-import { buildLegacyDynImageUrl } from '@/lib/legacy-dynimage-url';
 
 export async function getProductCount(name: string, itemNumber: string) {
     let returnCount;
@@ -481,60 +480,6 @@ export async function getProductById(id: number) {
     return productMapper(data);
 }
 
-export type ProductOldImageRow = {
-    id: number;
-    fileName: string;
-    isDefault: boolean;
-    isActive: boolean;
-    order: number;
-};
-
-export async function getProductOldImagesForManage(productId: number): Promise<ProductOldImageRow[]> {
-    if (!Number.isFinite(productId) || productId <= 0) return [];
-
-    const rows = await db
-        .select({
-            id: productOldImage.id,
-            fileName: productOldImage.fileName,
-            isDefault: productOldImage.isDefault,
-            isActive: productOldImage.isActive,
-            order: productOldImage.order,
-        })
-        .from(productOldImage)
-        .where(and(eq(productOldImage.productId, productId), eq(productOldImage.isActive, true)))
-        .orderBy(desc(productOldImage.isDefault), asc(productOldImage.order), asc(productOldImage.id));
-
-    return rows.filter((row) => row.fileName.trim());
-}
-
-export type ProductOldImageForEditResult = {
-    imageUrl: string | null;
-    imageName: string | null;
-    error?: string;
-};
-
-export async function getProductOldImageForEditTab(productId: number): Promise<ProductOldImageForEditResult> {
-    if (!Number.isFinite(productId) || productId <= 0) {
-        return { imageUrl: null, imageName: null, error: 'Invalid product id.' };
-    }
-
-    const rows = await getProductOldImagesForManage(productId);
-    const primary = rows[0];
-    if (!primary) {
-        return {
-            imageUrl: null,
-            imageName: null,
-            error: 'No productOldImage row found for this product. Run Load Product Old Images on the Sync page first.',
-        };
-    }
-
-    const fileName = primary.fileName.trim();
-    return {
-        imageUrl: buildLegacyDynImageUrl(fileName),
-        imageName: fileName,
-    };
-}
-
 export async function removeProductImageById(productImageId: number) {
     if (!Number.isFinite(productImageId) || productImageId <= 0) return;
 
@@ -637,6 +582,77 @@ export async function updateProductFromForm(formData: FormData) {
 
     revalidatePath('/manage/products');
     revalidatePath('/shop');
+}
+
+export type CreateProductFormResult = { ok: true; id: number } | { ok: false; error: string };
+
+export async function createProductFromForm(formData: FormData): Promise<CreateProductFormResult> {
+    const name = String(formData.get('name') ?? '').trim();
+    const itemNumber = String(formData.get('itemNumber') ?? '').trim();
+    const price = getFormNumber(formData, 'price', 0);
+    const pieces = String(formData.get('pieces') ?? '').trim() || '1';
+    const weightInOunces = getFormNumber(formData, 'weightInOunces', 0);
+    const shippingBoxFactor = getFormNumber(formData, 'shippingBoxFactor', 1);
+    const description = getFormRichText(formData, 'description', '');
+    const download = getFormRichText(formData, 'download', '') || null;
+    const ingredients = getFormRichText(formData, 'ingredients', '') || null;
+    const nutrition = getFormRichText(formData, 'nutrition', '') || null;
+    const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true';
+    const vercelImageId = Number(formData.get('vercelImageId'));
+
+    if (!name) {
+        return { ok: false, error: 'Product name is required.' };
+    }
+
+    if (!itemNumber) {
+        return { ok: false, error: 'Item number is required.' };
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+        return { ok: false, error: 'Enter a valid price.' };
+    }
+
+    try {
+        const [row] = await db
+            .insert(product)
+            .values({
+                name: cleanHtmlEntitySymbols(name),
+                itemNumber,
+                description,
+                nutrition,
+                ingredients,
+                download,
+                price: price.toFixed(2),
+                pieces,
+                weightInOunces: weightInOunces.toFixed(2),
+                shippingBoxFactor: shippingBoxFactor.toFixed(3),
+                isActive,
+                isWholesale: 1,
+            })
+            .returning({ id: product.id });
+
+        if (!row?.id) {
+            return { ok: false, error: 'Unable to create product.' };
+        }
+
+        const categoryIds = formData
+            .getAll('categoryIds')
+            .map((value) => Number(value))
+            .filter((id) => Number.isFinite(id) && id > 0);
+        await setProductCategories(row.id, categoryIds);
+
+        if (Number.isFinite(vercelImageId) && vercelImageId > 0) {
+            await setProductPrimaryImage(row.id, vercelImageId);
+        }
+
+        revalidatePath('/manage/products');
+        revalidatePath('/shop');
+
+        return { ok: true, id: row.id };
+    } catch (error) {
+        console.error('[createProductFromForm] failed', error);
+        return { ok: false, error: 'Unable to create product. Please try again.' };
+    }
 }
 
 export async function createProduct(data: Product) {

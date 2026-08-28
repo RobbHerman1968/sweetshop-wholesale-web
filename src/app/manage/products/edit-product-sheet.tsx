@@ -11,7 +11,6 @@ import type { Product } from '@/lib/db-pg/entities/product-entity';
 import TiptapEditor from '@/components/ui/editor/tiptap-editor';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EditProductImageSection } from './edit-product-image-section';
-import { EditProductOldImageTab } from './edit-product-old-image-tab';
 
 type Props = {
     productId: number | null;
@@ -55,20 +54,6 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
         setActiveTab('description');
     }, [productId]);
 
-    async function reloadProduct() {
-        if (!productId) return null;
-
-        const [product, categoryIds] = await Promise.all([
-            getProductById(productId),
-            getProductCategoryIds(productId),
-        ]);
-
-        if (product) setProductToEdit(product);
-        setSelectedCategoryIds(categoryIds);
-        onSaved?.();
-        return product;
-    }
-
     function toggleCategory(categoryId: number, checked: boolean) {
         setSelectedCategoryIds((current) => {
             if (checked) {
@@ -99,7 +84,7 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
 
     return (
         <Sheet open={productId != null} onOpenChange={handleOpenChange}>
-            <SheetContent side="right" className="flex h-full w-full flex-col overflow-hidden sm:max-w-xl lg:max-w-4xl">
+            <SheetContent side="right" className="flex h-full w-full flex-col overflow-hidden sm:!max-w-xl lg:!max-w-4xl">
                 {productToEdit ? (
                     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
                         <input type="hidden" name="id" value={productToEdit.id} readOnly />
@@ -182,9 +167,6 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
                                         <TabsTrigger value="categories" className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
                                             Categories
                                         </TabsTrigger>
-                                        <TabsTrigger value="old-product-image" className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
-                                            Get old product image
-                                        </TabsTrigger>
                                     </TabsList>
                                     <div className="min-h-0 flex-1 pt-2">
                                         <TabsContent value="categories" className="mt-0 data-[state=inactive]:hidden">
@@ -213,7 +195,7 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
                                                                     <span className="flex min-w-0 flex-wrap items-center gap-2 text-[12px] font-semibold text-[#4a2518]">
                                                                         {category.name || 'Untitled'}
                                                                         {!category.isActive ? (
-                                                                            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-red-700">Inactive</span>
+                                                                            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] uppercase text-white">Inactive</span>
                                                                         ) : null}
                                                                     </span>
                                                                 </label>
@@ -222,13 +204,6 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
                                                     })}
                                                 </ul>
                                             )}
-                                        </TabsContent>
-                                        <TabsContent value="old-product-image" className="mt-0 data-[state=inactive]:hidden">
-                                            <EditProductOldImageTab
-                                                product={productToEdit}
-                                                active={activeTab === 'old-product-image'}
-                                                onReloadProduct={reloadProduct}
-                                            />
                                         </TabsContent>
                                         {RICH_TEXT_FIELDS.map(({ name }) => {
                                             const value = productToEdit[name] ?? '';

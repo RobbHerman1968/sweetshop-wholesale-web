@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AddProductSheet } from './add-product-sheet';
 import { EditProductSheet } from './edit-product-sheet';
 import { RemoteImage } from '@/components/remote-image';
 import type { ProductStatusFilter } from '@/lib/product-status-filter';
@@ -62,6 +63,7 @@ export function ProductsContent({
 }: ProductsContentProps) {
     const router = useRouter();
     const [editingProductId, setEditingProductId] = useState<number | null>(null);
+    const [addingProduct, setAddingProduct] = useState(false);
 
     const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -133,11 +135,25 @@ export function ProductsContent({
 
     return (
         <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden">
+            <AddProductSheet
+                open={addingProduct}
+                onClose={() => setAddingProduct(false)}
+                onCreated={() => {
+                    router.refresh();
+                }}
+            />
             <EditProductSheet key={editingProductId ?? 'closed'} productId={editingProductId} onClose={() => setEditingProductId(null)} onSaved={() => router.refresh()} />
 
-            <h1 className="shrink-0 text-[15px] font-bold uppercase tracking-[0.3em] text-[#4a2518]">
-                {categoryName ? `${categoryName} — Products` : 'Manage Products'}
-            </h1>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+                <h1 className="text-[15px] font-bold uppercase tracking-[0.3em] text-[#4a2518]">
+                    {categoryName ? `${categoryName} — Products` : 'Manage Products'}
+                </h1>
+                {basePath === '/manage/products' ? (
+                    <Button type="button" variant="sweet" className="text-[11px]" onClick={() => setAddingProduct(true)}>
+                        Add product
+                    </Button>
+                ) : null}
+            </div>
 
             <form onSubmit={handleSearch} className="flex shrink-0 flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1">
