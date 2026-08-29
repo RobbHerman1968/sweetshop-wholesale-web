@@ -11,6 +11,20 @@ export type ShopCartLine = {
     lineTotal: number;
 };
 
+export type ShopCartAddressView = {
+    firstName: string;
+    lastName: string;
+    companyName: string;
+    addressLine1: string;
+    addressLine2: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    phoneNumber: string;
+    emailAddress: string;
+};
+
 export type ShopCartView = {
     id: number;
     accountDisplayName: string;
@@ -22,6 +36,11 @@ export type ShopCartView = {
     total: number;
     itemCount: number;
     items: ShopCartLine[];
+    shippingMethod: string | null;
+    expectedDeliveryDate: string | null;
+    comment: string | null;
+    shippingAddress: ShopCartAddressView | null;
+    billingAddress: ShopCartAddressView | null;
 };
 
 function stripHtml(html: string): string {
@@ -30,6 +49,33 @@ function stripHtml(html: string): string {
 
 function formatMoney(value: number): number {
     return Math.round(value * 100) / 100;
+}
+
+function isUsableCartAddress(address: Cart['cartAddresses'][number]): boolean {
+    return Boolean(address.address1?.trim() || address.city?.trim());
+}
+
+function mapCartAddressToView(address: Cart['cartAddresses'][number]): ShopCartAddressView {
+    return {
+        firstName: address.firstName?.trim() ?? '',
+        lastName: address.lastName?.trim() ?? '',
+        companyName: address.companyName?.trim() ?? '',
+        addressLine1: address.address1?.trim() ?? '',
+        addressLine2: address.address2?.trim() ?? '',
+        city: address.city?.trim() ?? '',
+        state: address.state?.trim() ?? '',
+        postalCode: address.postalCode?.trim() ?? '',
+        country: address.country?.trim() || 'United States',
+        phoneNumber: address.phoneNumber?.trim() ?? '',
+        emailAddress: address.emailAddress?.trim() ?? '',
+    };
+}
+
+function findCartAddress(cartData: Cart, type: string): ShopCartAddressView | null {
+    const match = (cartData.cartAddresses ?? []).find(
+        (address) => address.type.trim().toUpperCase() === type && isUsableCartAddress(address),
+    );
+    return match ? mapCartAddressToView(match) : null;
 }
 
 export function mapCartToView(cartData: Cart): ShopCartView {
@@ -64,5 +110,10 @@ export function mapCartToView(cartData: Cart): ShopCartView {
         total: formatMoney(cartData.total),
         itemCount,
         items,
+        shippingMethod: cartData.shippingMethod,
+        expectedDeliveryDate: cartData.expectedDeliveryDate,
+        comment: cartData.comment,
+        shippingAddress: findCartAddress(cartData, 'S'),
+        billingAddress: findCartAddress(cartData, 'B'),
     };
 }

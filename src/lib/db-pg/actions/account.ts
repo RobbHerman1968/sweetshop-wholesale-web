@@ -29,7 +29,8 @@ export async function getManageAccountLinkForAccountMateId(
     const [row] = await db
         .select({ id: account.id, name: account.name, accountMateId: account.accountMateId })
         .from(account)
-        .where(eq(account.accountMateId, parsed))
+        .where(and(eq(account.accountMateId, parsed), eq(account.isActive, true)))
+        .orderBy(asc(account.id))
         .limit(1);
 
     const mateId = row?.accountMateId?.trim();
@@ -58,7 +59,8 @@ export async function getManageAccountLinksForAccountMateIds(
     const rows = await db
         .select({ id: account.id, name: account.name, accountMateId: account.accountMateId })
         .from(account)
-        .where(inArray(account.accountMateId, parsedIds));
+        .where(and(inArray(account.accountMateId, parsedIds), eq(account.isActive, true)))
+        .orderBy(asc(account.id));
 
     const links = new Map<string, ManageAccountLink>();
     for (const row of rows) {
@@ -75,6 +77,7 @@ export async function getManageAccountLinksForAccountMateIds(
 export type ManageAccount = {
     id: number;
     accountMateId: string | null;
+    isActive: boolean;
     isSkipTax: boolean;
     isSkipShipping: boolean;
     isFreeGroundShipping: boolean;
@@ -121,6 +124,7 @@ export async function getAccountByIdForManage(accountId: number): Promise<Manage
         .select({
             id: account.id,
             accountMateId: account.accountMateId,
+            isActive: account.isActive,
             isSkipTax: account.isSkipTax,
             isSkipShipping: account.isSkipShipping,
             isFreeGroundShipping: account.isFreeGroundShipping,
@@ -179,6 +183,7 @@ export async function updateAccountFromForm(formData: FormData) {
             contactZipCode: trimFormValue(formData.get('contactZipCode')),
             contactEmail: trimFormValue(formData.get('contactEmail'))?.toLowerCase() ?? null,
             menuId: readMenuId(formData),
+            isActive: readCheckbox(formData, 'isActive'),
         })
         .where(eq(account.id, id));
 
@@ -204,7 +209,8 @@ export async function ensureAccountExistsForAccountMateId(
     const [existing] = await db
         .select({ id: account.id })
         .from(account)
-        .where(eq(account.accountMateId, parsed))
+        .where(and(eq(account.accountMateId, parsed), eq(account.isActive, true)))
+        .orderBy(asc(account.id))
         .limit(1);
 
     if (existing) {
@@ -218,7 +224,7 @@ export async function ensureAccountExistsForAccountMateId(
         }
 
         const mapped = mapAccountMateRowToAccountFields(accountMateRow);
-        const contactEmail = options?.contactEmail?.trim().toLowerCase() || null;
+        const contactEmail = options?.contactEmail?.trim().toLowerCase() || mapped.contactEmail;
 
         const [inserted] = await db
             .insert(account)
@@ -237,6 +243,7 @@ export async function ensureAccountExistsForAccountMateId(
                 isTerms: mapped.isTerms,
                 contactEmail,
                 menuId: WHOLESALE_SHOPPING_MENU_ID,
+                isActive: true,
             })
             .returning({ id: account.id });
 
@@ -289,6 +296,7 @@ export async function reloadAccountFromAccountMate(
                 name: mapped.name,
                 contactFirstName: mapped.contactFirstName,
                 contactLastName: mapped.contactLastName,
+                contactEmail: mapped.contactEmail,
                 contactPhone: mapped.contactPhone,
                 contactAddress1: mapped.contactAddress1,
                 contactAddress2: mapped.contactAddress2,
@@ -365,10 +373,10 @@ export async function revalidateManageAccountsAfterBulkReload() {
     revalidatePath('/shop');
 }
 
-/** Syncs linked wholesale account(s) from AccountMate when the user has an accountMateId. */
+/** Syncs the user's AccountMate-tied account using the same reload-and-save as Manage / shop-as. */
 export async function syncUserAccountFromAccountMate(userId: number): Promise<void> {
-    const keys = await getUserAccountLinkKeys(userId);
-    if (!keys?.accountMateId) {
+    const userAccountMateId = await getUserAccountMateId(userId);
+    if (!userAccountMateId) {
         return;
     }
 
@@ -376,31 +384,35 @@ export async function syncUserAccountFromAccountMate(userId: number): Promise<vo
     const accountIds = new Set<number>(linkedAccounts.map((linkedAccount) => linkedAccount.id));
 
     if (accountIds.size === 0) {
-        const [row] = await db
-            .select({ id: account.id })
-            .from(account)
-            .where(eq(account.accountMateId, keys.accountMateId))
-            .limit(1);
-        if (row) {
-            accountIds.add(row.id);
+        const ensured = await ensureAccountExistsForAccountMateId(userAccountMateId);
+        if (ensured.ok) {
+            accountIds.add(ensured.accountId);
         }
     }
 
     for (const accountId of accountIds) {
-        const result = await reloadAccountFromAccountMate(accountId, keys.accountMateId);
+        const result = await reloadAccountFromAccountMate(accountId, userAccountMateId, true);
         if (!result.ok) {
             console.error('[sign-in account sync]', { userId, accountId, error: result.error });
             continue;
         }
         console.log('[sign-in account sync]', { userId, accountId, mapped: result.mapped });
     }
+
+    revalidatePath('/shop', 'layout');
+    revalidatePath('/manage/accounts');
 }
 
 export async function getUserAccounts(userId: number) {
-    const keys = await getUserAccountLinkKeys(userId);
-    if (!keys) return [];
+    const userAccountMateId = await getUserAccountMateId(userId);
+    const ownedByAccountMateId = accountOwnedByAccountMateId(userAccountMateId);
+    if (!ownedByAccountMateId) return [];
 
-    const accounts = await db.select().from(account).where(accountLinkedToUserCondition(keys));
+    const accounts = await db
+        .select()
+        .from(account)
+        .where(and(ownedByAccountMateId, eq(account.isActive, true)))
+        .orderBy(asc(account.id));
 
     const out: Account[] = [];
     for (const r of accounts) {
@@ -460,7 +472,7 @@ export async function getPaginatedAccountsFromDB({
 }) {
     const offset = (page - 1) * limit;
 
-    const conditions = [];
+    const conditions = [eq(account.isActive, true)];
     if (name) {
         conditions.push(ilike(account.name, `%${name}%`));
     }
@@ -468,8 +480,7 @@ export async function getPaginatedAccountsFromDB({
         conditions.push(ilike(account.accountMateId, `%${accountMateId}%`));
     }
 
-    const whereClause =
-        conditions.length === 0 ? undefined : conditions.length === 1 ? conditions[0] : and(...conditions);
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
     const data = await db
         .select({
@@ -481,6 +492,7 @@ export async function getPaginatedAccountsFromDB({
             contactEmail: account.contactEmail,
             contactPhone: account.contactPhone,
             menuId: account.menuId,
+            isActive: account.isActive,
         })
         .from(account)
         .where(whereClause)
@@ -537,55 +549,35 @@ function normalizeShopUserId(userId: number): number {
     return userId;
 }
 
-async function getUserAccountLinkKeys(userId: number): Promise<{ email: string; idAsText: string; accountMateId: string | null } | null> {
+async function getUserAccountMateId(userId: number): Promise<string | null> {
     const uid = normalizeShopUserId(userId);
     if (!uid) return null;
 
     const [row] = await db
-        .select({ userName: user.userName, accountMateId: user.accountMateId })
+        .select({ accountMateId: user.accountMateId })
         .from(user)
         .where(eq(user.id, uid))
         .limit(1);
-    if (!row) return null;
 
-    const email = row.userName.trim().toLowerCase();
-    if (!email) return null;
-
-    const accountMateId = row.accountMateId?.trim() || null;
-    return { email, idAsText: String(uid), accountMateId };
+    return parseAccountMateId(row?.accountMateId ?? undefined);
 }
 
-function accountLinkedToUserCondition(keys: { email: string; idAsText: string; accountMateId: string | null }) {
-    const conditions = [
-        sql`lower(trim(coalesce(${account.contactEmail}, ''))) = ${keys.email}`,
-        eq(account.accountMateId, keys.idAsText),
-        sql`lower(trim(coalesce(${account.accountMateId}, ''))) = ${keys.email}`,
-    ];
-    if (keys.accountMateId) {
-        conditions.push(eq(account.accountMateId, keys.accountMateId));
-    }
-    return or(...conditions);
-}
-
-function userLinkedToAccountCondition(accountRow: { contactEmail: string | null; accountMateId: string | null }) {
-    const contactEmail = (accountRow.contactEmail ?? '').trim().toLowerCase();
-    const accountMateId = (accountRow.accountMateId ?? '').trim();
-    const conditions = [];
-
-    if (contactEmail) {
-        conditions.push(sql`lower(trim(${user.userName})) = ${contactEmail}`);
-    }
-    if (accountMateId) {
-        conditions.push(sql`${user.id}::text = ${accountMateId}`);
-        conditions.push(sql`lower(trim(${user.userName})) = ${accountMateId.toLowerCase()}`);
-        conditions.push(eq(user.accountMateId, accountMateId));
-    }
-
-    if (conditions.length === 0) {
+function accountOwnedByAccountMateId(accountMateId: string | null | undefined) {
+    const parsed = parseAccountMateId(accountMateId ?? undefined);
+    if (!parsed) {
         return null;
     }
 
-    return or(...conditions);
+    return sql`upper(trim(coalesce(${account.accountMateId}, ''))) = ${parsed}`;
+}
+
+function usersOwnedByAccountMateId(accountMateId: string | null | undefined) {
+    const parsed = parseAccountMateId(accountMateId ?? undefined);
+    if (!parsed) {
+        return null;
+    }
+
+    return sql`upper(trim(coalesce(${user.accountMateId}, ''))) = ${parsed}`;
 }
 
 function formatUserDisplayName(row: { firstName: string | null; lastName: string | null; userName: string }): string {
@@ -607,7 +599,7 @@ export async function getAccountOwnerUserDisplayName(accountId: number): Promise
         return null;
     }
 
-    const linkCondition = userLinkedToAccountCondition(accountRow);
+    const linkCondition = usersOwnedByAccountMateId(accountRow.accountMateId);
     if (!linkCondition) {
         return null;
     }
@@ -626,11 +618,12 @@ export async function getAccountOwnerUserDisplayName(accountId: number): Promise
 }
 
 export async function verifyUserOwnsAccount(userId: number, accountId: number): Promise<boolean> {
-    const keys = await getUserAccountLinkKeys(userId);
-    if (!keys) return false;
+    const userAccountMateId = await getUserAccountMateId(userId);
+    const ownedByAccountMateId = accountOwnedByAccountMateId(userAccountMateId);
+    if (!ownedByAccountMateId) return false;
 
     const row = await db.query.account.findFirst({
-        where: and(accountLinkedToUserCondition(keys), eq(account.id, accountId)),
+        where: and(ownedByAccountMateId, eq(account.id, accountId), eq(account.isActive, true)),
         columns: { id: true },
     });
     return Boolean(row);
@@ -642,7 +635,7 @@ export async function accountExists(accountId: number): Promise<boolean> {
     }
 
     const row = await db.query.account.findFirst({
-        where: eq(account.id, accountId),
+        where: and(eq(account.id, accountId), eq(account.isActive, true)),
         columns: { id: true },
     });
     return Boolean(row);
@@ -866,10 +859,68 @@ async function syncLegacyAccountRowsToAccount(rows: any[]): Promise<AccountSyncR
     };
 }
 
+export async function deactivateDuplicateAccountsAndRelinkCarts() {
+    await db.execute(sql`
+        UPDATE account extra
+        SET "isActive" = false
+        WHERE nullif(trim(extra."accountMateId"), '') IS NOT NULL
+          AND extra.id <> (
+              SELECT min(keeper.id)
+              FROM account keeper
+              WHERE nullif(trim(keeper."accountMateId"), '') IS NOT NULL
+                AND upper(trim(keeper."accountMateId")) = upper(trim(extra."accountMateId"))
+          )
+    `);
+
+    await db.execute(sql`
+        UPDATE account keeper
+        SET "isActive" = true
+        WHERE nullif(trim(keeper."accountMateId"), '') IS NOT NULL
+          AND keeper.id = (
+              SELECT min(first.id)
+              FROM account first
+              WHERE nullif(trim(first."accountMateId"), '') IS NOT NULL
+                AND upper(trim(first."accountMateId")) = upper(trim(keeper."accountMateId"))
+          )
+    `);
+
+    await db.execute(sql`
+        UPDATE cart c
+        SET "accountId" = keeper.id,
+            "modifiedDate" = now()
+        FROM account extra
+        JOIN account keeper
+          ON upper(trim(keeper."accountMateId")) = upper(trim(extra."accountMateId"))
+         AND keeper."isActive" = true
+        WHERE c."accountId" = extra.id
+          AND extra."isActive" = false
+          AND nullif(trim(extra."accountMateId"), '') IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1
+              FROM cart existing
+              WHERE existing."accountId" = keeper.id
+          )
+    `);
+
+    await db.execute(sql`
+        UPDATE "accountAddress" aa
+        SET "accountId" = keeper.id
+        FROM account extra
+        JOIN account keeper
+          ON upper(trim(keeper."accountMateId")) = upper(trim(extra."accountMateId"))
+         AND keeper."isActive" = true
+        WHERE aa."accountId" = extra.id
+          AND extra."isActive" = false
+          AND nullif(trim(extra."accountMateId"), '') IS NOT NULL
+    `);
+}
+
 export async function syncAccountsFromLegacy(): Promise<AccountSyncResult> {
     try {
         const rows = await getAccountOldFromSweetshopOld();
-        return syncLegacyAccountRowsToAccount(rows);
+        const result = await syncLegacyAccountRowsToAccount(rows);
+        await deactivateDuplicateAccountsAndRelinkCarts();
+        return result;
     } catch (error) {
         console.error('Error syncing accounts from legacy AccountOld:', error);
         throw error instanceof Error ? error : new Error('Failed to sync accounts from legacy AccountOld');

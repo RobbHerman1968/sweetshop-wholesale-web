@@ -14,19 +14,39 @@ const config: sql.config = {
         trustServerCertificate: true, // change to true for local dev / self-signed certs
     },
     port: 1433, // optional, default is 1433
+    pool: {
+        max: 5,
+        min: 0,
+        idleTimeoutMillis: 30_000,
+    },
 };
+
+let poolPromise: Promise<sql.ConnectionPool> | null = null;
+
+async function getLegacyPool(): Promise<sql.ConnectionPool> {
+    if (!poolPromise) {
+        poolPromise = new sql.ConnectionPool(config)
+            .connect()
+            .then((pool) => {
+                pool.on('error', (err) => {
+                    console.error('[db-sweetshop-old] pool error', err);
+                    poolPromise = null;
+                });
+                return pool;
+            })
+            .catch((err) => {
+                poolPromise = null;
+                throw err;
+            });
+    }
+
+    return poolPromise;
+}
 
 async function fetchData(query: string): Promise<any[]> {
     try {
-        // Connect to the database
-        const pool = await sql.connect(config);
-
-        // Run a query
+        const pool = await getLegacyPool();
         const result = await pool.request().query(query);
-
-        // Close the connection
-        await pool.close();
-
         return result.recordset;
     } catch (err) {
         console.error('SQL error', err);
@@ -265,12 +285,11 @@ export async function getProductImagesFromSweetshopOldByProductId(productId: num
     if (!Number.isFinite(productId) || productId <= 0) return [];
 
     try {
-        const pool = await sql.connect(config);
+        const pool = await getLegacyPool();
         const result = await pool
             .request()
             .input('productId', sql.Int, productId)
             .query('SELECT * FROM ProductImage WHERE ProductId = @productId ORDER BY Id');
-        await pool.close();
         return result.recordset;
     } catch (err) {
         console.error('SQL error', err);

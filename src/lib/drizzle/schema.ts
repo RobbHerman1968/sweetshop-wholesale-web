@@ -48,6 +48,7 @@ export const userReset = pgTable("userReset", {
 export const account = pgTable("account", {
 	id: serial().primaryKey().notNull(),
 	accountMateId: text(),
+	isActive: boolean().default(true).notNull(),
 	isSkipTax: boolean().default(false).notNull(),
 	isSkipShipping: boolean().default(false).notNull(),
 	isFreeGroundShipping: boolean().default(false).notNull(),
@@ -127,6 +128,7 @@ export const order = pgTable("order", {
 	accountMateTransactionId: text(),
 	isNewCustomerOrder: integer().notNull(),
 	accountMateOrderNumber: integer(),
+	accountMateId: text(),
 });
 
 export const cart = pgTable("cart", {
@@ -139,12 +141,39 @@ export const cart = pgTable("cart", {
 	total: numeric({ precision: 10, scale:  2 }).default('0').notNull(),
 	createDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	modifiedDate: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	shippingMethod: text(),
+	expectedDeliveryDate: timestamp({ withTimezone: true, mode: 'string' }),
+	comment: text(),
 }, (table) => [
 	foreignKey({
 			columns: [table.accountId],
 			foreignColumns: [account.id],
 			name: "cart_account_id_fk"
 		}),
+]);
+
+export const cartAddress = pgTable("cartAddress", {
+	id: serial().primaryKey().notNull(),
+	cartId: integer().notNull(),
+	type: text().notNull(),
+	firstName: text(),
+	lastName: text(),
+	companyName: text(),
+	address1: text(),
+	address2: text(),
+	city: text(),
+	state: text(),
+	postalCode: text(),
+	country: text(),
+	phoneNumber: text(),
+	emailAddress: text(),
+}, (table) => [
+	foreignKey({
+			columns: [table.cartId],
+			foreignColumns: [cart.id],
+			name: "cartAddress_cart_id_fk"
+		}).onDelete('cascade'),
+	unique("cartAddress_cart_id_type_unique").on(table.cartId, table.type),
 ]);
 
 export const menuItem = pgTable("menuItem", {
@@ -266,7 +295,7 @@ export const vercelImage = pgTable("vercelImage", {
 export const stateShippingTaxRate = pgTable("stateShippingTaxRate", {
 	id: serial().primaryKey().notNull(),
 	stateAbbr: text().notNull(),
-	shippingRate: numeric({ precision: 10, scale:  2 }).notNull(),
+	shippingRate: numeric({ precision: 10, scale:  4 }).notNull(),
 	taxRate: numeric({ precision: 10, scale:  4 }).default('0').notNull(),
 	stateName: text(),
 });
@@ -343,6 +372,7 @@ export const application = pgTable("application", {
 export const accountAddress = pgTable("accountAddress", {
 	id: serial().primaryKey().notNull(),
 	accountId: integer().notNull(),
+	accountMateId: text(),
 	name: text(),
 	type: text(),
 	companyName: text(),

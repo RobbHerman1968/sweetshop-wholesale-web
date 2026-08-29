@@ -4,10 +4,15 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { asc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, or, sql } from 'drizzle-orm';
 import { authOptions } from '@/auth';
 import { db } from '@/lib/db-pg';
-import { getUserAccounts, verifyUserOwnsAccount, canAccessAccountForShop } from '@/lib/db-pg/actions/account';
+import {
+    getUserAccounts,
+    verifyUserOwnsAccount,
+    canAccessAccountForShop,
+    reloadAccountFromAccountMate,
+} from '@/lib/db-pg/actions/account';
 import { account, user } from '@/lib/drizzle/schema';
 import { WHOLESALE_SELECTED_ACCOUNT_COOKIE, WHOLESALE_ADMIN_SHOP_AS_COOKIE } from '@/lib/wholesale-account-cookie';
 import { parseUserId } from '@/lib/user-id';
@@ -113,7 +118,8 @@ async function findAccountRowByAccountMateId(accountMateId: string): Promise<Acc
     const [row] = await db
         .select({ id: account.id, name: account.name, accountMateId: account.accountMateId })
         .from(account)
-        .where(sql`lower(trim(coalesce(${account.accountMateId}, ''))) = ${parsed.toLowerCase()}`)
+        .where(and(sql`lower(trim(coalesce(${account.accountMateId}, ''))) = ${parsed.toLowerCase()}`, eq(account.isActive, true)))
+        .orderBy(asc(account.id))
         .limit(1);
 
     return row ?? null;
@@ -147,9 +153,9 @@ function findUserAccountMateDefault(
 
 /**
  * Selection rules:
- * - Default = account whose accountMateId matches user.accountMateId, else none (cleared).
- * - Admin shop-as cookie overrides while the shop-as flag is set.
- * - Non-admins may keep a valid cookie selection among their accounts.
+ * - Explicit cookie selection wins when it points at a selectable account.
+ * - Admin shop-as keeps impersonated (non-owned) accounts in the selectable list.
+ * - Otherwise default = account whose accountMateId matches user.accountMateId, else first owned / cleared.
  */
 function resolveSelectedAccountFromCookie(
     sortedAccountIds: number[],
@@ -164,22 +170,17 @@ function resolveSelectedAccountFromCookie(
     const parsed = cookieRaw ? Number.parseInt(cookieRaw, 10) : NaN;
     const cookieValid = Number.isFinite(parsed) && idSet.has(parsed);
 
-    // Active admin shop-as keeps the cookie selection.
-    if (options.isAdmin && options.adminShopAsFlag && cookieValid) {
-        return { selectedAccountId: parsed, shouldPersistCookie: false, shouldClearCookie: false };
-    }
-
-    // Non-admins can keep an explicit cookie pick among their accounts.
-    if (!options.isAdmin && cookieValid) {
+    // Keep an explicit cookie pick for admins and non-admins alike.
+    // (Admin shop-as only controls whether non-owned accounts are selectable.)
+    if (cookieValid) {
         return { selectedAccountId: parsed, shouldPersistCookie: false, shouldClearCookie: false };
     }
 
     // Default: user.accountMateId → matching account row, else cleared.
     if (accountMateDefault) {
-        const alreadyDefault = cookieValid && parsed === accountMateDefault.id;
         return {
             selectedAccountId: accountMateDefault.id,
-            shouldPersistCookie: !alreadyDefault,
+            shouldPersistCookie: true,
             shouldClearCookie: false,
         };
     }
@@ -273,7 +274,7 @@ async function getWholesaleSelectionCore(
         const [impersonated] = await db
             .select({ id: account.id, name: account.name, accountMateId: account.accountMateId })
             .from(account)
-            .where(eq(account.id, parsedCookieId))
+            .where(and(eq(account.id, parsedCookieId), eq(account.isActive, true)))
             .limit(1);
         if (impersonated) {
             rows = sortAccountLabelRows([...rows, impersonated]);
@@ -432,8 +433,8 @@ export async function getWholesaleAccountSwitcherState(): Promise<{
 
 export async function setWholesaleSelectedAccount(
     accountId: number | null,
-    options?: { adminShopAs?: boolean; redirectToShop?: boolean },
-): Promise<{ ok: boolean }> {
+    options?: { adminShopAs?: boolean; redirectToShop?: boolean; reloadFromAccountMate?: boolean },
+): Promise<{ ok: boolean; displayName?: string | null }> {
     const session = await getServerSession(authOptions);
     const userId = parseUserId(session?.user?.id);
     const isAdmin = session?.user?.isAdmin ?? false;
@@ -459,6 +460,35 @@ export async function setWholesaleSelectedAccount(
         return { ok: false };
     }
 
+    let displayName: string | null | undefined;
+    if (options?.reloadFromAccountMate) {
+        const [row] = await db
+            .select({ id: account.id, name: account.name, accountMateId: account.accountMateId })
+            .from(account)
+            .where(and(eq(account.id, accountId), eq(account.isActive, true)))
+            .limit(1);
+
+        if (!row) {
+            return { ok: false };
+        }
+
+        if (row.accountMateId) {
+            const reload = await reloadAccountFromAccountMate(accountId, row.accountMateId, true);
+            if (reload.ok) {
+                displayName = formatAccountDisplayName({
+                    id: accountId,
+                    name: reload.mapped.name,
+                    accountMateId: reload.accountMateId,
+                });
+            } else {
+                console.error('[shop-as reload account]', reload.error);
+                displayName = formatAccountDisplayName(row);
+            }
+        } else {
+            displayName = formatAccountDisplayName(row);
+        }
+    }
+
     cookieStore.set(WHOLESALE_SELECTED_ACCOUNT_COOKIE, String(accountId), cookieOptions);
 
     if (isAdmin) {
@@ -478,7 +508,7 @@ export async function setWholesaleSelectedAccount(
         redirect('/shop');
     }
 
-    return { ok: true };
+    return { ok: true, displayName };
 }
 
 /** Admin-only: stop shopping as another account; restore AccountMate-tied account or clear. */
@@ -546,7 +576,7 @@ export async function searchWholesaleAccountsForAdmin(query: string): Promise<Wh
     const rows = await db
         .select({ id: account.id, name: account.name, accountMateId: account.accountMateId })
         .from(account)
-        .where(or(ilike(account.name, filter), ilike(account.accountMateId, filter)))
+        .where(and(eq(account.isActive, true), or(ilike(account.name, filter), ilike(account.accountMateId, filter))))
         .orderBy(asc(account.name))
         .limit(ADMIN_ACCOUNT_SEARCH_LIMIT);
 

@@ -2,12 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db-pg';
-import { product, productGroup, productGroupProduct, productImage, productCategory, vercelImage } from '@/lib/drizzle/schema';
-import { count, ilike, eq, and, or, inArray, asc, sql, max } from 'drizzle-orm';
+import { product, productGroup, productGroupProduct, productImage, productCategory, productOldImage, vercelImage } from '@/lib/drizzle/schema';
+import { count, ilike, eq, and, or, inArray, asc, desc, sql, max } from 'drizzle-orm';
 import { Product } from '../entities/product-entity';
 import { productMapper } from '../mappers/product-mapper';
 import { SHOP_PRODUCT_FACETS } from '@/lib/shop-product-facets';
 import { cleanHtmlEntitySymbols } from '@/lib/clean-html-entities';
+import { buildLegacyDynImageUrl } from '@/lib/legacy-dynimage-url';
 
 export async function getProductCount(name: string, itemNumber: string) {
     let returnCount;
@@ -480,6 +481,60 @@ export async function getProductById(id: number) {
     return productMapper(data);
 }
 
+export type ProductOldImageRow = {
+    id: number;
+    fileName: string;
+    isDefault: boolean;
+    isActive: boolean;
+    order: number;
+};
+
+export async function getProductOldImagesForManage(productId: number): Promise<ProductOldImageRow[]> {
+    if (!Number.isFinite(productId) || productId <= 0) return [];
+
+    const rows = await db
+        .select({
+            id: productOldImage.id,
+            fileName: productOldImage.fileName,
+            isDefault: productOldImage.isDefault,
+            isActive: productOldImage.isActive,
+            order: productOldImage.order,
+        })
+        .from(productOldImage)
+        .where(and(eq(productOldImage.productId, productId), eq(productOldImage.isActive, true)))
+        .orderBy(desc(productOldImage.isDefault), asc(productOldImage.order), asc(productOldImage.id));
+
+    return rows.filter((row) => row.fileName.trim());
+}
+
+export type ProductOldImageForEditResult = {
+    imageUrl: string | null;
+    imageName: string | null;
+    error?: string;
+};
+
+export async function getProductOldImageForEditTab(productId: number): Promise<ProductOldImageForEditResult> {
+    if (!Number.isFinite(productId) || productId <= 0) {
+        return { imageUrl: null, imageName: null, error: 'Invalid product id.' };
+    }
+
+    const rows = await getProductOldImagesForManage(productId);
+    const primary = rows[0];
+    if (!primary) {
+        return {
+            imageUrl: null,
+            imageName: null,
+            error: 'No productOldImage row found for this product. Run Load Product Old Images on the Sync page first.',
+        };
+    }
+
+    const fileName = primary.fileName.trim();
+    return {
+        imageUrl: buildLegacyDynImageUrl(fileName),
+        imageName: fileName,
+    };
+}
+
 export async function removeProductImageById(productImageId: number) {
     if (!Number.isFinite(productImageId) || productImageId <= 0) return;
 
@@ -733,27 +788,105 @@ function mapLegacyProductRow(o: any) {
     };
 }
 
+export type ProcessOldProductsResult = {
+    fetched: number;
+    updated: number;
+    inserted: number;
+};
+
+const PRODUCT_SYNC_CHUNK_SIZE = 200;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function processOldProducts(oldProducts: any[]) {
+export async function processOldProducts(oldProducts: any[]): Promise<ProcessOldProductsResult> {
     try {
-        const existingProducts = await db.query.product.findMany({
-            orderBy: asc(product.id),
-        });
+        const existingRows = await db.select({ id: product.id }).from(product);
+        const existingIds = new Set(existingRows.map((row) => row.id));
 
-        const rows = oldProducts.map(mapLegacyProductRow);
+        const rows = oldProducts.map(mapLegacyProductRow).filter((row) => Number.isFinite(row.id) && row.id > 0);
+        let inserted = 0;
+        let updated = 0;
 
-        for (const p of rows) {
-            const existingProduct = existingProducts.find((ep) => ep.id === p.id);
-            if (existingProduct) {
-                await db.update(product).set(p).where(eq(product.id, p.id));
-            } else {
-                await db.insert(product).values(p);
+        console.log(`Product sync: starting ${rows.length} legacy Product rows`);
+
+        for (let i = 0; i < rows.length; i += PRODUCT_SYNC_CHUNK_SIZE) {
+            const chunk = rows.slice(i, i + PRODUCT_SYNC_CHUNK_SIZE);
+            for (const row of chunk) {
+                if (existingIds.has(row.id)) {
+                    updated++;
+                } else {
+                    inserted++;
+                    existingIds.add(row.id);
+                }
             }
+
+            await db
+                .insert(product)
+                .values(chunk)
+                .onConflictDoUpdate({
+                    target: product.id,
+                    set: {
+                        name: sql`excluded."name"`,
+                        itemNumber: sql`excluded."itemNumber"`,
+                        description: sql`excluded.description`,
+                        nutrition: sql`excluded.nutrition`,
+                        ingredients: sql`excluded.ingredients`,
+                        download: sql`excluded.download`,
+                        price: sql`excluded.price`,
+                        pieces: sql`excluded.pieces`,
+                        weightInOunces: sql`excluded."weightInOunces"`,
+                        isActive: sql`excluded."isActive"`,
+                        shippingBoxFactor: sql`excluded."shippingBoxFactor"`,
+                        isWholesale: sql`excluded."isWholesale"`,
+                    },
+                });
+
+            console.log(
+                `Product sync: upserted ${Math.min(i + chunk.length, rows.length)}/${rows.length} (${updated} updated, ${inserted} inserted)`,
+            );
         }
+
+        revalidatePath('/manage/products');
+        revalidatePath('/shop');
+
+        console.log(`Product sync: complete (${updated} updated, ${inserted} inserted, ${rows.length} fetched)`);
+        return { fetched: rows.length, updated, inserted };
     } catch (error) {
         console.error('Error processing old products:', error);
         throw new Error('Failed to process old products');
     }
+}
+
+/** Fetch legacy products and upsert on the server — do not ship rows to the browser. */
+export async function syncProductsFromLegacy(): Promise<ProcessOldProductsResult> {
+    const { getProductsFromSweetshopOld } = await import('@/lib/db-sweetshop-old');
+    const products = await getProductsFromSweetshopOld();
+    return processOldProducts(products);
+}
+
+export type SyncProductImagesFromLegacyResult = {
+    fetched: number;
+    linked: number;
+    skippedExisting: number;
+    missingPaths: number;
+};
+
+/** Fetch legacy product images and link on the server — do not ship rows to the browser. */
+export async function syncProductImagesFromLegacy(): Promise<SyncProductImagesFromLegacyResult> {
+    const { getProductImagesFromSweetshopOld } = await import('@/lib/db-sweetshop-old');
+    const productImages = await getProductImagesFromSweetshopOld();
+    const { linked, skippedExisting, missingPaths } = await linkOldProductImageRows(productImages);
+
+    if (linked > 0) {
+        revalidatePath('/manage/products');
+        revalidatePath('/shop');
+    }
+
+    return {
+        fetched: productImages.length,
+        linked,
+        skippedExisting,
+        missingPaths: missingPaths.length,
+    };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -72,7 +72,10 @@ export function CustomerOrderDetailContent({ detail }: CustomerOrderDetailConten
     return (
         <div className="space-y-6">
             <div className="flex flex-wrap items-center gap-3">
-                <Link href="/account" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline-offset-4 hover:underline">
+                <Link
+                    href="/account"
+                    className="inline-flex h-auto items-center px-0 py-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline underline-offset-4 hover:text-[#3f1d12]"
+                >
                     ← Back to account
                 </Link>
             </div>

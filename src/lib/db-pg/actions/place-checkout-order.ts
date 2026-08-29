@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { eq, sql } from 'drizzle-orm';
 import { authOptions } from '@/auth';
 import { canAccessAccountForShop, getAccountByIdForManage } from '@/lib/db-pg/actions/account';
+import { clearCartCheckoutDetails } from '@/lib/db-pg/actions/cart-address';
 import { getCartByAccountId } from '@/lib/db-pg/actions/cart';
 import type { PlaceOrder } from '@/lib/db-pg/entities/place-order-entity';
 import type {
@@ -18,6 +19,7 @@ import {
     getShippingFieldErrors,
     selectFirstEmailAddress,
     shippingFormToBillingForm,
+    toAccountMateShipVia,
     validatePaymentStep,
 } from '@/lib/checkout-utils';
 import { db } from '@/lib/db-pg';
@@ -25,6 +27,7 @@ import { account, cart, cartItem, order, orderAddress, orderItem, user } from '@
 import { getEffectiveWholesaleAccountIdForShopCatalog } from '@/lib/wholesale-account-switcher-actions';
 import { parseUserId } from '@/lib/user-id';
 import { insertOrderLog, isAccountMateSuccessStatus } from '@/lib/db-pg/actions/order-log';
+import { syncOrderIdSequences } from '@/lib/db-pg/actions/order';
 import { sendOrderConfirmationEmails } from '@/lib/db-pg/actions/send-order-confirmation-emails';
 import { placeWholesaleOrder, parseAccountMateId, parseAccountMateOrderNumber } from '@/lib/wholesale-api';
 import { normalizeCardDigits } from '@/lib/checkout-payment-validation';
@@ -65,6 +68,7 @@ async function allocateNextOrderNumber(): Promise<number> {
 
 async function clearCartAfterOrder(cartId: number): Promise<void> {
     await db.delete(cartItem).where(eq(cartItem.cartId, cartId));
+    await clearCartCheckoutDetails(cartId);
     await db
         .update(cart)
         .set({
@@ -84,7 +88,15 @@ async function persistAccountMateId(accountId: number, userId: number, accountMa
         return;
     }
 
-    await db.update(account).set({ accountMateId: trimmed }).where(eq(account.id, accountId));
+    const [accountRow] = await db
+        .select({ accountMateId: account.accountMateId })
+        .from(account)
+        .where(eq(account.id, accountId))
+        .limit(1);
+
+    if (!parseAccountMateId(accountRow?.accountMateId ?? undefined)) {
+        await db.update(account).set({ accountMateId: trimmed }).where(eq(account.id, accountId));
+    }
 
     const [userRow] = await db
         .select({ accountMateId: user.accountMateId })
@@ -264,7 +276,7 @@ export async function placeCheckoutOrder(input: PlaceCheckoutOrderInput): Promis
         cart: {
             id: cartData.id,
             cartId: String(cartData.id),
-            shippingMethod: input.shipping.shippingMethod,
+            shippingMethod: toAccountMateShipVia(input.shipping.shippingMethod),
             shippingDate: toExpectedDeliveryTimestamp(input.shipping.expectedDeliveryDate),
             shippingCost: input.shippingCost,
             comment: trimOrNull(input.shipping.comment),
@@ -337,6 +349,7 @@ export async function placeCheckoutOrder(input: PlaceCheckoutOrderInput): Promis
     const orderNumber = await allocateNextOrderNumber();
     const cardFields = buildStoredCardFields(input.payment, accountRow.isTerms ?? false);
     const nowIso = new Date().toISOString();
+    await syncOrderIdSequences();
 
     const [insertedOrder] = await db
         .insert(order)
@@ -355,11 +368,12 @@ export async function placeCheckoutOrder(input: PlaceCheckoutOrderInput): Promis
             ccType: cardFields.ccType,
             comment: trimOrNull(input.shipping.comment),
             expectedDeliveryDate: toExpectedDeliveryTimestamp(input.shipping.expectedDeliveryDate),
-            shippingCode: input.shipping.shippingMethod,
+            shippingCode: toAccountMateShipVia(input.shipping.shippingMethod),
             accountMateReturnStatus: trimOrNull(apiResult.accountMateOrderMessage),
             accountMateTransactionId: trimOrNull(apiResult.accountMateOrderTransactionId),
             isNewCustomerOrder: existingAccountMateId ? 0 : 1,
             accountMateOrderNumber: parseAccountMateOrderNumber(apiResult.accountMateOrderNumber),
+            accountMateId: parseAccountMateId(resolvedAccountMateId ?? undefined),
         })
         .returning({ id: order.id });
 
@@ -449,10 +463,9 @@ export async function placeCheckoutOrder(input: PlaceCheckoutOrderInput): Promis
         error: accountMateSuccess ? null : accountMateStatus ?? 'Unknown AccountMate status',
     });
 
-    const legacyCustomerEmail = selectFirstEmailAddress(accountRow.contactEmail) ?? '';
     void sendOrderConfirmationEmails({
         orderId,
-        customerEmail: legacyCustomerEmail,
+        customerEmail: selectFirstEmailAddress(billingEmail),
         isNewCustomerOrder: !existingAccountMateId,
     });
 

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use server';
 
-import { Cart, CartItem } from '../entities/cart-entity';
+import { Cart, CartAddress, CartItem } from '../entities/cart-entity';
 import { accountMapper } from './account-mapper';
 import { productMapper } from './product-mapper';
 
@@ -16,7 +16,11 @@ export async function cartMapper(data: any) {
     cart.total = Number(data.total);
     cart.createDate = data.createDate ?? '';
     cart.modifiedDate = data.modifiedDate ?? '';
+    cart.shippingMethod = data.shippingMethod?.trim() || null;
+    cart.expectedDeliveryDate = data.expectedDeliveryDate ?? null;
+    cart.comment = data.comment?.trim() || null;
     cart.cartItems = [];
+    cart.cartAddresses = [];
 
     if (data.account) {
         cart.account = await accountMapper(data.account);
@@ -29,7 +33,32 @@ export async function cartMapper(data: any) {
         }
     }
 
+    if (data.cartAddresses) {
+        for (const address of data.cartAddresses) {
+            cart.cartAddresses.push(cartAddressMapper(address));
+        }
+    }
+
     return cart;
+}
+
+function cartAddressMapper(data: any): CartAddress {
+    return {
+        id: data.id,
+        cartId: data.cartId,
+        type: data.type ?? '',
+        firstName: data.firstName ?? null,
+        lastName: data.lastName ?? null,
+        companyName: data.companyName ?? null,
+        address1: data.address1 ?? null,
+        address2: data.address2 ?? null,
+        city: data.city ?? null,
+        state: data.state ?? null,
+        postalCode: data.postalCode ?? null,
+        country: data.country ?? null,
+        phoneNumber: data.phoneNumber ?? null,
+        emailAddress: data.emailAddress ?? null,
+    };
 }
 
 export async function cartItemMapper(data: any) {

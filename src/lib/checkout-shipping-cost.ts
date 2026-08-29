@@ -36,7 +36,7 @@ export function lookupStateTaxRate(stateAbbr: string, rates: CheckoutStateShippi
     return findStateRate(stateAbbr, rates)?.taxRate ?? 0;
 }
 
-/** Shipping is $0 when the account skips shipping, has free ground, or subtotal exceeds the threshold. */
+/** Shipping is a percent of the subtotal. It is $0 when the account skips shipping, has free ground, or subtotal exceeds the threshold. */
 export function calculateCheckoutShippingCost(params: {
     subTotal: number;
     shipToState: string;

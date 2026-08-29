@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
 import type { ManageAccountLink } from '@/lib/db-pg/actions/account';
@@ -77,9 +78,12 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
             </div>
 
             <form onSubmit={handleSearch} className="flex shrink-0 flex-wrap items-end gap-3">
-                <label className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Username</span>
+                <div className="flex flex-col gap-1">
+                    <Label htmlFor="users-userName" className="text-[11px] tracking-[0.2em] text-[#6e4a34]">
+                        Username
+                    </Label>
                     <Input
+                        id="users-userName"
                         name="userName"
                         type="search"
                         placeholder="Search by username"
@@ -91,10 +95,13 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                             )
                         }
                     />
-                </label>
-                <label className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Last name</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                    <Label htmlFor="users-lastName" className="text-[11px] tracking-[0.2em] text-[#6e4a34]">
+                        Last name
+                    </Label>
                     <Input
+                        id="users-lastName"
                         name="lastName"
                         type="search"
                         placeholder="Search by last name"
@@ -106,7 +113,7 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                             )
                         }
                     />
-                </label>
+                </div>
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search
                 </Button>

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import moment from 'moment-timezone';
 import { RemoteImage } from '@/components/remote-image';
 import type { ManageOrderDetail } from '@/lib/db-pg/actions/order';
+import { cn } from '@/lib/utils';
 import { OrderEmailActions } from './order-email-actions';
 
 type OrderDetailContentProps = {
@@ -78,7 +79,8 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
         [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
         user?.userName?.trim() ||
         (account ? `Account #${account.id}` : `User #${order.userId}`);
-    const accountMateId = account?.accountMateId?.trim() || user?.accountMateId?.trim() || null;
+    const accountMateId = order.accountMateId?.trim() || account?.accountMateId?.trim() || user?.accountMateId?.trim() || null;
+    const accountEmail = account?.contactEmail?.trim() || null;
     const billingEmail =
         sortedAddresses.find((address) => {
             const type = address.type.trim().toLowerCase();
@@ -94,7 +96,10 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
     return (
         <div className="mx-auto w-full max-w-7xl space-y-6">
             <div className="flex flex-wrap items-center gap-3">
-                <Link href={backHref} className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline-offset-4 hover:underline">
+                <Link
+                    href={backHref}
+                    className="inline-flex h-auto items-center px-0 py-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline underline-offset-4 hover:text-[#3f1d12]"
+                >
                     ← Back to orders
                 </Link>
             </div>
@@ -115,14 +120,6 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
                     <p>
                         <span className="font-semibold uppercase tracking-[0.12em]">Date:</span> {formatOrderDateCentral(order.orderDate)}
                     </p>
-                    {order.accountMateOrderNumber != null ? (
-                        <p>
-                            <span className="font-semibold uppercase tracking-[0.12em]">AM Order #:</span> {order.accountMateOrderNumber}
-                        </p>
-                    ) : null}
-                    <p>
-                        <span className="font-semibold uppercase tracking-[0.12em]">Ship Code:</span> {order.shippingCode || '—'}
-                    </p>
                     {order.isNewCustomerOrder ? (
                         <p className="font-semibold uppercase tracking-[0.12em] text-[#4a2518]">New customer order</p>
                     ) : null}
@@ -136,7 +133,7 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
                         {account ? (
                             <Link
                                 href={`/manage/accounts/${account.id}`}
-                                className="inline-flex items-center rounded-md border border-[#c49a78] bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#5c4032] transition-colors hover:bg-[#f3e0cf] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
+                                className="inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-md border border-[#c49a78] bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#6e4a34] transition-colors hover:bg-[#f3e0cf]"
                             >
                                 Manage account
                             </Link>
@@ -145,7 +142,7 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
                     <div className="space-y-1 text-xs text-[#4a2518]">
                         <p className="font-semibold">{customerName}</p>
                         {accountMateId ? <p>AccountMate ID: {accountMateId}</p> : null}
-                        {user?.userName ? <p>{user.userName}</p> : null}
+                        {accountEmail ? <p>{accountEmail}</p> : null}
                         {account ? <p className="text-[#6e4a34]">Account ID: {account.id}</p> : null}
                     </div>
                 </section>
@@ -261,10 +258,18 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
                     <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Fulfillment</h2>
                     <dl className="space-y-1 text-xs text-[#4a2518]">
                         <div className="flex justify-between gap-4">
+                            <dt>AM Order ID</dt>
+                            <dd>{order.accountMateOrderNumber ?? '—'}</dd>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                            <dt>Ship code</dt>
+                            <dd>{order.shippingCode?.trim() || '—'}</dd>
+                        </div>
+                        <div className="flex justify-between gap-4">
                             <dt>Expected delivery</dt>
                             <dd>{formatExpectedDeliveryDateCentral(order.expectedDeliveryDate)}</dd>
                         </div>
-                        <div className="flex justify-between gap-4">
+                        <div className="flex justify-between gap-4 border-t border-[#d4c4b0] pt-2">
                             <dt>AM return status</dt>
                             <dd>{order.accountMateReturnStatus?.trim() || '—'}</dd>
                         </div>
@@ -283,7 +288,7 @@ export function OrderDetailContent({ detail, backHref, sendEmailFrom, developerE
                 </section>
             ) : null}
 
-            <div className="flex justify-end border-t border-[#d4c4b0] pt-4">
+            <div className="flex justify-end border-t border-[#d4c4b0] pt-4 pb-8">
                 <OrderEmailActions
                     orderId={order.id}
                     sendEmailFrom={sendEmailFrom}

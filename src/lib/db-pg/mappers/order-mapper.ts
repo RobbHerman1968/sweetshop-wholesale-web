@@ -26,6 +26,7 @@ export async function orderMapper(data: any): Promise<Order> {
     order.accountMateTransactionId = data.accountMateTransactionId;
     order.isNewCustomerOrder = data.isNewCustomerOrder;
     order.accountMateOrderNumber = data.accountMateOrderNumber;
+    order.accountMateId = data.accountMateId ?? null;
 
     return order;
 }

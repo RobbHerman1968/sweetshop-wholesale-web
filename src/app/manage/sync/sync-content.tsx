@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { getOrderAddressesFromSweetshopOld, getOrderItemsFromSweetshopOld, getOrdersFromSweetshopOld, getProductImagesFromSweetshopOld, getProductsFromSweetshopOld } from '@/lib/db-sweetshop-old';
+import { getOrderAddressesFromSweetshopOld, getOrderItemsFromSweetshopOld, getOrdersFromSweetshopOld } from '@/lib/db-sweetshop-old';
 import { syncAccountsFromLegacy } from '@/lib/db-pg/actions/account';
 import {
     getMaxOrderAddressId,
@@ -18,7 +18,7 @@ import { syncProductCategoriesFromLegacy } from '@/lib/db-pg/actions/process-pro
 import { cleanProductNamesInDatabase } from '@/lib/db-pg/actions/process-product-names';
 import { syncUserAddressesFromLegacy } from '@/lib/db-pg/actions/process-user-addresses';
 import { createDefaultUser, syncUsersFromLegacy } from '@/lib/db-pg/actions/process-users';
-import { processOldProductImages, processOldProducts } from '@/lib/db-pg/actions/product';
+import { syncProductImagesFromLegacy, syncProductsFromLegacy } from '@/lib/db-pg/actions/product';
 
 export function SyncContent() {
     const [loading, setLoading] = useState(false);
@@ -91,11 +91,15 @@ export function SyncContent() {
         setLoading(true);
         setStatusMessage(null);
         try {
-            const products = await getProductsFromSweetshopOld();
-            console.log('Products', products.length);
-            const processedProducts = await processOldProducts(products);
-            console.log('Processed Products', processedProducts);
-            setStatusMessage(`Fetched ${products.length} products from legacy DB.`);
+            const result = await syncProductsFromLegacy();
+            console.log('Synced products from legacy', result);
+            setStatusMessage(
+                `Fetched ${result.fetched} products from legacy DB. Inserted ${result.inserted}, updated ${result.updated}.`,
+            );
+        } catch (error) {
+            console.error('Failed to sync products', error);
+            const message = error instanceof Error ? error.message : 'Failed to sync products from legacy.';
+            setStatusMessage(message);
         } finally {
             setLoading(false);
         }
@@ -105,11 +109,15 @@ export function SyncContent() {
         setLoading(true);
         setStatusMessage(null);
         try {
-            const productImages = await getProductImagesFromSweetshopOld();
-            console.log('Product Images', productImages.length);
-            const processedProductImages = await processOldProductImages(productImages);
-            console.log('Processed Product Images', processedProductImages);
-            setStatusMessage(`Fetched ${productImages.length} product images from legacy DB.`);
+            const result = await syncProductImagesFromLegacy();
+            console.log('Synced product images from legacy', result);
+            setStatusMessage(
+                `Fetched ${result.fetched} product images. Linked ${result.linked}, skipped ${result.skippedExisting}${result.missingPaths ? `, missing ${result.missingPaths} paths` : ''}.`,
+            );
+        } catch (error) {
+            console.error('Failed to sync product images', error);
+            const message = error instanceof Error ? error.message : 'Failed to sync product images from legacy.';
+            setStatusMessage(message);
         } finally {
             setLoading(false);
         }

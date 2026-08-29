@@ -40,15 +40,7 @@ function revalidateStateRatePaths(id?: number) {
     }
 }
 
-function parseShippingRate(value: FormDataEntryValue | null): number | null {
-    const raw = String(value ?? '').trim();
-    if (!raw) return null;
-    const parsed = Number(raw);
-    if (!Number.isFinite(parsed) || parsed < 0) return null;
-    return Math.round(parsed * 100) / 100;
-}
-
-function parseTaxRatePercent(value: FormDataEntryValue | null): number | null {
+function parsePercentRate(value: FormDataEntryValue | null): number | null {
     const raw = String(value ?? '').trim();
     if (!raw) return null;
     const parsed = Number(raw);
@@ -59,8 +51,8 @@ function parseTaxRatePercent(value: FormDataEntryValue | null): number | null {
 function parseStateShippingTaxRateForm(formData: FormData) {
     const stateAbbr = normalizeStateAbbr(String(formData.get('stateAbbr') ?? ''));
     let stateName = String(formData.get('stateName') ?? '').trim();
-    const shippingRate = parseShippingRate(formData.get('shippingRate'));
-    const taxRate = parseTaxRatePercent(formData.get('taxRatePercent'));
+    const shippingRate = parsePercentRate(formData.get('shippingRatePercent'));
+    const taxRate = parsePercentRate(formData.get('taxRatePercent'));
 
     if (!/^[A-Z]{2}$/.test(stateAbbr)) {
         return { ok: false as const, error: 'State abbreviation must be exactly 2 letters.' };
@@ -75,7 +67,7 @@ function parseStateShippingTaxRateForm(formData: FormData) {
     }
 
     if (shippingRate == null) {
-        return { ok: false as const, error: 'Enter a valid shipping rate of zero or greater.' };
+        return { ok: false as const, error: 'Enter a valid shipping rate percentage of zero or greater.' };
     }
 
     if (taxRate == null) {
@@ -159,7 +151,7 @@ export async function createStateShippingTaxRateFromForm(formData: FormData): Pr
         .values({
             stateAbbr: parsed.values.stateAbbr,
             stateName: parsed.values.stateName,
-            shippingRate: parsed.values.shippingRate.toFixed(2),
+            shippingRate: parsed.values.shippingRate.toFixed(4),
             taxRate: parsed.values.taxRate.toFixed(4),
         })
         .returning({ id: stateShippingTaxRate.id });
@@ -192,7 +184,7 @@ export async function updateStateShippingTaxRateFromForm(formData: FormData): Pr
         .set({
             stateAbbr: parsed.values.stateAbbr,
             stateName: parsed.values.stateName,
-            shippingRate: parsed.values.shippingRate.toFixed(2),
+            shippingRate: parsed.values.shippingRate.toFixed(4),
             taxRate: parsed.values.taxRate.toFixed(4),
         })
         .where(eq(stateShippingTaxRate.id, id));

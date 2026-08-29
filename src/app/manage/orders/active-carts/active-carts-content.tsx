@@ -89,6 +89,7 @@ export function ActiveCartsContent({ data, pagination }: ActiveCartsContentProps
                                 <th className="px-3 py-2 text-left min-w-40">Account</th>
                                 <th className="px-3 py-2 text-center w-32 whitespace-nowrap">Total Products</th>
                                 <th className="px-3 py-2 text-right w-32">Total Price</th>
+                                <th className="px-3 py-2 text-left min-w-48">Message</th>
                                 <th className="px-3 py-2 text-center w-44 whitespace-nowrap">Create Date</th>
                                 <th className="px-3 py-2 text-center w-44 whitespace-nowrap">Modified Date</th>
                                 <th className="px-3 py-2 text-right w-20"></th>
@@ -103,6 +104,9 @@ export function ActiveCartsContent({ data, pagination }: ActiveCartsContentProps
                                 const detailHref = `/manage/orders/active-carts/${row.id}?returnTo=${encodeURIComponent(listHref)}`;
                                 const contactName = formatContactName(row.contactFirstName, row.contactLastName);
                                 const accountName = row.accountName?.trim() || null;
+                                const comment = row.comment?.trim() || '';
+                                const commentPreview =
+                                    comment.length > 80 ? `${comment.slice(0, 80).trimEnd()}…` : comment;
 
                                 return (
                                     <tr key={row.id} className={isEven ? 'bg-[#fdf7ef] font-mono' : 'bg-[#f8eddf] font-mono'}>
@@ -124,6 +128,15 @@ export function ActiveCartsContent({ data, pagination }: ActiveCartsContentProps
                                         <td className="px-3 py-2 align-middle text-center text-[11px] tabular-nums">{row.totalProducts}</td>
                                         <td className="px-3 py-2 align-middle text-right text-[11px] font-semibold tabular-nums">
                                             ${Number(row.total).toFixed(2)}
+                                        </td>
+                                        <td className="px-3 py-2 align-middle text-left text-[11px] font-sans text-[#6e4a34]">
+                                            {comment ? (
+                                                <span title={comment} className="line-clamp-2 whitespace-pre-wrap">
+                                                    {commentPreview}
+                                                </span>
+                                            ) : (
+                                                '—'
+                                            )}
                                         </td>
                                         <td className="px-3 py-2 align-middle text-center text-[11px] tabular-nums">
                                             {formatCartDateCentral(row.createDate)}

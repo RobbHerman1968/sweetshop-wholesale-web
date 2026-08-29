@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { markPendingShopQueryStrip } from '@/lib/shop-chrome-nav';
 import { DEFAULT_SHIPPING_LEAD_TIME } from '@/lib/shipping-lead-time-constants';
+import { invalidateShopCartCountRefresh, refreshShopCartCount } from '@/lib/shop-cart-count-client';
 import { useShopCartStore } from '@/store/useShopCartStore';
 import { cn } from '@/lib/utils';
 
@@ -167,16 +168,24 @@ export function WholesaleAccountSwitcher({
         if (picked) {
             setSelectedAccountId(accountId);
             setSelectedAccountDisplayName(picked.displayName);
-            useShopCartStore.getState().setAccountId(accountId);
+            // Update display fields only — do not setAccountId until the cookie is written,
+            // or the cart count refresh will still read the previous account.
             useShopCartStore.getState().setAccountDisplayName(picked.displayName);
             useShopCartStore.getState().setShippingLeadTime(picked.shippingLeadTime);
         }
 
         const onShopHome = pathname === '/shop';
 
+        const applySelectedAccountCart = async () => {
+            invalidateShopCartCountRefresh();
+            useShopCartStore.getState().setAccountId(accountId);
+            await refreshShopCartCount(accountId);
+        };
+
         try {
-            const { ok } = await setWholesaleSelectedAccount(accountId, {
+            const { ok, displayName } = await setWholesaleSelectedAccount(accountId, {
                 adminShopAs: adminShopAs ? true : undefined,
+                reloadFromAccountMate: adminShopAs,
                 // Same-route redirect to `/shop` can leave cached RSC payload; refresh client-side instead.
                 redirectToShop: !onShopHome,
             });
@@ -184,6 +193,13 @@ export function WholesaleAccountSwitcher({
                 void refreshState();
                 return;
             }
+
+            if (displayName) {
+                setSelectedAccountDisplayName(displayName);
+                useShopCartStore.getState().setAccountDisplayName(displayName);
+            }
+
+            await applySelectedAccountCart();
 
             if (onShopHome) {
                 router.replace('/shop', { scroll: false });
@@ -193,6 +209,7 @@ export function WholesaleAccountSwitcher({
         } catch (error) {
             // redirect() throws; Next.js handles navigation from the server action response.
             if (isNextRedirectError(error)) {
+                await applySelectedAccountCart();
                 router.refresh();
                 void refreshState();
                 return;
@@ -211,6 +228,8 @@ export function WholesaleAccountSwitcher({
             onAccountSelected?.();
             markPendingShopQueryStrip();
             await refreshState();
+            invalidateShopCartCountRefresh();
+            await refreshShopCartCount();
             router.refresh();
         } finally {
             setResetting(false);

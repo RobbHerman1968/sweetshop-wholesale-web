@@ -33,6 +33,7 @@ import {
     buildEmptyShippingForm,
     billingFormToSavedAddress,
     buildPaymentSummary,
+    findDefaultSavedAddress,
     getBillingFieldErrors,
     getCheckoutBillingEmailAddress,
     getShippingFieldErrors,
@@ -40,6 +41,7 @@ import {
     pruneBillingFieldErrors,
     pruneShippingFieldErrors,
     savedAddressToBillingForm,
+    savedAddressToShippingForm,
     shippingFormToBillingForm,
     shippingFormToSavedAddress,
     validatePaymentStep,
@@ -115,12 +117,27 @@ export function CheckoutContent({
 
     const defaultDeliveryDate = defaultExpectedDeliveryDate;
 
-    const initialShipping = useMemo(
-        () => buildEmptyShippingForm(accountDefaults, defaultDeliveryDate),
-        [accountDefaults, defaultDeliveryDate],
-    );
+    const initialShipping = useMemo(() => {
+        const defaultShipping = findDefaultSavedAddress(savedShippingAddresses);
+        if (defaultShipping) {
+            return {
+                ...savedAddressToShippingForm(defaultShipping),
+                comment: cart.comment?.trim() ?? '',
+                expectedDeliveryDate: defaultDeliveryDate,
+            };
+        }
+
+        return {
+            ...buildEmptyShippingForm(accountDefaults, defaultDeliveryDate),
+            comment: cart.comment?.trim() ?? '',
+        };
+    }, [accountDefaults, cart.comment, defaultDeliveryDate, savedShippingAddresses]);
 
     const initialBilling = useMemo(() => {
+        const defaultBilling = findDefaultSavedAddress(savedBillingAddresses);
+        if (defaultBilling) {
+            return savedAddressToBillingForm(defaultBilling);
+        }
         if (savedBillingAddresses.length > 0) {
             return savedAddressToBillingForm(savedBillingAddresses[0]);
         }
@@ -193,7 +210,7 @@ export function CheckoutContent({
 
     const goToNextStep = async () => {
         if (currentStep === 'shipping') {
-            const fieldErrors = getShippingFieldErrors(shippingForm);
+            const fieldErrors = getShippingFieldErrors(shippingForm, checkoutSavedAddresses);
             if (Object.keys(fieldErrors).length > 0) {
                 setShippingFieldErrors(fieldErrors);
                 toast({
@@ -262,7 +279,7 @@ export function CheckoutContent({
         }
 
         if (currentStep === 'billing') {
-            const fieldErrors = getBillingFieldErrors(billingForm);
+            const fieldErrors = getBillingFieldErrors(billingForm, checkoutSavedAddresses);
             if (Object.keys(fieldErrors).length > 0) {
                 setBillingFieldErrors(fieldErrors);
                 toast({
@@ -397,7 +414,9 @@ export function CheckoutContent({
                                 if (switchedToNew) {
                                     setShippingFieldErrors({});
                                 } else {
-                                    setShippingFieldErrors((current) => pruneShippingFieldErrors(current, next));
+                                    setShippingFieldErrors((current) =>
+                                        pruneShippingFieldErrors(current, next, checkoutSavedAddresses),
+                                    );
                                 }
                             }}
                         />
@@ -415,7 +434,9 @@ export function CheckoutContent({
                                 if (switchedToNew) {
                                     setBillingFieldErrors({});
                                 } else {
-                                    setBillingFieldErrors((current) => pruneBillingFieldErrors(current, next));
+                                    setBillingFieldErrors((current) =>
+                                        pruneBillingFieldErrors(current, next, checkoutSavedAddresses),
+                                    );
                                 }
                             }}
                         />

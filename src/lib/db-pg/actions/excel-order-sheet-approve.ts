@@ -7,6 +7,7 @@ import { authOptions } from '@/auth';
 import { getAccountByIdForManage } from '@/lib/db-pg/actions/account';
 import { resolveExcelOrderSheetRows } from '@/lib/db-pg/actions/excel-order-sheet-validation';
 import { insertOrderLog, isAccountMateSuccessStatus } from '@/lib/db-pg/actions/order-log';
+import { syncOrderIdSequences } from '@/lib/db-pg/actions/order';
 import { sendOrderConfirmationEmails } from '@/lib/db-pg/actions/send-order-confirmation-emails';
 import type { PlaceOrder } from '@/lib/db-pg/entities/place-order-entity';
 import { db } from '@/lib/db-pg';
@@ -18,7 +19,7 @@ import type {
 } from '@/lib/excel-order-sheet/types';
 import { selectFirstEmailAddress } from '@/lib/checkout-utils';
 import { parseUserId } from '@/lib/user-id';
-import { parseAccountMateOrderNumber, placeWholesaleOrder } from '@/lib/wholesale-api';
+import { parseAccountMateId, parseAccountMateOrderNumber, placeWholesaleOrder } from '@/lib/wholesale-api';
 
 function trim(value: string | null | undefined): string {
     return value?.trim() ?? '';
@@ -158,6 +159,7 @@ async function placeValidatedSheetOrder(
     const orderNumber = await allocateNextOrderNumber();
     const nowIso = new Date().toISOString();
     const accountMateOrderNumber = parseAccountMateOrderNumber(apiResult.accountMateOrderNumber);
+    await syncOrderIdSequences();
 
     const [insertedOrder] = await db
         .insert(order)
@@ -181,6 +183,7 @@ async function placeValidatedSheetOrder(
             accountMateTransactionId: trim(apiResult.accountMateOrderTransactionId) || null,
             isNewCustomerOrder: 0,
             accountMateOrderNumber,
+            accountMateId: parseAccountMateId(sheetOrder.accountMateId),
         })
         .returning({ id: order.id });
 

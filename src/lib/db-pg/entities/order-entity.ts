@@ -19,4 +19,5 @@ export type Order = {
     accountMateTransactionId: string;
     isNewCustomerOrder: boolean;
     accountMateOrderNumber: number;
+    accountMateId: string | null;
 };

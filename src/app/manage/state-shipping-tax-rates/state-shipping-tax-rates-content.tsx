@@ -19,11 +19,7 @@ function buildQuery(params: { state?: string }) {
     return q.toString() ? `?${q.toString()}` : '';
 }
 
-function formatShippingRate(value: number) {
-    return `$${value.toFixed(2)}`;
-}
-
-function formatTaxRate(value: number) {
+function formatPercentRate(value: number) {
     return `${(value * 100).toFixed(4).replace(/\.?0+$/, '')}%`;
 }
 
@@ -103,10 +99,10 @@ export function StateShippingTaxRatesContent({ data, searchState }: StateShippin
                                             </td>
                                             <td className="px-3 py-2 align-middle text-[11px]">{row.stateName || '—'}</td>
                                             <td className="px-3 py-2 align-middle text-center text-[11px] tabular-nums">
-                                                {formatShippingRate(row.shippingRate)}
+                                                {formatPercentRate(row.shippingRate)}
                                             </td>
                                             <td className="px-3 py-2 align-middle text-center text-[11px] tabular-nums">
-                                                {formatTaxRate(row.taxRate)}
+                                                {formatPercentRate(row.taxRate)}
                                             </td>
                                             <td className="px-3 py-2 align-middle text-center text-[11px]">
                                                 <Link

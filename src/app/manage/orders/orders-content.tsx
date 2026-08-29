@@ -7,6 +7,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DatePicker, parseIsoDate } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { cn } from '@/lib/utils';
 import moment from 'moment-timezone';
@@ -161,9 +162,12 @@ export function OrdersContent({
                     onChange={(value) => setToInput(value ?? '')}
                     placeholder="End date"
                 />
-                <label className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">AccountMate ID</span>
+                <div className="flex flex-col gap-1">
+                    <Label htmlFor="orders-accountMateId" className="text-[11px] tracking-[0.2em] text-[#6e4a34]">
+                        AccountMate ID
+                    </Label>
                     <Input
+                        id="orders-accountMateId"
                         name="accountMateId"
                         type="search"
                         placeholder="Search by AM ID"
@@ -182,10 +186,13 @@ export function OrdersContent({
                             )
                         }
                     />
-                </label>
-                <label className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Email</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                    <Label htmlFor="orders-email" className="text-[11px] tracking-[0.2em] text-[#6e4a34]">
+                        Email
+                    </Label>
                     <Input
+                        id="orders-email"
                         name="email"
                         type="search"
                         placeholder="Search by email"
@@ -204,7 +211,7 @@ export function OrdersContent({
                             )
                         }
                     />
-                </label>
+                </div>
                 <div className="flex items-center gap-2">
                     <Button type="submit" variant="outline" className="h-8 shrink-0 px-3">
                         Apply

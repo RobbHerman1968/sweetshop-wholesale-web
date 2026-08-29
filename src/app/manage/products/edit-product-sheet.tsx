@@ -11,7 +11,9 @@ import type { Product } from '@/lib/db-pg/entities/product-entity';
 import TiptapEditor from '@/components/ui/editor/tiptap-editor';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EditProductImageSection } from './edit-product-image-section';
+import { EditProductOldImageTab } from './edit-product-old-image-tab';
 import { ProductCategoryChecklist } from './product-category-checklist';
+import { isLocalhostHostname } from '@/lib/is-localhost';
 
 type Props = {
     productId: number | null;
@@ -35,6 +37,7 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('description');
+    const [showOldImageTab, setShowOldImageTab] = useState(false);
 
     useEffect(() => {
         if (!productId) return;
@@ -54,6 +57,17 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
         if (!productId) return;
         setActiveTab('description');
     }, [productId]);
+
+    useEffect(() => {
+        setShowOldImageTab(isLocalhostHostname(window.location.hostname));
+    }, []);
+
+    async function reloadProduct() {
+        if (!productId) return null;
+        const product = await getProductById(productId);
+        if (product) setProductToEdit(product);
+        return product;
+    }
 
     function toggleCategory(categoryId: number, checked: boolean) {
         setSelectedCategoryIds((current) => {
@@ -165,6 +179,11 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
                                     <TabsTrigger value="categories" className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
                                         Categories
                                     </TabsTrigger>
+                                    {showOldImageTab ? (
+                                        <TabsTrigger value="old-image" className="rounded px-3 py-2.5 data-[state=active]:bg-[#6e4a34] data-[state=active]:text-[#fdf7ef]">
+                                            Get old product image
+                                        </TabsTrigger>
+                                    ) : null}
                                 </TabsList>
                                 <div className="min-h-0 flex-1 overflow-y-auto pt-2">
                                     <TabsContent value="categories" className="mt-0 data-[state=inactive]:hidden">
@@ -177,6 +196,15 @@ export function EditProductSheet({ productId, onClose, onSaved }: Props) {
                                             includeFormFields
                                         />
                                     </TabsContent>
+                                    {showOldImageTab ? (
+                                        <TabsContent value="old-image" className="mt-0 data-[state=inactive]:hidden">
+                                            <EditProductOldImageTab
+                                                product={productToEdit}
+                                                active={activeTab === 'old-image'}
+                                                onReloadProduct={reloadProduct}
+                                            />
+                                        </TabsContent>
+                                    ) : null}
                                     {RICH_TEXT_FIELDS.map(({ name }) => {
                                         const value = productToEdit[name] ?? '';
                                         return (

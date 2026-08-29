@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { createUserFromForm } from '@/lib/db-pg/actions/users';
 
@@ -85,19 +87,13 @@ export function AddUserContent({ backHref }: Props) {
 
                 <div className="flex flex-wrap items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="add-user-isActive"
-                            name="isActive"
-                            defaultChecked
-                            className="h-4 w-4 rounded border-[#c49a78]"
-                        />
+                        <Checkbox id="add-user-isActive" name="isActive" defaultChecked />
                         <Label htmlFor="add-user-isActive" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
                             Active
                         </Label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" id="add-user-isAdmin" name="isAdmin" className="h-4 w-4 rounded border-[#c49a78]" />
+                        <Checkbox id="add-user-isAdmin" name="isAdmin" />
                         <Label htmlFor="add-user-isAdmin" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
                             Admin
                         </Label>
@@ -111,15 +107,15 @@ export function AddUserContent({ backHref }: Props) {
                     <Label htmlFor="add-user-password" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
                         Password
                     </Label>
-                    <Input
-                        id="add-user-password"
-                        name="password"
-                        type="password"
-                        autoComplete="new-password"
-                        className="w-full sm:max-w-md"
-                        minLength={6}
-                        required
-                    />
+                    <div className="w-full sm:max-w-md">
+                        <PasswordInput
+                            id="add-user-password"
+                            name="password"
+                            autoComplete="new-password"
+                            minLength={6}
+                            required
+                        />
+                    </div>
                 </div>
             </section>
 

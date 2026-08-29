@@ -33,7 +33,7 @@ export type CheckoutShippingForm = {
     isBillingAddress: boolean;
     comment: string;
     expectedDeliveryDate: string;
-    shippingMethod: 'fedex-ground';
+    shippingMethod: 'FEDEX-G';
 };
 
 export type CheckoutCardType = '' | 'visa' | 'mastercard' | 'amex' | 'discover';

@@ -1,10 +1,27 @@
 'use server';
 
-import { sql } from 'drizzle-orm';
+import { inArray, sql } from 'drizzle-orm';
 
 import { db } from '@/lib/db-pg';
 import { getAccountAddressesFromSweetshopOld } from '@/lib/db-sweetshop-old';
-import { accountAddress } from '@/lib/drizzle/schema';
+import { account, accountAddress } from '@/lib/drizzle/schema';
+import { parseAccountMateId } from '@/lib/wholesale-api';
+
+async function advanceAccountAddressIdSequence(): Promise<void> {
+    const [result] = await db.execute(sql`
+        SELECT setval(
+            pg_get_serial_sequence('"accountAddress"', 'id'),
+            GREATEST(
+                (SELECT COALESCE(MAX(id), 0) FROM "accountAddress"),
+                (SELECT last_value FROM "userAddress_id_seq")
+            )
+        ) AS last_value
+    `);
+
+    console.log(
+        `User address sync: advanced accountAddress id sequence to ${String((result as { last_value?: unknown })?.last_value ?? 'unknown')}`,
+    );
+}
 
 export type UserAddressSyncResult = {
     fetched: number;
@@ -57,6 +74,11 @@ function readLegacyAccountAddressAccountId(row: any): number | null {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyAccountAddressAccountMateId(row: any): string | null {
+    return parseAccountMateId(row.AccountMateId ?? row.accountMateId ?? undefined);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapLegacyAccountAddressRow(row: any) {
     const companyName = trimOrNull(row.Company ?? row.company);
     const name = trimOrNull(row.AddressName ?? row.addressName);
@@ -65,6 +87,7 @@ function mapLegacyAccountAddressRow(row: any) {
     return {
         id: readLegacyAccountAddressId(row)!,
         accountId: readLegacyAccountAddressAccountId(row)!,
+        accountMateId: readLegacyAccountAddressAccountMateId(row),
         name,
         type,
         companyName,
@@ -83,10 +106,36 @@ function mapLegacyAccountAddressRow(row: any) {
 
 type LegacyUserAddressRow = ReturnType<typeof mapLegacyAccountAddressRow>;
 
+async function fillAccountMateIdsFromAccounts(chunk: LegacyUserAddressRow[]) {
+    const missingAccountIds = [
+        ...new Set(chunk.filter((row) => !row.accountMateId).map((row) => row.accountId)),
+    ];
+    if (missingAccountIds.length === 0) {
+        return;
+    }
+
+    const accounts = await db
+        .select({ id: account.id, accountMateId: account.accountMateId })
+        .from(account)
+        .where(inArray(account.id, missingAccountIds));
+
+    const byAccountId = new Map(
+        accounts.map((row) => [row.id, parseAccountMateId(row.accountMateId ?? undefined)]),
+    );
+
+    for (const row of chunk) {
+        if (!row.accountMateId) {
+            row.accountMateId = byAccountId.get(row.accountId) ?? null;
+        }
+    }
+}
+
 async function upsertAccountAddressChunk(chunk: LegacyUserAddressRow[]) {
     if (chunk.length === 0) {
         return;
     }
+
+    await fillAccountMateIdsFromAccounts(chunk);
 
     await db
         .insert(accountAddress)
@@ -95,6 +144,7 @@ async function upsertAccountAddressChunk(chunk: LegacyUserAddressRow[]) {
             target: accountAddress.id,
             set: {
                 accountId: sql`excluded."accountId"`,
+                accountMateId: sql`excluded."accountMateId"`,
                 name: sql`excluded.name`,
                 type: sql`excluded.type`,
                 companyName: sql`excluded."companyName"`,
@@ -165,6 +215,7 @@ async function syncLegacyUserAddressRows(rows: any[]): Promise<UserAddressSyncRe
     }
 
     await flushChunk();
+    await advanceAccountAddressIdSequence();
 
     console.log(
         `User address sync: complete (${updated} updated, ${inserted} inserted, ${skipped} skipped, ${rows.length} fetched)`,

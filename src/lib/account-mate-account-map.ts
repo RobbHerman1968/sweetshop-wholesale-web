@@ -2,6 +2,7 @@ export type AccountMateMappedAccountFields = {
     name: string | null;
     contactFirstName: string | null;
     contactLastName: string | null;
+    contactEmail: string | null;
     contactPhone: string | null;
     contactAddress1: string | null;
     contactAddress2: string | null;
@@ -61,6 +62,7 @@ function normalizeMappedAccountFields(fields: AccountMateMappedAccountFields): A
         name: trimAccountMateValue(fields.name),
         contactFirstName: trimAccountMateValue(fields.contactFirstName),
         contactLastName: trimAccountMateValue(fields.contactLastName),
+        contactEmail: trimAccountMateValue(fields.contactEmail)?.toLowerCase() ?? null,
         contactPhone: stripPhoneToDigits(fields.contactPhone),
         contactAddress1: trimAccountMateValue(fields.contactAddress1),
         contactAddress2: trimAccountMateValue(fields.contactAddress2),
@@ -81,6 +83,7 @@ export function mapAccountMateRowToAccountFields(row: Record<string, unknown>): 
         name: readAccountMateField(row, 'ccompany'),
         contactFirstName: readAccountMateField(row, 'cfname'),
         contactLastName: readAccountMateField(row, 'clname'),
+        contactEmail: readAccountMateField(row, 'cemail'),
         contactPhone: readAccountMatePhoneField(row, 'cphone1'),
         contactAddress1: readAccountMateField(row, 'caddr1'),
         contactAddress2: readAccountMateField(row, 'caddr2'),

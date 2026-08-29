@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -217,9 +218,8 @@ export function ForgotPasswordDialog({ open, onOpenChange, onBackToLogin }: Forg
                     <form className="mt-4 space-y-3" onSubmit={handleSetPassword}>
                         <div className="space-y-1">
                             <Label htmlFor={passwordFieldId}>New password</Label>
-                            <Input
+                            <PasswordInput
                                 id={passwordFieldId}
-                                type="password"
                                 name="password"
                                 autoComplete="new-password"
                                 placeholder="••••••••"
@@ -231,9 +231,8 @@ export function ForgotPasswordDialog({ open, onOpenChange, onBackToLogin }: Forg
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor={confirmPasswordFieldId}>Confirm new password</Label>
-                            <Input
+                            <PasswordInput
                                 id={confirmPasswordFieldId}
-                                type="password"
                                 name="confirmPassword"
                                 autoComplete="new-password"
                                 placeholder="••••••••"

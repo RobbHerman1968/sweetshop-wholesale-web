@@ -5,6 +5,7 @@ import { CalendarIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
@@ -71,9 +72,9 @@ export function DatePicker({
     return (
         <div className={cn('flex flex-col gap-1', className)}>
             {label ? (
-                <label htmlFor={triggerId} className="text-[11px] font-medium uppercase tracking-wider text-[#7c5b44]">
+                <Label htmlFor={triggerId} className="text-[11px] tracking-wider text-[#7c5b44]">
                     {label}
-                </label>
+                </Label>
             ) : null}
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>

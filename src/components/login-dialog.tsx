@@ -6,6 +6,7 @@ import { signIn } from 'next-auth/react';
 import { X } from 'lucide-react';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { ForgotPasswordDialog } from '@/components/forgot-password-dialog';
@@ -123,9 +124,8 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="login-password">Password</Label>
-                            <Input
+                            <PasswordInput
                                 id="login-password"
-                                type="password"
                                 autoComplete="current-password"
                                 placeholder="••••••••"
                                 value={password}

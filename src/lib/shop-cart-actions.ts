@@ -69,7 +69,26 @@ function revalidateCartPaths() {
     revalidatePath('/cart');
 }
 
-export async function getShopCartItemCount(): Promise<number> {
+export async function getShopCartItemCount(accountIdOverride?: number | null): Promise<number> {
+    const override =
+        accountIdOverride != null && Number.isFinite(accountIdOverride) && accountIdOverride > 0
+            ? accountIdOverride
+            : null;
+
+    if (override != null) {
+        const session = await getServerSession(authOptions);
+        const userId = parseUserId(session?.user?.id);
+        if (userId == null) {
+            return 0;
+        }
+        const isAdmin = session?.user?.isAdmin ?? false;
+        const canAccess = await canAccessAccountForShop(userId, override, isAdmin);
+        if (!canAccess) {
+            return 0;
+        }
+        return getCartItemCountByAccountId(override);
+    }
+
     const context = await resolveShopCartContext();
     if (!context.ok) {
         return 0;
@@ -105,6 +124,11 @@ export async function getShopCart(): Promise<{ ok: true; cart: ShopCartView } | 
                 total: 0,
                 itemCount: 0,
                 items: [],
+                shippingMethod: cartData?.shippingMethod ?? null,
+                expectedDeliveryDate: cartData?.expectedDeliveryDate ?? null,
+                comment: cartData?.comment ?? null,
+                shippingAddress: null,
+                billingAddress: null,
             },
         };
     }

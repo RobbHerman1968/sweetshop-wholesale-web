@@ -19,8 +19,8 @@ type StateShippingTaxRateFormProps = {
     backHref: string;
 };
 
-function formatTaxRatePercent(taxRate: number) {
-    const percent = taxRate * 100;
+function formatRatePercent(rate: number) {
+    const percent = rate * 100;
     return Number.isInteger(percent) ? String(percent) : String(Number(percent.toFixed(4)));
 }
 
@@ -121,15 +121,15 @@ export function StateShippingTaxRateForm({ mode, rate, backHref }: StateShipping
                 <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                         <Label htmlFor="state-rate-shipping" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                            Shipping rate ($)
+                            Shipping rate (%)
                         </Label>
                         <Input
                             id="state-rate-shipping"
-                            name="shippingRate"
+                            name="shippingRatePercent"
                             type="number"
                             min="0"
-                            step="0.01"
-                            defaultValue={rate ? rate.shippingRate.toFixed(2) : '0.00'}
+                            step="0.0001"
+                            defaultValue={rate ? formatRatePercent(rate.shippingRate) : '0'}
                             className="w-full"
                             required
                         />
@@ -144,7 +144,7 @@ export function StateShippingTaxRateForm({ mode, rate, backHref }: StateShipping
                             type="number"
                             min="0"
                             step="0.0001"
-                            defaultValue={rate ? formatTaxRatePercent(rate.taxRate) : '0'}
+                            defaultValue={rate ? formatRatePercent(rate.taxRate) : '0'}
                             className="w-full"
                             required
                         />

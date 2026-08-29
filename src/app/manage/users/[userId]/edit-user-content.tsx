@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { updateUserFromForm } from '@/lib/db-pg/actions/users';
 import type { ManageUser } from '@/lib/db-pg/actions/users';
@@ -94,13 +96,13 @@ export function EditUserContent({ user, linkedAccount, backHref }: Props) {
 
                 <div className="flex flex-wrap items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" id="edit-user-isActive" name="isActive" defaultChecked={user.isActive} className="h-4 w-4 rounded border-[#c49a78]" />
+                        <Checkbox id="edit-user-isActive" name="isActive" defaultChecked={user.isActive} />
                         <Label htmlFor="edit-user-isActive" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
                             Active
                         </Label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" id="edit-user-isAdmin" name="isAdmin" defaultChecked={user.isAdmin} className="h-4 w-4 rounded border-[#c49a78]" />
+                        <Checkbox id="edit-user-isAdmin" name="isAdmin" defaultChecked={user.isAdmin} />
                         <Label htmlFor="edit-user-isAdmin" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
                             Admin
                         </Label>
@@ -114,7 +116,9 @@ export function EditUserContent({ user, linkedAccount, backHref }: Props) {
                     <Label htmlFor="edit-user-newPassword" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
                         New password
                     </Label>
-                    <Input id="edit-user-newPassword" name="newPassword" type="password" autoComplete="new-password" className="w-full sm:max-w-md" placeholder="Leave blank to keep current password" />
+                    <div className="w-full sm:max-w-md">
+                        <PasswordInput id="edit-user-newPassword" name="newPassword" autoComplete="new-password" placeholder="Leave blank to keep current password" />
+                    </div>
                 </div>
             </section>
 

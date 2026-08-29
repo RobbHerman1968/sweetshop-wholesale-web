@@ -75,6 +75,38 @@ export const CHECKOUT_COUNTRIES = ['United States', 'Canada'] as const;
 
 export const CHECKOUT_COMMENT_MAX_LENGTH = 180;
 
+export const CHECKOUT_DEFAULT_ADDRESS_NAME = 'DEFAULT';
+
+export function normalizeAddressName(value: string): string {
+    return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+export function isDefaultAddressName(value: string | null | undefined): boolean {
+    return normalizeAddressName(value ?? '') === normalizeAddressName(CHECKOUT_DEFAULT_ADDRESS_NAME);
+}
+
+export function findDefaultSavedAddress(addresses: CheckoutSavedAddress[]): CheckoutSavedAddress | null {
+    return addresses.find((address) => isDefaultAddressName(address.name)) ?? null;
+}
+
+export function findDuplicateAddressName(
+    name: string,
+    addresses: CheckoutSavedAddress[],
+    excludeId?: number | null,
+): CheckoutSavedAddress | null {
+    const normalized = normalizeAddressName(name);
+    if (!normalized) {
+        return null;
+    }
+
+    return (
+        addresses.find(
+            (address) =>
+                normalizeAddressName(address.name) === normalized && (excludeId == null || address.id !== excludeId),
+        ) ?? null
+    );
+}
+
 /** Strip non-digits and cap at 10 characters (US phone). */
 export function normalizePhoneDigits(value: string): string {
     return value.replace(/\D/g, '').slice(0, 10);
@@ -222,8 +254,26 @@ export function formatCheckoutLongDate(value: string | Date): string {
     });
 }
 
-export const CHECKOUT_SHIPPING_METHOD_FEDEX_GROUND = 'fedex-ground' as const;
+/** AccountMate ship-via for FedEx Ground and free ground shipping. */
+export const CHECKOUT_SHIPPING_METHOD_FEDEX_GROUND = 'FEDEX-G' as const;
 export const CHECKOUT_SHIPPING_METHOD_LABEL = 'FedEx Ground';
+
+const FEDEX_GROUND_SHIP_VIA_ALIASES = new Set([
+    'FEDEX-G',
+    'FEDEX-GROUND',
+    'FEDEX_GROUND',
+    'FEDEX GROUND',
+    'FEDEXGROUND',
+]);
+
+export function toAccountMateShipVia(method: string | null | undefined): string {
+    const trimmed = method?.trim() ?? '';
+    const normalized = trimmed.toUpperCase().replace(/[\s_]+/g, '-');
+    if (!trimmed || FEDEX_GROUND_SHIP_VIA_ALIASES.has(trimmed.toUpperCase()) || FEDEX_GROUND_SHIP_VIA_ALIASES.has(normalized)) {
+        return CHECKOUT_SHIPPING_METHOD_FEDEX_GROUND;
+    }
+    return trimmed;
+}
 
 export function getDateAfterLeadDays(shippingLeadTimeDays: number, from = new Date()): Date {
     const today = getCalendarDatePartsInTimeZone(from, CHECKOUT_BUSINESS_TIMEZONE);
@@ -325,7 +375,7 @@ export function savedAddressToShippingForm(address: CheckoutSavedAddress): Check
     return {
         selectedAddressId: address.id,
         updateAddressId: address.id,
-        addressName: address.name,
+        addressName: CHECKOUT_DEFAULT_ADDRESS_NAME,
         firstName: address.firstName,
         lastName: address.lastName,
         companyName: address.companyName,
@@ -351,7 +401,7 @@ export function buildEmptyShippingForm(
     return {
         selectedAddressId: 'new',
         updateAddressId: null,
-        addressName: '',
+        addressName: CHECKOUT_DEFAULT_ADDRESS_NAME,
         firstName: defaults.firstName,
         lastName: defaults.lastName,
         companyName: defaults.companyName,
@@ -455,7 +505,7 @@ export function savedAddressToBillingForm(address: CheckoutSavedAddress): Checko
     return {
         selectedAddressId: address.id,
         updateAddressId: address.id,
-        addressName: address.name,
+        addressName: CHECKOUT_DEFAULT_ADDRESS_NAME,
         firstName: address.firstName,
         lastName: address.lastName,
         companyName: address.companyName,
@@ -474,7 +524,7 @@ export function buildEmptyBillingForm(defaults: CheckoutAccountDefaults): Checko
     return {
         selectedAddressId: 'new',
         updateAddressId: null,
-        addressName: 'Billing Address',
+        addressName: CHECKOUT_DEFAULT_ADDRESS_NAME,
         firstName: defaults.firstName,
         lastName: defaults.lastName,
         companyName: defaults.companyName,
@@ -503,10 +553,17 @@ export type CheckoutBillingFieldId =
 
 export type CheckoutBillingFieldErrors = Partial<Record<CheckoutBillingFieldId, string>>;
 
-export function getBillingFieldErrors(form: CheckoutBillingForm): CheckoutBillingFieldErrors {
+export function getBillingFieldErrors(
+    form: CheckoutBillingForm,
+    savedAddresses: CheckoutSavedAddress[] = [],
+): CheckoutBillingFieldErrors {
     const errors: CheckoutBillingFieldErrors = {};
 
-    if (!form.addressName.trim()) errors.addressName = 'Address name is required.';
+    if (!form.addressName.trim()) {
+        errors.addressName = 'Address name is required.';
+    } else if (resolveCheckoutSaveAddressId(form) == null && findDuplicateAddressName(form.addressName, savedAddresses)) {
+        errors.addressName = 'An address with this name already exists.';
+    }
     if (!form.firstName.trim()) errors.firstName = 'First name is required.';
     if (!form.lastName.trim()) errors.lastName = 'Last name is required.';
     if (!form.addressLine1.trim()) errors.addressLine1 = 'Address is required.';
@@ -529,12 +586,13 @@ export function getBillingFieldErrors(form: CheckoutBillingForm): CheckoutBillin
 export function pruneBillingFieldErrors(
     shownErrors: CheckoutBillingFieldErrors,
     form: CheckoutBillingForm,
+    savedAddresses: CheckoutSavedAddress[] = [],
 ): CheckoutBillingFieldErrors {
     if (Object.keys(shownErrors).length === 0) {
         return shownErrors;
     }
 
-    const currentErrors = getBillingFieldErrors(form);
+    const currentErrors = getBillingFieldErrors(form, savedAddresses);
     const next: CheckoutBillingFieldErrors = {};
 
     for (const key of Object.keys(shownErrors) as CheckoutBillingFieldId[]) {
@@ -606,10 +664,17 @@ export type CheckoutShippingFieldId =
 
 export type CheckoutShippingFieldErrors = Partial<Record<CheckoutShippingFieldId, string>>;
 
-export function getShippingFieldErrors(form: CheckoutShippingForm): CheckoutShippingFieldErrors {
+export function getShippingFieldErrors(
+    form: CheckoutShippingForm,
+    savedAddresses: CheckoutSavedAddress[] = [],
+): CheckoutShippingFieldErrors {
     const errors: CheckoutShippingFieldErrors = {};
 
-    if (!form.addressName.trim()) errors.addressName = 'Address name is required.';
+    if (!form.addressName.trim()) {
+        errors.addressName = 'Address name is required.';
+    } else if (resolveCheckoutSaveAddressId(form) == null && findDuplicateAddressName(form.addressName, savedAddresses)) {
+        errors.addressName = 'An address with this name already exists.';
+    }
     if (!form.firstName.trim()) errors.firstName = 'First name is required.';
     if (!form.lastName.trim()) errors.lastName = 'Last name is required.';
     if (!form.addressLine1.trim()) errors.addressLine1 = 'Address is required.';
@@ -633,12 +698,13 @@ export function getShippingFieldErrors(form: CheckoutShippingForm): CheckoutShip
 export function pruneShippingFieldErrors(
     shownErrors: CheckoutShippingFieldErrors,
     form: CheckoutShippingForm,
+    savedAddresses: CheckoutSavedAddress[] = [],
 ): CheckoutShippingFieldErrors {
     if (Object.keys(shownErrors).length === 0) {
         return shownErrors;
     }
 
-    const currentErrors = getShippingFieldErrors(form);
+    const currentErrors = getShippingFieldErrors(form, savedAddresses);
     const next: CheckoutShippingFieldErrors = {};
 
     for (const key of Object.keys(shownErrors) as CheckoutShippingFieldId[]) {
@@ -650,8 +716,11 @@ export function pruneShippingFieldErrors(
     return next;
 }
 
-export function validateShippingStep(form: CheckoutShippingForm): string | null {
-    const errors = getShippingFieldErrors(form);
+export function validateShippingStep(
+    form: CheckoutShippingForm,
+    savedAddresses: CheckoutSavedAddress[] = [],
+): string | null {
+    const errors = getShippingFieldErrors(form, savedAddresses);
     const firstError = Object.values(errors)[0];
     return firstError ?? null;
 }

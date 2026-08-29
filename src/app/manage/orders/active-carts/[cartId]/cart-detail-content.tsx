@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { RemoteImage } from '@/components/remote-image';
 import {
     removeManageCartItem,
@@ -12,6 +14,8 @@ import {
 } from '@/lib/manage-cart-actions';
 import type { ShopCartView } from '@/lib/shop-cart-view';
 import { toast } from '@/hooks/use-toast';
+import type { ShopCartAddressView } from '@/lib/shop-cart-view';
+import moment from 'moment-timezone';
 
 function parsePositiveQuantity(value: string): number | null {
     const parsed = parseInt(value.trim(), 10);
@@ -23,6 +27,51 @@ function parsePositiveQuantity(value: string): number | null {
 
 function formatCurrency(value: number) {
     return `$${value.toFixed(2)}`;
+}
+
+function formatShippingMethod(method: string | null): string | null {
+    const trimmed = method?.trim();
+    if (!trimmed) return null;
+    if (
+        trimmed === 'FEDEX-G' ||
+        trimmed === 'fedex-ground' ||
+        trimmed.toLowerCase() === 'fedex ground'
+    ) {
+        return 'FedEx Ground';
+    }
+    return trimmed;
+}
+
+function formatShippingDate(value: string | null): string | null {
+    if (!value) return null;
+    return moment.utc(value).local().format('MM/DD/YYYY');
+}
+
+function formatAddressName(address: ShopCartAddressView): string {
+    return [address.firstName, address.lastName].filter(Boolean).join(' ').trim();
+}
+
+function CartAddressBlock({ title, address }: { title: string; address: ShopCartAddressView }) {
+    const name = formatAddressName(address);
+
+    return (
+        <div className="space-y-1 text-xs text-[#4a2518]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6e4a34]">{title}</p>
+            {name ? <p className="font-semibold">{name}</p> : null}
+            {address.companyName ? <p>{address.companyName}</p> : null}
+            {address.addressLine1 ? <p>{address.addressLine1}</p> : null}
+            {address.addressLine2 ? <p>{address.addressLine2}</p> : null}
+            {address.city || address.state || address.postalCode ? (
+                <p>
+                    {[address.city, address.state].filter(Boolean).join(', ')}
+                    {address.postalCode ? ` ${address.postalCode}` : ''}
+                </p>
+            ) : null}
+            {address.country ? <p>{address.country}</p> : null}
+            {address.phoneNumber ? <p>{address.phoneNumber}</p> : null}
+            {address.emailAddress ? <p>{address.emailAddress}</p> : null}
+        </div>
+    );
 }
 
 type QuantityStepperProps = {
@@ -43,15 +92,16 @@ function QuantityStepper({ id, value, disabled, onChange, onCommit }: QuantitySt
 
     return (
         <div className="inline-flex h-8 w-30 overflow-hidden rounded-md border border-[#d1b79a] bg-white">
-            <button
+            <Button
                 type="button"
+                variant="ghost"
                 aria-label="Decrease quantity"
                 disabled={disabled || current <= 1}
                 onClick={() => commitValue(String(Math.max(1, current - 1)))}
-                className="inline-flex w-8 shrink-0 items-center justify-center border-r border-[#d1b79a] text-[#4a2518] transition-colors hover:bg-[#f6ebdd] disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-8 w-8 shrink-0 rounded-none border-r border-[#d1b79a] px-0 tracking-normal"
             >
                 <Minus className="size-3" strokeWidth={2.25} aria-hidden />
-            </button>
+            </Button>
             <Input
                 id={id}
                 type="text"
@@ -78,15 +128,16 @@ function QuantityStepper({ id, value, disabled, onChange, onCommit }: QuantitySt
                 }}
                 className="h-8 w-10 min-w-0 flex-1 rounded-none border-0 px-0 text-center text-sm tabular-nums shadow-none focus-visible:ring-0"
             />
-            <button
+            <Button
                 type="button"
+                variant="ghost"
                 aria-label="Increase quantity"
                 disabled={disabled}
                 onClick={() => commitValue(String(current + 1))}
-                className="inline-flex w-8 shrink-0 items-center justify-center border-l border-[#d1b79a] text-[#4a2518] transition-colors hover:bg-[#f6ebdd] disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-8 w-8 shrink-0 rounded-none border-l border-[#d1b79a] px-0 tracking-normal"
             >
                 <Plus className="size-3" strokeWidth={2.25} aria-hidden />
-            </button>
+            </Button>
         </div>
     );
 }
@@ -197,16 +248,17 @@ function CartLineRow({ cartId, item, busy, onUpdated }: CartLineRowProps) {
             </td>
             <td className="px-3 py-3 align-middle text-right text-[11px] font-semibold tabular-nums">{formatCurrency(item.lineTotal)}</td>
             <td className="px-3 py-3 align-middle text-right">
-                <button
+                <Button
                     type="button"
+                    variant="outline"
                     disabled={isDisabled}
                     aria-label={`Remove ${item.productName}`}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#c49a78] px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a2818] transition-colors hover:bg-[#fde8e0] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-8 gap-1.5 px-3 text-[10px] tracking-[0.14em] text-[#7a2818] hover:bg-[#fde8e0]"
                     onClick={() => void handleRemove()}
                 >
                     <Trash2 className="size-3.5" aria-hidden />
                     Remove
-                </button>
+                </Button>
             </td>
         </tr>
     );
@@ -240,11 +292,20 @@ export function ManageCartDetailContent({ cartId, initialCart, backHref, minimum
 
     const isBelowMinimumOrder =
         minimumOrderAmount != null && cart.items.length > 0 && cart.subTotal < minimumOrderAmount;
+    const shippingMethodLabel = formatShippingMethod(cart.shippingMethod);
+    const shippingDateLabel = formatShippingDate(cart.expectedDeliveryDate);
+    const cartComment = cart.comment?.trim() || null;
+    const hasFulfillment =
+        Boolean(cart.shippingAddress) ||
+        Boolean(cart.billingAddress) ||
+        Boolean(shippingMethodLabel) ||
+        Boolean(shippingDateLabel) ||
+        Boolean(cartComment);
 
     return (
         <div className="mx-auto w-full max-w-7xl space-y-6">
             <div className="flex flex-wrap items-center gap-3">
-                <Link href={backHref} className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34] underline-offset-4 hover:underline">
+                <Link href={backHref} className={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0 py-0 text-[11px] tracking-[0.2em]')}>
                     ← Back to active carts
                 </Link>
             </div>
@@ -258,6 +319,34 @@ export function ManageCartDetailContent({ cartId, initialCart, backHref, minimum
                     <p className="mt-0.5 text-[11px] text-[#6e4a34]">{cart.accountOwnerDisplayName}</p>
                 ) : null}
             </div>
+
+            {hasFulfillment ? (
+                <section className="grid gap-4 rounded-lg border border-[#c49a78] bg-[#f8eddf] p-4 sm:grid-cols-2 sm:p-6">
+                    {cart.shippingAddress ? <CartAddressBlock title="Shipping" address={cart.shippingAddress} /> : null}
+                    {cart.billingAddress ? <CartAddressBlock title="Billing" address={cart.billingAddress} /> : null}
+                    {shippingMethodLabel || shippingDateLabel ? (
+                        <div className="space-y-1 text-xs text-[#4a2518] sm:col-span-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6e4a34]">Shipping details</p>
+                            {shippingMethodLabel ? (
+                                <p>
+                                    <span className="font-semibold">Method:</span> {shippingMethodLabel}
+                                </p>
+                            ) : null}
+                            {shippingDateLabel ? (
+                                <p>
+                                    <span className="font-semibold">Shipping date:</span> {shippingDateLabel}
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    {cartComment ? (
+                        <div className="space-y-1 text-xs text-[#4a2518] sm:col-span-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6e4a34]">Message</p>
+                            <p className="whitespace-pre-wrap">{cartComment}</p>
+                        </div>
+                    ) : null}
+                </section>
+            ) : null}
 
             {cart.items.length === 0 ? (
                 <p className="rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-6 text-center text-xs text-[#6e4a34]">This cart is empty.</p>

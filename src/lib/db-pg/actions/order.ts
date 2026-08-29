@@ -9,6 +9,7 @@ import { Order } from '../entities/order-entity';
 import { account, order, orderAddress, orderItem, log, user } from '@/lib/drizzle/schema';
 import moment from 'moment-timezone';
 import { getUserAccounts } from '@/lib/db-pg/actions/account';
+import { parseAccountMateId } from '@/lib/wholesale-api';
 
 export type OrderDailyStat = {
     date: string;
@@ -245,6 +246,7 @@ export type ManageOrderAccountSummary = {
     id: number;
     name: string | null;
     accountMateId: string | null;
+    contactEmail: string | null;
 };
 
 export type ManageOrderDetail = {
@@ -255,14 +257,41 @@ export type ManageOrderDetail = {
     account: ManageOrderAccountSummary | null;
 };
 
+async function findAccountByAccountMateId(accountMateId: string | null | undefined): Promise<ManageOrderAccountSummary | null> {
+    const parsed = parseAccountMateId(accountMateId ?? undefined);
+    if (!parsed) {
+        return null;
+    }
+
+    const [row] = await db
+        .select({
+            id: account.id,
+            name: account.name,
+            accountMateId: account.accountMateId,
+            contactEmail: account.contactEmail,
+        })
+        .from(account)
+        .where(sql`upper(trim(coalesce(${account.accountMateId}, ''))) = ${parsed}`)
+        .orderBy(asc(account.id))
+        .limit(1);
+
+    return row ?? null;
+}
+
 async function resolveAccountForManageOrder(
     orderId: number,
     orderUser: ManageOrderUserSummary | null,
+    storedAccountMateId?: string | null,
 ): Promise<ManageOrderAccountSummary | null> {
+    const fromStored = await findAccountByAccountMateId(storedAccountMateId);
+    if (fromStored) {
+        return fromStored;
+    }
+
     const [fromLog] = await db
-        .select({ accountId: log.accountId })
+        .select({ accountId: log.accountId, accountMateId: log.accountMateId })
         .from(log)
-        .where(and(eq(log.orderId, orderId), isNotNull(log.accountId)))
+        .where(and(eq(log.orderId, orderId), or(isNotNull(log.accountId), isNotNull(log.accountMateId))))
         .orderBy(desc(log.id))
         .limit(1);
 
@@ -272,6 +301,7 @@ async function resolveAccountForManageOrder(
                 id: account.id,
                 name: account.name,
                 accountMateId: account.accountMateId,
+                contactEmail: account.contactEmail,
             })
             .from(account)
             .where(eq(account.id, fromLog.accountId))
@@ -281,20 +311,14 @@ async function resolveAccountForManageOrder(
         }
     }
 
-    const accountMateId = orderUser?.accountMateId?.trim() || null;
-    if (accountMateId) {
-        const [row] = await db
-            .select({
-                id: account.id,
-                name: account.name,
-                accountMateId: account.accountMateId,
-            })
-            .from(account)
-            .where(eq(account.accountMateId, accountMateId))
-            .limit(1);
-        if (row) {
-            return row;
-        }
+    const fromLogMateId = await findAccountByAccountMateId(fromLog?.accountMateId);
+    if (fromLogMateId) {
+        return fromLogMateId;
+    }
+
+    const fromUser = await findAccountByAccountMateId(orderUser?.accountMateId);
+    if (fromUser) {
+        return fromUser;
     }
 
     if (orderUser?.id) {
@@ -305,6 +329,7 @@ async function resolveAccountForManageOrder(
                 id: first.id,
                 name: first.name?.trim() || null,
                 accountMateId: first.accountMateId?.trim() || null,
+                contactEmail: first.contactEmail?.trim() || null,
             };
         }
     }
@@ -344,7 +369,7 @@ export async function getOrderByIdForManage(orderId: number): Promise<ManageOrde
     ]);
 
     const orderUser = userRows[0] ?? null;
-    const orderAccount = await resolveAccountForManageOrder(orderId, orderUser);
+    const orderAccount = await resolveAccountForManageOrder(orderId, orderUser, row.accountMateId);
 
     return {
         order: row,
@@ -455,7 +480,7 @@ export async function getOrderByIdForUser(orderId: number, userId: number): Prom
         items,
         addresses,
         user: userRows[0] ?? null,
-        account: await resolveAccountForManageOrder(orderId, userRows[0] ?? null),
+        account: await resolveAccountForManageOrder(orderId, userRows[0] ?? null, row.accountMateId),
     };
 }
 
@@ -510,7 +535,10 @@ export async function getPaginatedOrdersFromDB({
         // Prefix / exact match only — leading-wildcard ILIKE + correlated EXISTS was a full scan of ~47k orders.
         const normalized = accountMateIdTerm.toUpperCase();
         conditions.push(
-            sql`upper(trim(coalesce(${user.accountMateId}, ''))) like ${`${normalized}%`}`,
+            or(
+                sql`upper(trim(coalesce(${order.accountMateId}, ''))) like ${`${normalized}%`}`,
+                sql`upper(trim(coalesce(${user.accountMateId}, ''))) like ${`${normalized}%`}`,
+            ),
         );
     }
     if (emailTerm) {
@@ -575,6 +603,7 @@ export async function getPaginatedOrdersFromDB({
                             )
                         ) as label,
                         coalesce(
+                            upper(nullif(trim(${order.accountMateId}), '')),
                             (
                                 select upper(nullif(trim(a."accountMateId"), ''))
                                 from account a
@@ -614,6 +643,31 @@ export async function getPaginatedOrdersFromDB({
             totalPages: Math.ceil(count / limit) || 1,
         },
     };
+}
+
+/** New site orders start at 50000 so legacy copies can keep using ids below that. */
+const WEB_ORDER_ID_START = 50000;
+
+/** Advance order serials past imported ids, and keep new order.id at or above 50000. */
+export async function syncOrderIdSequences(): Promise<void> {
+    await db.execute(sql`
+        SELECT
+            setval(
+                pg_get_serial_sequence('"order"', 'id'),
+                GREATEST(
+                    (SELECT COALESCE(MAX(id), ${WEB_ORDER_ID_START - 1}) FROM "order"),
+                    ${WEB_ORDER_ID_START - 1}
+                )
+            ),
+            setval(
+                pg_get_serial_sequence('"orderItem"', 'id'),
+                GREATEST((SELECT COALESCE(MAX(id), 1) FROM "orderItem"), 1)
+            ),
+            setval(
+                pg_get_serial_sequence('"orderAddress"', 'id'),
+                GREATEST((SELECT COALESCE(MAX(id), 1) FROM "orderAddress"), 1)
+            )
+    `);
 }
 
 // ONLY USED FOR MIGRATING OLD ORDERS FROM SWEETSHOP TO PG
@@ -806,6 +860,7 @@ export async function processOldOrders(orders: any[]) {
                 accountMateTransactionId: o.AccountMateTransactionId ?? null,
                 isNewCustomerOrder: o.IsNewCustomerOrder ? 1 : 0,
                 accountMateOrderNumber: Number.isInteger(accountMateOrderNum) ? accountMateOrderNum : null,
+                accountMateId: parseAccountMateId(o.AccountMateId ?? o.accountMateId ?? undefined),
             };
         });
         const chunkSize = 1000;
@@ -813,6 +868,7 @@ export async function processOldOrders(orders: any[]) {
             const chunk = rows.slice(i, i + chunkSize);
             await db.insert(order).values(chunk);
         }
+        await syncOrderIdSequences();
         return true;
     } catch (error) {
         console.error('Error processing old orders:', error);
@@ -844,6 +900,7 @@ export async function processOldOrderItems(orderItems: any[]) {
             const chunk = rows.slice(i, i + chunkSize);
             await db.insert(orderItem).values(chunk);
         }
+        await syncOrderIdSequences();
         return true;
     } catch (error) {
         console.error('Error processing old order items:', error);
@@ -876,6 +933,7 @@ export async function processOldOrderAddresses(orderAddresses: any[]) {
             const chunk = rows.slice(i, i + chunkSize);
             await db.insert(orderAddress).values(chunk);
         }
+        await syncOrderIdSequences();
         return true;
     } catch (error) {
         console.error('Error processing old order items:', error);

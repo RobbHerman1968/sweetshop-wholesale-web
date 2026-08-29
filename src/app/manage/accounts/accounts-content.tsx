@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { reloadOnSearchClear } from '@/lib/manage-search-clear';
 import { getAccountReloadBatch, reloadAccountFromAccountMate, revalidateManageAccountsAfterBulkReload } from '@/lib/db-pg/actions/account';
 import { toast } from '@/hooks/use-toast';
@@ -31,6 +32,7 @@ type AccountRow = {
     contactEmail: string | null;
     contactPhone: string | null;
     menuId: number;
+    isActive: boolean;
 };
 
 type AccountsContentProps = {
@@ -144,9 +146,12 @@ export function AccountsContent({ data, menus, pagination, searchName, searchAcc
             <h1 className="shrink-0 text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Manage Accounts</h1>
 
             <form onSubmit={handleSearch} className="flex shrink-0 flex-wrap items-end gap-3">
-                <label className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Account name</span>
+                <div className="flex flex-col gap-1">
+                    <Label htmlFor="accounts-name" className="text-[11px] tracking-[0.2em] text-[#6e4a34]">
+                        Account name
+                    </Label>
                     <Input
+                        id="accounts-name"
                         name="name"
                         type="search"
                         placeholder="Search by name"
@@ -158,10 +163,13 @@ export function AccountsContent({ data, menus, pagination, searchName, searchAcc
                             )
                         }
                     />
-                </label>
-                <label className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">AccountMate ID</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                    <Label htmlFor="accounts-accountMateId" className="text-[11px] tracking-[0.2em] text-[#6e4a34]">
+                        AccountMate ID
+                    </Label>
                     <Input
+                        id="accounts-accountMateId"
                         name="accountMateId"
                         type="search"
                         placeholder="Search by AccountMate ID"
@@ -173,7 +181,7 @@ export function AccountsContent({ data, menus, pagination, searchName, searchAcc
                             )
                         }
                     />
-                </label>
+                </div>
                 <Button type="submit" variant="sweet" className="shrink-0">
                     Search
                 </Button>
@@ -234,7 +242,10 @@ export function AccountsContent({ data, menus, pagination, searchName, searchAcc
                             {data.map((acc) => (
                                 <li key={acc.id}>
                                     <article className="rounded-2xl border border-[#c49a78] bg-[#fdf7ef] p-4 transition-colors">
-                                        <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">{acc.name || '—'}</p>
+                                        <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a2518]">
+                                            {acc.name || '—'}
+                                            {!acc.isActive ? <span className="ml-2 text-[10px] font-medium normal-case tracking-normal text-red-700">Inactive</span> : null}
+                                        </p>
                                         <p className="mt-0.5 text-[11px] text-[#6e4a34]">{acc.accountMateId ? `ID: ${acc.accountMateId}` : '—'}</p>
                                         <p className="mt-1 truncate text-[11px] text-[#6e4a34]">{[acc.contactFirstName, acc.contactLastName].filter(Boolean).join(' ') || '—'}</p>
                                         {acc.contactEmail && <p className="mt-0.5 truncate text-[11px] text-[#6e4a34]">{acc.contactEmail}</p>}

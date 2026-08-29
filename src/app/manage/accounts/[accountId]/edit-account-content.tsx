@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { updateAccountFromForm, reloadAccountFromAccountMate } from '@/lib/db-pg/actions/account';
 import type { ManageAccount } from '@/lib/db-pg/actions/account';
 import type { ManageMenu } from '@/lib/db-pg/actions/menu';
@@ -34,6 +37,7 @@ function buildAccountFormKey(account: ManageAccount) {
         contactZipCode: account.contactZipCode,
         terms: account.terms,
         isTerms: account.isTerms,
+        isActive: account.isActive,
         menuId: account.menuId,
     });
 }
@@ -42,12 +46,14 @@ export function EditAccountContent({ account, menus, backHref }: Props) {
     const router = useRouter();
     const accountMateIdRef = useRef<HTMLInputElement>(null);
     const [accountFields, setAccountFields] = useState(account);
+    const [menuId, setMenuId] = useState(() => String(resolveAccountMenuId(account.menuId ?? 0, menus)));
     const [saving, setSaving] = useState(false);
     const [reloading, setReloading] = useState(false);
 
     useEffect(() => {
         setAccountFields(account);
-    }, [account]);
+        setMenuId(String(resolveAccountMenuId(account.menuId ?? 0, menus)));
+    }, [account, menus]);
 
     async function handleReloadAccount() {
         const accountMateId = accountMateIdRef.current?.value.trim();
@@ -100,11 +106,10 @@ export function EditAccountContent({ account, menus, backHref }: Props) {
         router.refresh();
     }
 
-    const selectedMenuId = resolveAccountMenuId(accountFields.menuId ?? 0, menus);
-
     return (
         <form key={buildAccountFormKey(accountFields)} onSubmit={handleSubmit} className="space-y-8">
             <input type="hidden" name="id" value={accountFields.id} readOnly />
+            <input type="hidden" name="menuId" value={menuId} readOnly />
 
             <header className="space-y-1">
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Edit Account</h1>
@@ -118,18 +123,21 @@ export function EditAccountContent({ account, menus, backHref }: Props) {
                     <Label htmlFor="edit-account-menuId" className={fieldLabelClass}>
                         Menu
                     </Label>
-                    <select
-                        id="edit-account-menuId"
-                        name="menuId"
-                        defaultValue={String(selectedMenuId)}
-                        className="flex h-9 w-full rounded-md border border-[#c49a78] bg-[#fdf7ef] px-3 py-1 text-xs text-[#4a2518] shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#6e4a34]"
-                    >
-                        {menus.map((menuOption) => (
-                            <option key={menuOption.id} value={menuOption.id}>
-                                {formatManageMenuLabel(menuOption)}
-                            </option>
-                        ))}
-                    </select>
+                    <Select value={menuId} onValueChange={setMenuId}>
+                        <SelectTrigger
+                            id="edit-account-menuId"
+                            className="border-[#d1b79a] bg-white text-sm font-normal normal-case shadow-none"
+                        >
+                            <SelectValue placeholder="Select a menu" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {menus.map((menuOption) => (
+                                <SelectItem key={menuOption.id} value={String(menuOption.id)} className="normal-case">
+                                    {formatManageMenuLabel(menuOption)}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </section>
 
@@ -238,25 +246,35 @@ export function EditAccountContent({ account, menus, backHref }: Props) {
 
                 <div className="flex flex-wrap items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" id="edit-account-isSkipTax" name="isSkipTax" defaultChecked={accountFields.isSkipTax} className="h-4 w-4 rounded border-[#c49a78]" />
+                        <Checkbox id="edit-account-isActive" name="isActive" defaultChecked={accountFields.isActive} />
+                        <Label htmlFor="edit-account-isActive" className={fieldLabelClass}>
+                            Active
+                        </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Checkbox id="edit-account-isSkipTax" name="isSkipTax" defaultChecked={accountFields.isSkipTax} />
                         <Label htmlFor="edit-account-isSkipTax" className={fieldLabelClass}>
                             Skip tax
                         </Label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" id="edit-account-isSkipShipping" name="isSkipShipping" defaultChecked={accountFields.isSkipShipping} className="h-4 w-4 rounded border-[#c49a78]" />
+                        <Checkbox id="edit-account-isSkipShipping" name="isSkipShipping" defaultChecked={accountFields.isSkipShipping} />
                         <Label htmlFor="edit-account-isSkipShipping" className={fieldLabelClass}>
                             Skip shipping
                         </Label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" id="edit-account-isFreeGroundShipping" name="isFreeGroundShipping" defaultChecked={accountFields.isFreeGroundShipping} className="h-4 w-4 rounded border-[#c49a78]" />
+                        <Checkbox
+                            id="edit-account-isFreeGroundShipping"
+                            name="isFreeGroundShipping"
+                            defaultChecked={accountFields.isFreeGroundShipping}
+                        />
                         <Label htmlFor="edit-account-isFreeGroundShipping" className={fieldLabelClass}>
                             Free ground shipping
                         </Label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" id="edit-account-isTerms" name="isTerms" defaultChecked={accountFields.isTerms} className="h-4 w-4 rounded border-[#c49a78]" />
+                        <Checkbox id="edit-account-isTerms" name="isTerms" defaultChecked={accountFields.isTerms} />
                         <Label htmlFor="edit-account-isTerms" className={fieldLabelClass}>
                             Terms account
                         </Label>
@@ -267,13 +285,7 @@ export function EditAccountContent({ account, menus, backHref }: Props) {
                     <Label htmlFor="edit-account-terms" className={fieldLabelClass}>
                         Terms
                     </Label>
-                    <textarea
-                        id="edit-account-terms"
-                        name="terms"
-                        defaultValue={accountFields.terms ?? ''}
-                        rows={3}
-                        className="flex min-h-[80px] w-full rounded-md border border-[#c49a78] bg-[#fdf7ef] px-3 py-2 text-xs text-[#4a2518] shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#6e4a34]"
-                    />
+                    <Textarea id="edit-account-terms" name="terms" defaultValue={accountFields.terms ?? ''} rows={3} />
                 </div>
             </section>
 

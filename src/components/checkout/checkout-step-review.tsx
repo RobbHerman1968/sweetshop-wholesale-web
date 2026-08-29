@@ -98,10 +98,11 @@ export function CheckoutStepReview({
                         Expected delivery:{' '}
                         <span className="font-semibold">{formatDisplayDate(shipping.expectedDeliveryDate)}</span>
                     </p>
-                    {shipping.comment ? (
-                        <p className={cn('pt-2', checkoutTextClass)}>
-                            Comment: <span className="italic">{shipping.comment}</span>
-                        </p>
+                    {shipping.comment.trim() || cart.comment?.trim() ? (
+                        <div className={cn('pt-2', checkoutTextClass)}>
+                            <p className="font-semibold">Comment</p>
+                            <p className="whitespace-pre-wrap italic">{shipping.comment.trim() || cart.comment?.trim()}</p>
+                        </div>
                     ) : null}
                 </div>
             </section>

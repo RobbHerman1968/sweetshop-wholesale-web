@@ -14,6 +14,7 @@ export type ManageActiveCartListRow = {
     contactLastName: string | null;
     totalProducts: number;
     total: string;
+    comment: string | null;
     createDate: string;
     modifiedDate: string;
 };
@@ -30,6 +31,7 @@ export async function getPaginatedActiveCartsFromDB({ page = 1, limit = 50 }: { 
             contactFirstName: account.contactFirstName,
             contactLastName: account.contactLastName,
             total: cart.total,
+            comment: cart.comment,
             createDate: cart.createDate,
             modifiedDate: cart.modifiedDate,
             totalProducts: sql<number>`coalesce(sum(${cartItem.quantity}), 0)::int`,
@@ -45,6 +47,7 @@ export async function getPaginatedActiveCartsFromDB({ page = 1, limit = 50 }: { 
             account.contactFirstName,
             account.contactLastName,
             cart.total,
+            cart.comment,
             cart.createDate,
             cart.modifiedDate,
         )
@@ -74,6 +77,7 @@ export async function getPaginatedActiveCartsFromDB({ page = 1, limit = 50 }: { 
 
 const cartWithItemsQuery = {
     account: true,
+    cartAddresses: true,
     cartItems: {
         with: {
             product: {
