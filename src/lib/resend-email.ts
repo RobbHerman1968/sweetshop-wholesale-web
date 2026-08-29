@@ -17,6 +17,11 @@ export type SendEmailInput = {
     html: string;
     text?: string;
     replyTo?: string | string[];
+    attachments?: Array<{
+        filename: string;
+        content: Buffer;
+        contentType?: string;
+    }>;
     /** Optional context written to Manage → Log when sending fails. */
     logContext?: SendEmailLogContext;
 };
@@ -138,6 +143,7 @@ export async function sendEmailViaResend(input: SendEmailInput): Promise<SendEma
             html: input.html,
             text: input.text,
             ...(replyTo.length > 0 ? { replyTo } : {}),
+            ...(input.attachments && input.attachments.length > 0 ? { attachments: input.attachments } : {}),
         });
 
         if (result.error) {

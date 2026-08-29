@@ -70,7 +70,7 @@ export function buildPasswordResetEmailContent(input: {
           </tr>
           <tr>
             <td style="padding:16px 28px 24px;border-top:1px solid ${BRAND.tan};font-size:12px;line-height:1.5;color:#8b6b4a;">
-              Sweet Shop USA · Wholesale Support · 1-800-272-0887
+              Sweet Shop USA · Wholesale Support · 1-800-222-2269
             </td>
           </tr>
         </table>
@@ -92,7 +92,7 @@ export function buildPasswordResetEmailContent(input: {
         '',
         'If you did not request this reset, ignore this email.',
         '',
-        'Sweet Shop USA · Wholesale Support · 1-800-272-0887',
+        'Sweet Shop USA · Wholesale Support · 1-800-222-2269',
     ].join('\n');
 
     return { subject, html, text };

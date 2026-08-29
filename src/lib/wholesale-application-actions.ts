@@ -8,18 +8,39 @@ import { application } from '@/lib/drizzle/schema';
 import { buildWholesaleApplicationEmailContent } from '@/lib/email/wholesale-application-email-template';
 import { sendEmailViaResend } from '@/lib/resend-email';
 import {
+    getApplicationAttachmentFilename,
+    validateApplicationAttachment,
+} from '@/lib/wholesale-application-attachment';
+import {
     wholesaleApplicationSchema,
     type WholesaleApplicationField,
     type WholesaleApplicationInput,
 } from '@/lib/validations/wholesale-application';
 
+function readFormString(formData: FormData, key: keyof WholesaleApplicationInput): string {
+    const value = formData.get(key);
+    return typeof value === 'string' ? value : '';
+}
+
 export type SubmitWholesaleApplicationResult =
     | { ok: true }
     | { ok: false; fieldErrors?: Partial<Record<WholesaleApplicationField, string>>; error?: string };
 
-export async function submitWholesaleApplication(
-    input: WholesaleApplicationInput,
-): Promise<SubmitWholesaleApplicationResult> {
+export async function submitWholesaleApplication(formData: FormData): Promise<SubmitWholesaleApplicationResult> {
+    const input: WholesaleApplicationInput = {
+        businessName: readFormString(formData, 'businessName'),
+        taxId: readFormString(formData, 'taxId'),
+        contactFirstName: readFormString(formData, 'contactFirstName'),
+        contactLastName: readFormString(formData, 'contactLastName'),
+        billingAddress1: readFormString(formData, 'billingAddress1'),
+        billingAddress2: readFormString(formData, 'billingAddress2') || undefined,
+        city: readFormString(formData, 'city'),
+        state: readFormString(formData, 'state'),
+        zipCode: readFormString(formData, 'zipCode'),
+        phone: readFormString(formData, 'phone'),
+        fax: readFormString(formData, 'fax') || undefined,
+        email: readFormString(formData, 'email'),
+    };
     const parsed = wholesaleApplicationSchema.safeParse(input);
     if (!parsed.success) {
         const fieldErrors: Partial<Record<WholesaleApplicationField, string>> = {};
@@ -33,6 +54,12 @@ export async function submitWholesaleApplication(
     }
 
     const data = parsed.data;
+    const rawAttachment = formData.get('attachment');
+    const attachmentFile = rawAttachment instanceof File && rawAttachment.size > 0 ? rawAttachment : null;
+    const attachmentCheck = validateApplicationAttachment(attachmentFile);
+    if (!attachmentCheck.ok) {
+        return { ok: false, error: attachmentCheck.error };
+    }
 
     let applicationId: number;
     try {
@@ -86,13 +113,27 @@ export async function submitWholesaleApplication(
         return { ok: true };
     }
 
-    const { subject, html, text } = buildWholesaleApplicationEmailContent(data);
+    let attachments: Array<{ filename: string; content: Buffer; contentType?: string }> | undefined;
+    let attachmentName: string | undefined;
+    if (attachmentFile) {
+        attachmentName = getApplicationAttachmentFilename(attachmentFile.name);
+        attachments = [
+            {
+                filename: attachmentName,
+                content: Buffer.from(await attachmentFile.arrayBuffer()),
+                contentType: attachmentFile.type || undefined,
+            },
+        ];
+    }
+
+    const { subject, html, text } = buildWholesaleApplicationEmailContent(data, { attachmentName });
     const result = await sendEmailViaResend({
         from: fromEmail,
         to: toEmail,
         subject,
         html,
         text,
+        attachments,
         logContext: {
             stage: 'email',
             message: `Wholesale application email failed for application #${applicationId}.`,

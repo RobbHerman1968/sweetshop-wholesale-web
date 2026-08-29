@@ -1,11 +1,20 @@
 'use client';
 
-import { useId, useState } from 'react';
-import { Input } from '@/components/ui/input';
+import { useId, useRef, useState } from 'react';
+import { Check, Paperclip, X } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatPhoneDisplay, normalizePhoneDigits } from '@/lib/checkout-utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { formatPhoneDisplay, normalizePhoneDigits, US_STATE_OPTIONS } from '@/lib/checkout-utils';
 import { submitWholesaleApplication } from '@/lib/wholesale-application-actions';
+import {
+    APPLICATION_ATTACHMENT_ACCEPT,
+    validateApplicationAttachment,
+} from '@/lib/wholesale-application-attachment';
 import {
     wholesaleApplicationSchema,
     type WholesaleApplicationField,
@@ -69,9 +78,9 @@ function FormField({
             </Label>
             {children}
             {error ? (
-                <p id={errorId} className="text-xs text-red-600" role="alert">
-                    {error}
-                </p>
+                <Alert variant="destructive" className="px-3 py-2" id={errorId}>
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
             ) : null}
         </div>
     );
@@ -79,7 +88,10 @@ function FormField({
 
 export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleApplicationFormProps) {
     const formId = useId();
+    const attachmentInputRef = useRef<HTMLInputElement>(null);
     const [form, setForm] = useState<WholesaleApplicationInput>(EMPTY_FORM);
+    const [attachment, setAttachment] = useState<File | null>(null);
+    const [attachmentError, setAttachmentError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Partial<Record<WholesaleApplicationField, string>>>({});
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -112,9 +124,32 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
             return;
         }
 
+        const attachmentCheck = validateApplicationAttachment(attachment);
+        if (!attachmentCheck.ok) {
+            setAttachmentError(attachmentCheck.error);
+            return;
+        }
+
         setIsLoading(true);
         try {
-            const result = await submitWholesaleApplication(parsed.data);
+            const formData = new FormData();
+            formData.set('businessName', parsed.data.businessName);
+            formData.set('taxId', parsed.data.taxId);
+            formData.set('contactFirstName', parsed.data.contactFirstName);
+            formData.set('contactLastName', parsed.data.contactLastName);
+            formData.set('billingAddress1', parsed.data.billingAddress1);
+            formData.set('billingAddress2', parsed.data.billingAddress2 ?? '');
+            formData.set('city', parsed.data.city);
+            formData.set('state', parsed.data.state);
+            formData.set('zipCode', parsed.data.zipCode);
+            formData.set('phone', parsed.data.phone);
+            formData.set('fax', parsed.data.fax ?? '');
+            formData.set('email', parsed.data.email);
+            if (attachment) {
+                formData.set('attachment', attachment);
+            }
+
+            const result = await submitWholesaleApplication(formData);
             if (!result.ok) {
                 if (result.fieldErrors) {
                     setFieldErrors(result.fieldErrors);
@@ -124,6 +159,11 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
             }
 
             setForm(EMPTY_FORM);
+            setAttachment(null);
+            setAttachmentError(null);
+            if (attachmentInputRef.current) {
+                attachmentInputRef.current.value = '';
+            }
             setFieldErrors({});
             setIsSubmitted(true);
             onSubmitted?.();
@@ -139,22 +179,17 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
 
     if (isSubmitted) {
         return (
-            <div className={cn('rounded-2xl border border-[#b89572] bg-[#fdf7ef] p-6 sm:p-8', className)}>
-                <div className="mx-auto max-w-md text-center">
-                    <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-[#4a2518]/10 text-[#4a2518]">
-                        <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                            <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+            <Card className={cn('p-6 sm:p-8', className)}>
+                <CardHeader className="items-center p-0 text-center">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-[#4a2518]/10 text-[#4a2518]">
+                        <Check className="size-6" strokeWidth={2} aria-hidden />
                     </div>
-                    <h2 className="mt-5 text-sm font-semibold uppercase tracking-[0.25em] text-[#7c5b44]">Request received</h2>
-                    <p className="mt-3 text-sm leading-relaxed text-[#5c4032]">
+                    <CardTitle className="pt-2">Request received</CardTitle>
+                    <CardDescription className="text-sm text-[#5c4032]">
                         Thank you for applying. We will review your request and email login credentials within 2 business days.
-                    </p>
-                    <Button type="button" variant="outline" className="mt-6" onClick={() => setIsSubmitted(false)}>
-                        Submit another request
-                    </Button>
-                </div>
-            </div>
+                    </CardDescription>
+                </CardHeader>
+            </Card>
         );
     }
 
@@ -170,27 +205,48 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
     const phoneId = `${formId}-phone`;
     const faxId = `${formId}-fax`;
     const emailId = `${formId}-email`;
+    const attachmentId = `${formId}-attachment`;
+
+    function handleAttachmentChange(file: File | null) {
+        if (!file) {
+            setAttachment(null);
+            setAttachmentError(null);
+            if (attachmentInputRef.current) {
+                attachmentInputRef.current.value = '';
+            }
+            return;
+        }
+
+        const check = validateApplicationAttachment(file);
+        if (!check.ok) {
+            setAttachment(null);
+            setAttachmentError(check.error);
+            if (attachmentInputRef.current) {
+                attachmentInputRef.current.value = '';
+            }
+            return;
+        }
+
+        setAttachment(file);
+        setAttachmentError(null);
+    }
 
     return (
-        <form
-            className={cn('rounded-2xl border border-[#b89572] bg-[#fdf7ef] p-6 sm:p-8', className)}
-            onSubmit={handleSubmit}
-            noValidate
-        >
-            <header className="border-b border-[#d1b79a]/50 pb-6">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.25em] text-[#7c5b44]">Account request</h2>
-                <p className="mt-2 text-xs leading-relaxed text-[#8a7264]">
+        <Card className={className}>
+            <form onSubmit={handleSubmit} noValidate>
+            <CardHeader className="border-b border-[#d1b79a]/50">
+                <CardTitle>Account request</CardTitle>
+                <CardDescription>
                     Complete the form below to request wholesale access. Fields marked with <span className="text-[#a67c52]">*</span> are required.
-                </p>
-            </header>
+                </CardDescription>
+            </CardHeader>
 
+            <CardContent className="space-y-8 pt-6">
             {submitError ? (
-                <p className="mt-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
-                    {submitError}
-                </p>
+                <Alert variant="destructive">
+                    <AlertDescription>{submitError}</AlertDescription>
+                </Alert>
             ) : null}
-
-            <div className="mt-6 space-y-8">
                 <FormSection title="Business information">
                     <div className="grid gap-4 sm:grid-cols-2">
                         <FormField id={businessNameId} label="Business name" required error={fieldErrors.businessName}>
@@ -203,15 +259,58 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
                                 autoComplete="organization"
                             />
                         </FormField>
-                        <FormField id={taxIdFieldId} label="Tax ID / Reseller permit #" required error={fieldErrors.taxId}>
-                            <Input
-                                id={taxIdFieldId}
-                                value={form.taxId}
-                                onChange={(e) => updateField('taxId', e.target.value)}
-                                className={inputClass('taxId')}
-                                aria-invalid={fieldErrors.taxId ? true : undefined}
-                            />
-                        </FormField>
+                        <div className="space-y-4">
+                            <FormField id={taxIdFieldId} label="Tax ID / Reseller permit #" required error={fieldErrors.taxId}>
+                                <Input
+                                    id={taxIdFieldId}
+                                    value={form.taxId}
+                                    onChange={(e) => updateField('taxId', e.target.value)}
+                                    className={inputClass('taxId')}
+                                    aria-invalid={fieldErrors.taxId ? true : undefined}
+                                />
+                            </FormField>
+                            <FormField id={attachmentId} label="Reseller permit or tax certificate" error={attachmentError ?? undefined}>
+                                <input
+                                    ref={attachmentInputRef}
+                                    id={attachmentId}
+                                    type="file"
+                                    accept={APPLICATION_ATTACHMENT_ACCEPT}
+                                    className="sr-only"
+                                    onChange={(e) => handleAttachmentChange(e.target.files?.[0] ?? null)}
+                                />
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <Button
+                                        type="button"
+                                        variant="sweet"
+                                        onClick={() => attachmentInputRef.current?.click()}
+                                    >
+                                        <Paperclip className="mr-2 size-3.5" aria-hidden />
+                                        {attachment ? 'Replace file' : 'Choose file'}
+                                    </Button>
+                                    {attachment ? (
+                                        <div className="flex min-w-0 items-center gap-2 text-sm text-[#4a2b1f]">
+                                            <span className="truncate">{attachment.name}</span>
+                                            <span className="shrink-0 text-[#8a7264]">
+                                                ({attachment.size < 1024 * 1024
+                                                    ? `${Math.max(1, Math.round(attachment.size / 1024))} KB`
+                                                    : `${(attachment.size / (1024 * 1024)).toFixed(1)} MB`}
+                                                )
+                                            </span>
+                                            <button
+                                                type="button"
+                                                className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-[#8a7264] hover:bg-[#f3e0cf] hover:text-[#4a2518]"
+                                                onClick={() => handleAttachmentChange(null)}
+                                                aria-label="Remove file"
+                                            >
+                                                <X className="size-3.5" aria-hidden />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-[#8a7264]">PDF, JPG, PNG, or WebP · up to 8 MB</p>
+                                    )}
+                                </div>
+                            </FormField>
+                        </div>
                     </div>
                 </FormSection>
 
@@ -273,14 +372,28 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
                                 />
                             </FormField>
                             <FormField id={stateId} label="State" required error={fieldErrors.state}>
-                                <Input
-                                    id={stateId}
-                                    value={form.state}
-                                    onChange={(e) => updateField('state', e.target.value)}
-                                    className={inputClass('state')}
-                                    aria-invalid={fieldErrors.state ? true : undefined}
-                                    autoComplete="address-level1"
-                                />
+                                <Select
+                                    value={form.state || undefined}
+                                    onValueChange={(value) => updateField('state', value)}
+                                >
+                                    <SelectTrigger
+                                        id={stateId}
+                                        className={cn(
+                                            'border-[#d1b79a] bg-white text-sm font-normal normal-case tracking-normal text-[#4a2b1f] shadow-none',
+                                            inputClass('state'),
+                                        )}
+                                        aria-invalid={fieldErrors.state ? true : undefined}
+                                    >
+                                        <SelectValue placeholder="Select state" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {US_STATE_OPTIONS.map((state) => (
+                                            <SelectItem key={state.abbr} value={state.abbr} className="normal-case">
+                                                {state.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </FormField>
                             <FormField id={zipId} label="Zip code" required error={fieldErrors.zipCode}>
                                 <Input
@@ -336,16 +449,19 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
                         </FormField>
                     </div>
                 </FormSection>
-            </div>
+            </CardContent>
 
-            <div className="mt-8 flex flex-col gap-3 border-t border-[#d1b79a]/50 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <Separator className="mx-6 w-auto" />
+
+            <CardFooter className="flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-[11px] leading-relaxed text-[#8a7264]">
                     By submitting, you confirm the information provided is accurate for wholesale account review.
                 </p>
                 <Button type="submit" variant="primary" className="shrink-0 sm:min-w-40" disabled={isLoading} aria-busy={isLoading}>
                     {isLoading ? 'Submitting…' : 'Submit request'}
                 </Button>
-            </div>
-        </form>
+            </CardFooter>
+            </form>
+        </Card>
     );
 }

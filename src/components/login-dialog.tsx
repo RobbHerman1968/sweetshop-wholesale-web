@@ -4,11 +4,12 @@ import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { X } from 'lucide-react';
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { PasswordInput } from '@/components/ui/password-input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import { ForgotPasswordDialog } from '@/components/forgot-password-dialog';
 import { clearWholesaleShopAsSelection } from '@/lib/wholesale-account-switcher-actions';
 import { loginSchema } from '@/lib/validations/auth';
@@ -78,31 +79,29 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent
                     hideCloseButton
-                    className="border-[#d1b79a] bg-[#fdf7ef] p-0 px-3 pb-6 pt-3 text-[#4a2b1f] sm:max-w-md"
+                    className="gap-0 overflow-hidden border-[#d1b79a] bg-[#fdf7ef] p-0 pt-0 text-[#4a2b1f] sm:max-w-md"
                 >
-                    <DialogHeader className="space-y-0">
-                        <div className="flex items-center justify-between gap-3">
-                            <DialogTitle className="text-sm font-semibold uppercase tracking-[0.25em] text-[#7c5b44]">
-                                Wholesale Login
-                            </DialogTitle>
-                            <DialogClose
-                                type="button"
-                                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-[#5c4032] opacity-80 ring-offset-white transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
-                                aria-label="Close dialog"
-                            >
-                                <X className="size-4" strokeWidth={1.75} aria-hidden />
-                            </DialogClose>
-                        </div>
-                        <DialogDescription className="mt-2 text-xs text-[#7c5b44]">
+                    <DialogClose
+                        type="button"
+                        className="absolute right-2 top-2 z-10 inline-flex size-9 items-center justify-center rounded-md text-[#5c4032] opacity-80 ring-offset-white transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
+                        aria-label="Close dialog"
+                    >
+                        <X className="size-4" strokeWidth={1.75} aria-hidden />
+                    </DialogClose>
+                    <DialogHeader className="space-y-2 border-b border-[#d1b79a] bg-[#f3e0cf] px-6 py-4 pr-14">
+                        <DialogTitle className="text-sm font-semibold uppercase tracking-[0.25em] text-[#7c5b44]">
+                            Wholesale Login
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-[#7c5b44]">
                             Enter your email or AccountMate ID and password to access your wholesale account.
                         </DialogDescription>
                     </DialogHeader>
-                    <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
-                        {submitError && (
-                            <p className="text-xs text-red-600" role="alert">
-                                {submitError}
-                            </p>
-                        )}
+                    <form className="space-y-3 px-6 pt-3" onSubmit={handleSubmit}>
+                        {submitError ? (
+                            <Alert variant="destructive">
+                                <AlertDescription>{submitError}</AlertDescription>
+                            </Alert>
+                        ) : null}
                         <div className="space-y-1">
                             <Label htmlFor="login-email">Email / AccountMate ID</Label>
                             <Input
@@ -117,9 +116,9 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                                 aria-describedby={errors.email ? emailErrorId : undefined}
                             />
                             {errors.email ? (
-                                <p id={emailErrorId} className="text-xs text-red-600" role="alert">
-                                    {errors.email}
-                                </p>
+                                <Alert variant="destructive" className="px-3 py-2" id={emailErrorId}>
+                                    <AlertDescription>{errors.email}</AlertDescription>
+                                </Alert>
                             ) : null}
                         </div>
                         <div className="space-y-1">
@@ -135,25 +134,28 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                                 aria-describedby={errors.password ? passwordErrorId : undefined}
                             />
                             {errors.password ? (
-                                <p id={passwordErrorId} className="text-xs text-red-600" role="alert">
-                                    {errors.password}
-                                </p>
+                                <Alert variant="destructive" className="px-3 py-2" id={passwordErrorId}>
+                                    <AlertDescription>{errors.password}</AlertDescription>
+                                </Alert>
                             ) : null}
                         </div>
                         <Button type="submit" className="mt-2 w-full" disabled={isLoading} aria-busy={isLoading}>
                             {isLoading ? 'Signing in…' : 'Sign In'}
                         </Button>
                     </form>
-                    <button
-                        type="button"
-                        className="mt-3 rounded-sm text-[11px] uppercase tracking-[0.2em] text-[#a67c52] hover:text-[#4a2b1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
-                        onClick={() => {
-                            onOpenChange(false);
-                            setForgotOpen(true);
-                        }}
-                    >
-                        Forgot your password?
-                    </button>
+                    <DialogFooter className="px-6 pt-4 pb-6 sm:justify-center">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-[#4a2518]"
+                            onClick={() => {
+                                onOpenChange(false);
+                                setForgotOpen(true);
+                            }}
+                        >
+                            Forgot your password?
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

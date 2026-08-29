@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { PasswordInput } from '@/components/ui/password-input';
+import { X } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
     completePasswordReset,
     requestPasswordResetCode,
@@ -107,6 +109,19 @@ export function ForgotPasswordDialog({ open, onOpenChange, onBackToLogin }: Forg
         setStep('done');
     }
 
+    async function handleResendCode() {
+        setError(null);
+        setInfo(null);
+        setIsLoading(true);
+        const result = await requestPasswordResetCode(email);
+        setIsLoading(false);
+        if (!result.ok) {
+            setError(result.error);
+            return;
+        }
+        setInfo(result.message);
+    }
+
     function goBackToLogin() {
         onOpenChange(false);
         onBackToLogin?.();
@@ -132,25 +147,39 @@ export function ForgotPasswordDialog({ open, onOpenChange, onBackToLogin }: Forg
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="border-[#d1b79a] bg-[#fdf7ef] text-[#4a2b1f]">
-                <DialogHeader>
+            <DialogContent
+                hideCloseButton
+                className="gap-0 overflow-hidden border-[#d1b79a] bg-[#fdf7ef] p-0 pt-0 text-[#4a2b1f] sm:max-w-md"
+            >
+                <DialogClose
+                    type="button"
+                    className="absolute right-2 top-2 z-10 inline-flex size-9 items-center justify-center rounded-md text-[#5c4032] opacity-80 ring-offset-white transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
+                    aria-label="Close dialog"
+                >
+                    <X className="size-4" strokeWidth={1.75} aria-hidden />
+                </DialogClose>
+                <DialogHeader className="space-y-2 border-b border-[#d1b79a] bg-[#f3e0cf] px-6 py-4 pr-14">
                     <DialogTitle className="text-sm font-semibold uppercase tracking-[0.25em] text-[#7c5b44]">{title}</DialogTitle>
-                    <DialogDescription className="mt-2 text-xs text-[#7c5b44]">{description}</DialogDescription>
+                    <DialogDescription className="text-xs text-[#7c5b44]">{description}</DialogDescription>
                 </DialogHeader>
 
                 {error ? (
-                    <p className="mt-3 text-xs text-red-600" role="alert">
-                        {error}
-                    </p>
+                    <div className="px-6 pt-3">
+                        <Alert variant="destructive">
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    </div>
                 ) : null}
                 {info ? (
-                    <p className="mt-3 text-xs text-[#5c4032]" role="status">
-                        {info}
-                    </p>
+                    <div className="px-6 pt-3">
+                        <Alert>
+                            <AlertDescription>{info}</AlertDescription>
+                        </Alert>
+                    </div>
                 ) : null}
 
                 {step === 'email' ? (
-                    <form className="mt-4 space-y-3" onSubmit={handleRequestCode}>
+                    <form className="space-y-3 px-6 pt-3" onSubmit={handleRequestCode}>
                         <div className="space-y-1">
                             <Label htmlFor={emailFieldId}>Email</Label>
                             <Input
@@ -171,7 +200,7 @@ export function ForgotPasswordDialog({ open, onOpenChange, onBackToLogin }: Forg
                 ) : null}
 
                 {step === 'code' ? (
-                    <form className="mt-4 space-y-3" onSubmit={handleVerifyCode}>
+                    <form className="space-y-3 px-6 pt-3" onSubmit={handleVerifyCode}>
                         <div className="space-y-1">
                             <Label htmlFor={codeFieldId}>6-digit code</Label>
                             <Input
@@ -190,32 +219,11 @@ export function ForgotPasswordDialog({ open, onOpenChange, onBackToLogin }: Forg
                         <Button type="submit" className="mt-2 w-full" disabled={isLoading || code.length !== 6} aria-busy={isLoading}>
                             {isLoading ? 'Verifying…' : 'Verify code'}
                         </Button>
-                        <button
-                            type="button"
-                            className="w-full rounded-sm text-[11px] uppercase tracking-[0.2em] text-[#a67c52] hover:text-[#4a2b1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2 disabled:opacity-60"
-                            disabled={isLoading}
-                            onClick={() => {
-                                void (async () => {
-                                    setError(null);
-                                    setInfo(null);
-                                    setIsLoading(true);
-                                    const result = await requestPasswordResetCode(email);
-                                    setIsLoading(false);
-                                    if (!result.ok) {
-                                        setError(result.error);
-                                        return;
-                                    }
-                                    setInfo(result.message);
-                                })();
-                            }}
-                        >
-                            Resend code
-                        </button>
                     </form>
                 ) : null}
 
                 {step === 'password' ? (
-                    <form className="mt-4 space-y-3" onSubmit={handleSetPassword}>
+                    <form className="space-y-3 px-6 pt-3" onSubmit={handleSetPassword}>
                         <div className="space-y-1">
                             <Label htmlFor={passwordFieldId}>New password</Label>
                             <PasswordInput
@@ -249,17 +257,28 @@ export function ForgotPasswordDialog({ open, onOpenChange, onBackToLogin }: Forg
                 ) : null}
 
                 {step === 'done' ? (
-                    <Button type="button" className="mt-4 w-full" onClick={goBackToLogin}>
-                        Back to login
-                    </Button>
+                    <div className="px-6 pt-3 pb-6">
+                        <Button type="button" className="w-full" onClick={goBackToLogin}>
+                            Back to login
+                        </Button>
+                    </div>
                 ) : (
-                    <button
-                        type="button"
-                        className="mt-3 rounded-sm text-[11px] uppercase tracking-[0.2em] text-[#a67c52] hover:text-[#4a2b1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c49a78] focus-visible:ring-offset-2"
-                        onClick={goBackToLogin}
-                    >
-                        Back to login
-                    </button>
+                    <DialogFooter className="flex-col gap-3 px-6 pt-4 pb-6 sm:flex-col sm:justify-center">
+                        {step === 'code' ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="text-[#4a2518]"
+                                disabled={isLoading}
+                                onClick={() => void handleResendCode()}
+                            >
+                                Resend code
+                            </Button>
+                        ) : null}
+                        <Button type="button" variant="outline" className="text-[#4a2518]" onClick={goBackToLogin}>
+                            Back to login
+                        </Button>
+                    </DialogFooter>
                 )}
             </DialogContent>
         </Dialog>

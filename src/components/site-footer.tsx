@@ -87,8 +87,8 @@ export function SiteFooter({ termsPageHref = null, privacyPageHref = null }: Sit
                     </h2>
                     <p>
                         Phone:{' '}
-                        <a href="tel:+18002720887" className={footerLinkClassName}>
-                            1-800-272-0887
+                        <a href="tel:+18002222269" className={footerLinkClassName}>
+                            1-800-222-2269
                         </a>
                     </p>
                     <p>Customer Service: Monday–Friday, 8AM–5PM CST</p>
@@ -98,7 +98,8 @@ export function SiteFooter({ termsPageHref = null, privacyPageHref = null }: Sit
                         Address
                     </h2>
                     <p>Sweet Shop USA</p>
-                    <p>Texas, USA</p>
+                    <p>1316 Industrial Road</p>
+                    <p>Mount Pleasant, TX 75455</p>
                 </section>
             </div>
             <div className="border-t border-[#6b4532] bg-[#3d281a] px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-[#f5d9b8]">

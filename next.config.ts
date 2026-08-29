@@ -24,7 +24,9 @@ const nextConfig: NextConfig = {
         NEXT_PUBLIC_BUILD_ID: buildId,
     },
     generateBuildId: async () => buildId,
-    /* config options here */
+    async redirects() {
+        return [{ source: '/locations', destination: '/contact', permanent: true }];
+    },
     images: {
         remotePatterns: [
             {

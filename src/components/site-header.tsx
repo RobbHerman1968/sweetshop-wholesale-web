@@ -163,17 +163,14 @@ export function SiteHeader({
 
                         {/* Desktop nav */}
                         <nav className="hidden items-center gap-6 md:flex" aria-label="Company">
-                            <Link href="/locations" className={headerNavLinkClass}>
-                                Locations
-                            </Link>
                             <Link href="/shop" className={headerNavLinkClass} onClick={onShopNavClick}>
                                 Shop
                             </Link>
-                            <Link href="/about" className={headerNavLinkClass}>
-                                About Us
-                            </Link>
                             <Link href="/apply" className={headerNavLinkClass}>
                                 Apply Now
+                            </Link>
+                            <Link href="/about" className={headerNavLinkClass}>
+                                About Us
                             </Link>
                             <Link href="/contact" className={headerNavLinkClass}>
                                 Contact Us
@@ -244,13 +241,6 @@ export function SiteHeader({
                     >
                         <nav className="flex flex-col gap-1" aria-label="Company">
                             <Link
-                                href="/locations"
-                                className={cn(headerNavLinkClass, 'w-fit py-2')}
-                                onClick={() => setIsMenuOpen(false)}
-                            >
-                                Locations
-                            </Link>
-                            <Link
                                 href="/shop"
                                 className={cn(headerNavLinkClass, 'w-fit py-2')}
                                 onClick={(e) => {
@@ -261,18 +251,18 @@ export function SiteHeader({
                                 Shop
                             </Link>
                             <Link
-                                href="/about"
-                                className={cn(headerNavLinkClass, 'w-fit py-2')}
-                                onClick={() => setIsMenuOpen(false)}
-                            >
-                                About Us
-                            </Link>
-                            <Link
                                 href="/apply"
                                 className={cn(headerNavLinkClass, 'w-fit py-2')}
                                 onClick={() => setIsMenuOpen(false)}
                             >
                                 Apply Now
+                            </Link>
+                            <Link
+                                href="/about"
+                                className={cn(headerNavLinkClass, 'w-fit py-2')}
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                About Us
                             </Link>
                             <Link
                                 href="/contact"

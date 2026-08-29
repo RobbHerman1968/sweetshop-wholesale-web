@@ -24,7 +24,10 @@ function row(label: string, value: string): string {
     </tr>`;
 }
 
-export function buildWholesaleApplicationEmailContent(data: WholesaleApplicationInput): WholesaleApplicationEmailContent {
+export function buildWholesaleApplicationEmailContent(
+    data: WholesaleApplicationInput,
+    options?: { attachmentName?: string | null },
+): WholesaleApplicationEmailContent {
     const businessName = data.businessName.trim();
     const contactName = `${data.contactFirstName.trim()} ${data.contactLastName.trim()}`.trim();
     const subject = `Wholesale application: ${businessName}`;
@@ -66,12 +69,15 @@ export function buildWholesaleApplicationEmailContent(data: WholesaleApplication
                 ${row('Phone', escapeHtml(formatPhoneDisplay(data.phone)))}
                 ${row('Fax', data.fax ? escapeHtml(formatPhoneDisplay(data.fax)) : '—')}
                 ${row('Billing address', escapeHtml(addressLines.join('\n')).replaceAll('\n', '<br />'))}
+                ${options?.attachmentName
+                    ? row('Attachment', escapeHtml(options.attachmentName))
+                    : ''}
               </table>
             </td>
           </tr>
           <tr>
             <td style="padding:16px 28px 24px;border-top:1px solid ${BRAND.tan};font-size:12px;line-height:1.5;color:#8b6b4a;">
-              Sweet Shop USA · Wholesale Support · 1-800-272-0887
+              Sweet Shop USA · Wholesale Support · 1-800-222-2269
             </td>
           </tr>
         </table>
@@ -92,6 +98,7 @@ export function buildWholesaleApplicationEmailContent(data: WholesaleApplication
         `Fax: ${data.fax ? formatPhoneDisplay(data.fax) : '—'}`,
         'Billing address:',
         ...addressLines.map((line) => `  ${line}`),
+        ...(options?.attachmentName ? ['', `Attachment: ${options.attachmentName}`] : []),
     ].join('\n');
 
     return { subject, html, text };
