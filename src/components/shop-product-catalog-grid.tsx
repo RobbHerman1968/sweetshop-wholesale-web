@@ -64,6 +64,29 @@ function DownloadTab({ text }: { text: string | null | undefined }) {
     return <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#4a2518]">{t}</p>;
 }
 
+function hasRichTextContent(html: string | null | undefined): boolean {
+    return stripHtml(html ?? '').length > 0;
+}
+
+function hasDownloadContent(text: string | null | undefined): boolean {
+    const t = text?.trim();
+    if (!t) return false;
+    if (/^https?:\/\//i.test(t)) return true;
+    if (t.includes('<')) return /href\s*=/i.test(t) || stripHtml(t).length > 0;
+    return true;
+}
+
+type ProductTabId = 'description' | 'nutrition' | 'ingredients' | 'download';
+
+function getProductTabs(product: ShopCatalogProduct): Array<{ id: ProductTabId; label: string }> {
+    const tabs: Array<{ id: ProductTabId; label: string }> = [];
+    if (hasRichTextContent(product.description)) tabs.push({ id: 'description', label: 'Description' });
+    if (hasRichTextContent(product.nutrition)) tabs.push({ id: 'nutrition', label: 'Nutrition' });
+    if (hasRichTextContent(product.ingredients)) tabs.push({ id: 'ingredients', label: 'Ingredients' });
+    if (hasDownloadContent(product.download)) tabs.push({ id: 'download', label: 'Downloads' });
+    return tabs;
+}
+
 function HtmlOrEmptyTab({
     html,
     emptyClassName,
@@ -114,10 +137,20 @@ export function ShopProductCatalogGrid({ products, isLoggedIn, shoppingAccountId
 
     const modalImage = selected?.productImages?.[0]?.vercelImage?.path;
     const modalAlt = stripHtml(selected?.name ?? '') || 'Product';
+    const productTabs = selected ? getProductTabs(selected) : [];
+    const defaultTab = productTabs[0]?.id ?? 'description';
+    const tabColsClass =
+        productTabs.length <= 1
+            ? 'grid-cols-1'
+            : productTabs.length === 2
+              ? 'grid-cols-2'
+              : productTabs.length === 3
+                ? 'grid-cols-3'
+                : 'grid-cols-2 md:grid-cols-4';
 
     return (
         <>
-            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <ul className="grid gap-2.5 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                 {products.map((p) => {
                     const firstImage = p.productImages?.[0]?.vercelImage?.path;
                     const label = stripHtml(p.name ?? '') || `Product ${p.id}`;
@@ -137,7 +170,7 @@ export function ShopProductCatalogGrid({ products, isLoggedIn, shoppingAccountId
                                     }
                                 }}
                             >
-                                <div className="relative aspect-square w-full bg-white pointer-events-none">
+                                <div className="relative aspect-[5/4] w-full bg-white pointer-events-none sm:aspect-square">
                                     {firstImage ? (
                                         <RemoteImage
                                             src={firstImage}
@@ -150,16 +183,16 @@ export function ShopProductCatalogGrid({ products, isLoggedIn, shoppingAccountId
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex flex-1 flex-col p-4">
+                                <div className="flex flex-1 flex-col p-2.5 sm:p-4">
                                     <h2
-                                        className="product-title-html min-h-[4lh] text-[12px] font-bold uppercase leading-snug tracking-[0.12em] text-[#4a2518] line-clamp-4 [&_a]:underline [&_a]:pointer-events-auto"
+                                        className="product-title-html min-h-[3lh] text-[11px] font-bold uppercase leading-snug tracking-[0.12em] text-[#4a2518] line-clamp-3 sm:min-h-[4lh] sm:text-[12px] sm:line-clamp-4 [&_a]:underline [&_a]:pointer-events-auto"
                                         dangerouslySetInnerHTML={{
                                             __html: p.name?.trim() ? p.name : '—',
                                         }}
                                     />
-                                    <p className="mt-1 text-[11px] text-[#6e4a34]">{p.itemNumber ? `Item #${p.itemNumber}` : '—'}</p>
+                                    <p className="mt-0.5 text-[10px] text-[#6e4a34] sm:mt-1 sm:text-[11px]">{p.itemNumber ? `Item #${p.itemNumber}` : '—'}</p>
                                     {isLoggedIn ? (
-                                        <p className="mt-auto pt-3 text-sm font-semibold text-[#4a2518]">${Number(p.price).toFixed(2)}</p>
+                                        <p className="mt-auto pt-1.5 text-sm font-semibold text-[#4a2518] sm:pt-3">${Number(p.price).toFixed(2)}</p>
                                     ) : null}
                                     {shoppingAccountId != null ? <ShopAddToCartControls productId={p.id} /> : null}
                                 </div>
@@ -173,7 +206,9 @@ export function ShopProductCatalogGrid({ products, isLoggedIn, shoppingAccountId
                 <DialogContent
                     hideCloseButton
                     className={cn(
-                        'flex max-h-[min(calc(min(92dvh,720px)+100px),92dvh)] w-full max-w-[min(32rem,calc(100vw-40px))]! flex-col overflow-hidden border-[#b89572] bg-[#fdf7ef] pl-4! pr-0! pb-3! pt-2! md:max-h-[min(calc(min(90vh,720px)+100px),80vh)] md:w-[calc(min(72rem,100vw)*0.8)] md:max-w-none!',
+                        'flex flex-col gap-0 overflow-hidden border-[#b89572] bg-[#fdf7ef] pl-4! pr-0! pb-3! pt-2!',
+                        'max-md:top-4! max-md:right-4! max-md:bottom-4! max-md:left-4! max-md:h-auto max-md:max-h-none max-md:w-auto max-md:max-w-none! max-md:translate-x-0! max-md:translate-y-0!',
+                        'md:max-h-[min(calc(min(90vh,720px)+100px),80vh)] md:w-[calc(min(72rem,100vw)*0.8)] md:max-w-none!',
                     )}
                 >
                     <div className="flex shrink-0 flex-row items-center justify-between gap-2 border-b border-[#b89572]/35 pb-1.5 pr-4">
@@ -191,19 +226,19 @@ export function ShopProductCatalogGrid({ products, isLoggedIn, shoppingAccountId
                             <X className="size-6 md:size-4" strokeWidth={1.75} aria-hidden />
                         </DialogClose>
                     </div>
-                    <div className="min-h-0 max-h-[calc(min(calc(min(92dvh,720px)+100px),92dvh)-9rem)] flex-1 overflow-y-auto overscroll-contain pt-2 md:max-h-[calc(min(calc(min(90vh,720px)+100px),80vh)-9rem)]">
-                        {selected ? (
-                            <div className="pr-4">
+                    {selected ? (
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-2 pr-4">
+                            <div className="shrink-0">
                                 <div
-                                    className="product-title-html mb-4 w-full min-w-0 text-base font-bold uppercase tracking-[0.12em] text-[#4a2518] [&_a]:underline [&_a]:pointer-events-auto"
+                                    className="product-title-html mb-3 w-full min-w-0 text-base font-bold uppercase tracking-[0.12em] text-[#4a2518] md:mb-4 [&_a]:underline [&_a]:pointer-events-auto"
                                     dangerouslySetInnerHTML={{
                                         __html: selected.name?.trim() ? selected.name : '—',
                                     }}
                                 />
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-[auto_minmax(0,1fr)] md:items-start md:gap-6">
-                                    <div className="relative aspect-square w-full max-w-sm shrink-0 overflow-hidden rounded-md border border-[#b89572]/60 bg-white md:w-52 md:max-w-none">
+                                <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 md:grid-cols-[auto_minmax(0,1fr)] md:gap-6">
+                                    <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-md border border-[#b89572]/60 bg-white md:w-52">
                                         {modalImage ? (
-                                            <RemoteImage src={modalImage} alt={modalAlt} sizes="(max-width: 768px) 100vw, 208px" />
+                                            <RemoteImage src={modalImage} alt={modalAlt} sizes="(max-width: 768px) 104px, 208px" />
                                         ) : (
                                             <div className="flex h-full items-center justify-center text-[11px] font-medium uppercase tracking-wider text-[#8b6b4a]">
                                                 No image
@@ -211,17 +246,7 @@ export function ShopProductCatalogGrid({ products, isLoggedIn, shoppingAccountId
                                         )}
                                     </div>
                                     <div className="min-w-0">
-                                        {selected.description?.trim() ? (
-                                            <div
-                                                className="product-title-html flex flex-col gap-2 text-sm uppercase tracking-[0.12em] text-[#4a2518] [&_a]:underline [&_a]:pointer-events-auto"
-                                                dangerouslySetInnerHTML={{
-                                                    __html: normalizeDescriptionHtml(selected.description.trim()),
-                                                }}
-                                            />
-                                        ) : (
-                                            <p className="text-xs text-[#8b6b4a]">—</p>
-                                        )}
-                                        <p className="mt-3 text-sm text-[#6e4a34]">
+                                        <p className="text-sm text-[#6e4a34]">
                                             {selected.itemNumber ? `Item #${selected.itemNumber}` : '—'}
                                         </p>
                                         {isLoggedIn ? (
@@ -230,44 +255,70 @@ export function ShopProductCatalogGrid({ products, isLoggedIn, shoppingAccountId
                                             </p>
                                         ) : null}
                                         {shoppingAccountId != null ? (
-                                            <ShopAddToCartControls productId={selected.id} variant="detail" className="mt-4" />
+                                            <ShopAddToCartControls productId={selected.id} variant="detail" className="mt-4 hidden md:block" />
                                         ) : null}
                                     </div>
                                 </div>
-                                <Tabs defaultValue="nutrition" className="mt-5 w-full">
-                                    <TabsList className="grid! h-auto min-h-10 w-full grid-cols-3 gap-1.5 p-1">
-                                        <TabsTrigger value="nutrition" className="w-full min-w-0">
-                                            Nutrition
-                                        </TabsTrigger>
-                                        <TabsTrigger value="ingredients" className="w-full min-w-0">
-                                            Ingredients
-                                        </TabsTrigger>
-                                        <TabsTrigger value="download" className="w-full min-w-0">
-                                            Downloads
-                                        </TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent
-                                        value="nutrition"
-                                        className="mt-3 rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
-                                    >
-                                        <HtmlOrEmptyTab html={selected.nutrition} />
-                                    </TabsContent>
-                                    <TabsContent
-                                        value="ingredients"
-                                        className="mt-3 rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
-                                    >
-                                        <HtmlOrEmptyTab html={selected.ingredients} />
-                                    </TabsContent>
-                                    <TabsContent
-                                        value="download"
-                                        className="mt-3 rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
-                                    >
-                                        <DownloadTab text={selected.download} />
-                                    </TabsContent>
-                                </Tabs>
                             </div>
-                        ) : null}
-                    </div>
+                            {productTabs.length > 0 ? (
+                                <Tabs
+                                    key={`${selected.id}-${defaultTab}`}
+                                    defaultValue={defaultTab}
+                                    className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden"
+                                >
+                                    <TabsList className={cn('grid! h-auto min-h-10 w-full shrink-0 gap-1.5 p-1', tabColsClass)}>
+                                        {productTabs.map((tab) => (
+                                            <TabsTrigger key={tab.id} value={tab.id} className="w-full min-w-0">
+                                                {tab.label}
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                    {productTabs.some((tab) => tab.id === 'description') ? (
+                                        <TabsContent
+                                            value="description"
+                                            className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
+                                        >
+                                            <div
+                                                className="product-title-html flex flex-col gap-2 text-sm uppercase tracking-[0.12em] text-[#4a2518] [&_a]:underline [&_a]:pointer-events-auto"
+                                                dangerouslySetInnerHTML={{
+                                                    __html: normalizeDescriptionHtml(selected.description?.trim() ?? ''),
+                                                }}
+                                            />
+                                        </TabsContent>
+                                    ) : null}
+                                    {productTabs.some((tab) => tab.id === 'nutrition') ? (
+                                        <TabsContent
+                                            value="nutrition"
+                                            className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
+                                        >
+                                            <HtmlOrEmptyTab html={selected.nutrition} />
+                                        </TabsContent>
+                                    ) : null}
+                                    {productTabs.some((tab) => tab.id === 'ingredients') ? (
+                                        <TabsContent
+                                            value="ingredients"
+                                            className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
+                                        >
+                                            <HtmlOrEmptyTab html={selected.ingredients} />
+                                        </TabsContent>
+                                    ) : null}
+                                    {productTabs.some((tab) => tab.id === 'download') ? (
+                                        <TabsContent
+                                            value="download"
+                                            className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-[#b89572]/30 bg-[#f6ebdd]/50 p-3 text-left"
+                                        >
+                                            <DownloadTab text={selected.download} />
+                                        </TabsContent>
+                                    ) : null}
+                                </Tabs>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    {selected && shoppingAccountId != null ? (
+                        <div className="shrink-0 border-t border-[#b89572]/35 bg-[#fdf7ef] pr-4 pt-3 pb-[max(0.25rem,env(safe-area-inset-bottom))] md:hidden">
+                            <ShopAddToCartControls productId={selected.id} variant="sheet" />
+                        </div>
+                    ) : null}
                 </DialogContent>
             </Dialog>
         </>

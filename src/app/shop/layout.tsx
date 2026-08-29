@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ShopBackToTop } from '@/components/shop-back-to-top';
 
 export const metadata: Metadata = {
     title: 'Shop | Sweet Shop USA Wholesale',
@@ -6,5 +7,10 @@ export const metadata: Metadata = {
 };
 
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
-    return children;
+    return (
+        <>
+            {children}
+            <ShopBackToTop />
+        </>
+    );
 }

@@ -60,11 +60,10 @@ function formatAccountDisplayName(
     fallbackAccountMateId?: string | null,
 ): string {
     const n = (r.name ?? '').trim();
+    const m = (r.accountMateId ?? '').trim() || fallbackAccountMateId?.trim() || '';
+    if (n && m) return `${n} (${m})`;
     if (n) return n;
-    const m = (r.accountMateId ?? '').trim();
     if (m) return m;
-    const fallback = fallbackAccountMateId?.trim();
-    if (fallback) return fallback;
     return `Account ${r.id}`;
 }
 

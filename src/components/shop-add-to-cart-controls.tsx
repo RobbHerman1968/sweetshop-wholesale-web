@@ -12,8 +12,8 @@ import { cn } from '@/lib/utils';
 type Props = {
     productId: number;
     className?: string;
-    /** Grid cards: centered "Qty". Product details: right-aligned "Quantity". */
-    variant?: 'grid' | 'detail';
+    /** Grid cards: centered "Qty". Product details: right-aligned "Quantity". Sheet: qty + button in one row. */
+    variant?: 'grid' | 'detail' | 'sheet';
 };
 
 function parsePositiveQuantity(value: string): number | null {
@@ -133,25 +133,39 @@ export function ShopAddToCartControls({ productId, className, variant = 'grid' }
     };
 
     const isDetail = variant === 'detail';
+    const isSheet = variant === 'sheet';
+    const isGrid = variant === 'grid';
     const quantityLabel = isDetail ? 'Quantity' : 'Qty';
 
     return (
         <div
             data-shop-cart
-            className={cn('mt-3 space-y-2', className)}
+            className={cn(isSheet ? 'mt-0' : isGrid ? 'mt-2 sm:mt-3' : 'mt-3 space-y-2', className)}
             onClick={stopCardActivation}
             onKeyDown={stopCardActivation}
         >
-            <div className="flex w-full flex-col gap-2">
-                <div className={cn('flex items-center gap-2', isDetail ? 'justify-end' : 'justify-center')}>
+            <div
+                className={cn(
+                    'flex w-full gap-2',
+                    isSheet || isGrid ? 'flex-row items-center' : 'flex-col',
+                    isGrid && 'sm:flex-col',
+                )}
+            >
+                <div
+                    className={cn(
+                        'flex items-center gap-2',
+                        isSheet || isGrid ? 'shrink-0' : isDetail ? 'justify-end' : 'justify-center',
+                        isGrid && 'sm:justify-center',
+                    )}
+                >
                     <label
-                        htmlFor={`shop-qty-${productId}`}
+                        htmlFor={`shop-qty-${variant}-${productId}`}
                         className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8b6b4a]"
                     >
                         {quantityLabel}
                     </label>
                     <QuantityStepper
-                        id={`shop-qty-${productId}`}
+                        id={`shop-qty-${variant}-${productId}`}
                         value={quantity}
                         disabled={submitting}
                         onChange={setQuantity}
@@ -161,7 +175,11 @@ export function ShopAddToCartControls({ productId, className, variant = 'grid' }
                     type="button"
                     variant="primary"
                     disabled={submitting}
-                    className="h-8 w-full px-2 py-1.5 text-[10px] tracking-[0.14em]"
+                    className={cn(
+                        'h-8 px-2 py-1.5 text-[10px] tracking-[0.14em]',
+                        isSheet || isGrid ? 'min-w-0 flex-1' : 'w-full',
+                        isGrid && 'sm:w-full',
+                    )}
                     onClick={() => void handleAdd()}
                 >
                     {submitting ? 'Adding…' : 'Add to cart'}
