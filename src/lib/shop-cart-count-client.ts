@@ -18,7 +18,8 @@ export async function refreshShopCartCount(accountId?: number | null): Promise<n
     }
 
     const generation = refreshGeneration;
-    const request: Promise<number> = (async () => {
+    let request!: Promise<number>;
+    request = (async () => {
         try {
             const count = await getShopCartItemCount(accountId);
             if (generation !== refreshGeneration) {

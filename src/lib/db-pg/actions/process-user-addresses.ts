@@ -8,7 +8,7 @@ import { account, accountAddress } from '@/lib/drizzle/schema';
 import { parseAccountMateId } from '@/lib/wholesale-api';
 
 async function advanceAccountAddressIdSequence(): Promise<void> {
-    const [result] = await db.execute(sql`
+    const result = await db.execute<{ last_value?: unknown }>(sql`
         SELECT setval(
             pg_get_serial_sequence('"accountAddress"', 'id'),
             GREATEST(
@@ -19,7 +19,7 @@ async function advanceAccountAddressIdSequence(): Promise<void> {
     `);
 
     console.log(
-        `User address sync: advanced accountAddress id sequence to ${String((result as { last_value?: unknown })?.last_value ?? 'unknown')}`,
+        `User address sync: advanced accountAddress id sequence to ${String(result.rows[0]?.last_value ?? 'unknown')}`,
     );
 }
 
