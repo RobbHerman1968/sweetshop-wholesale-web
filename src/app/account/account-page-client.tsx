@@ -9,10 +9,12 @@ import { SiteHeader } from '@/components/site-header';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import { toast } from '@/hooks/use-toast';
 import { SITE_MAIN_FOCUS_CLASS, SITE_MAIN_ID } from '@/lib/site-main';
 import { cn } from '@/lib/utils';
 import {
+    updateAccountPasswordFromForm,
     updateAccountProfileFromForm,
     type AccountPageData,
 } from '@/lib/account-page-actions';
@@ -47,6 +49,11 @@ export function AccountPageClient({
     const [lastName, setLastName] = useState(accountData.profile.lastName ?? '');
     const [saving, setSaving] = useState(false);
     const [profileError, setProfileError] = useState<string | null>(null);
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [savingPassword, setSavingPassword] = useState(false);
+    const [passwordError, setPasswordError] = useState<string | null>(null);
 
     const showCompleteProfileNotice = profile.needsProfileCompletion;
 
@@ -88,6 +95,30 @@ export function AccountPageClient({
         router.refresh();
     }
 
+    async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        setPasswordError(null);
+        setSavingPassword(true);
+
+        const formData = new FormData();
+        formData.set('currentPassword', currentPassword);
+        formData.set('newPassword', newPassword);
+        formData.set('confirmPassword', confirmPassword);
+
+        const result = await updateAccountPasswordFromForm(formData);
+        setSavingPassword(false);
+
+        if (!result.ok) {
+            setPasswordError(result.error);
+            return;
+        }
+
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        toast({ title: 'Password updated' });
+    }
+
     return (
         <div className="min-h-screen min-w-0 bg-white text-[#3c251a] font-sans">
             <SiteHeader
@@ -120,7 +151,7 @@ export function AccountPageClient({
 
                         {showCompleteProfileNotice ? (
                             <div
-                                className="rounded-lg border border-amber-600/40 bg-amber-50 px-4 py-3 text-sm text-[#5c4032]"
+                                className="rounded-lg border border-red-400/70 bg-red-100 px-4 py-3 text-sm text-[#5c4032]"
                                 role="status"
                                 aria-live="polite"
                             >
@@ -128,13 +159,18 @@ export function AccountPageClient({
                             </div>
                         ) : null}
 
-                        <section className="max-w-xl space-y-4 rounded-lg border border-[#d4c4b0] bg-[#fdf7ef] p-6">
+                        <div className="grid gap-6 lg:grid-cols-2">
+                        <section className="space-y-4 rounded-lg border border-[#d4c4b0] bg-[#fdf7ef] p-6">
                             <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#4a2518]">Profile</h2>
 
                             <dl className="grid gap-3 text-sm text-[#5c4032] sm:grid-cols-2">
                                 <div>
                                     <dt className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8a7264]">Login</dt>
                                     <dd className="mt-0.5 font-medium text-[#3c251a]">{profile.userName}</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8a7264]">AccountMate ID</dt>
+                                    <dd className="mt-0.5 font-medium text-[#3c251a]">{profile.accountMateId?.trim() || '—'}</dd>
                                 </div>
                             </dl>
 
@@ -173,6 +209,60 @@ export function AccountPageClient({
                                 </Button>
                             </form>
                         </section>
+
+                        <section className="space-y-4 rounded-lg border border-[#d4c4b0] bg-[#fdf7ef] p-6">
+                            <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#4a2518]">Change password</h2>
+                            <p className="text-xs text-[#6e4a34]">Enter your current password, then choose a new one (at least 6 characters).</p>
+
+                            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                                {passwordError ? (
+                                    <p className="text-xs text-red-600" role="alert">
+                                        {passwordError}
+                                    </p>
+                                ) : null}
+                                <div className="space-y-2">
+                                    <Label htmlFor="account-currentPassword">Current password</Label>
+                                    <PasswordInput
+                                        id="account-currentPassword"
+                                        name="currentPassword"
+                                        value={currentPassword}
+                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                        required
+                                        autoComplete="current-password"
+                                    />
+                                </div>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="account-newPassword">New password</Label>
+                                        <PasswordInput
+                                            id="account-newPassword"
+                                            name="newPassword"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            required
+                                            minLength={6}
+                                            autoComplete="new-password"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="account-confirmPassword">Confirm new password</Label>
+                                        <PasswordInput
+                                            id="account-confirmPassword"
+                                            name="confirmPassword"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            required
+                                            minLength={6}
+                                            autoComplete="new-password"
+                                        />
+                                    </div>
+                                </div>
+                                <Button type="submit" disabled={savingPassword}>
+                                    {savingPassword ? 'Updating…' : 'Update password'}
+                                </Button>
+                            </form>
+                        </section>
+                        </div>
 
                         {accountData.hasLinkedAccount ? (
                             <section className="space-y-4">

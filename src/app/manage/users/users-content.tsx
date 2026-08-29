@@ -26,17 +26,19 @@ type UsersContentProps = {
     pagination: { total: number; page: number; limit: number; totalPages: number };
     searchUserName: string;
     searchLastName: string;
+    searchAccountMateId: string;
 };
 
-function buildQuery(params: { page?: number; userName?: string; lastName?: string }) {
+function buildQuery(params: { page?: number; userName?: string; lastName?: string; accountMateId?: string }) {
     const q = new URLSearchParams();
     if (params.page != null && params.page > 1) q.set('page', String(params.page));
     if (params.userName?.trim()) q.set('userName', params.userName.trim());
     if (params.lastName?.trim()) q.set('lastName', params.lastName.trim());
+    if (params.accountMateId?.trim()) q.set('accountMateId', params.accountMateId.trim());
     return q.toString() ? `?${q.toString()}` : '';
 }
 
-export function UsersContent({ data, pagination, searchUserName, searchLastName }: UsersContentProps) {
+export function UsersContent({ data, pagination, searchUserName, searchLastName, searchAccountMateId }: UsersContentProps) {
     const router = useRouter();
 
     const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -44,7 +46,13 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
         const form = e.currentTarget;
         const userName = (form.elements.namedItem('userName') as HTMLInputElement).value;
         const lastName = (form.elements.namedItem('lastName') as HTMLInputElement).value;
-        const query = buildQuery({ page: 1, userName: userName || undefined, lastName: lastName || undefined });
+        const accountMateId = (form.elements.namedItem('accountMateId') as HTMLInputElement).value;
+        const query = buildQuery({
+            page: 1,
+            userName: userName || undefined,
+            lastName: lastName || undefined,
+            accountMateId: accountMateId || undefined,
+        });
         router.push(`/manage/users${query}`);
     };
 
@@ -63,7 +71,12 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
         if (totalPages > 1) pageNumbers.push(totalPages);
     }
 
-    const listHref = `/manage/users${buildQuery({ page, userName: searchUserName || undefined, lastName: searchLastName || undefined })}`;
+    const listHref = `/manage/users${buildQuery({
+        page,
+        userName: searchUserName || undefined,
+        lastName: searchLastName || undefined,
+        accountMateId: searchAccountMateId || undefined,
+    })}`;
 
     return (
         <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden">
@@ -91,7 +104,13 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                         className="w-48 min-w-0 sm:w-56"
                         onChange={(e) =>
                             reloadOnSearchClear(e, searchUserName, () =>
-                                router.push(`/manage/users${buildQuery({ page: 1, lastName: searchLastName || undefined })}`),
+                                router.push(
+                                    `/manage/users${buildQuery({
+                                        page: 1,
+                                        lastName: searchLastName || undefined,
+                                        accountMateId: searchAccountMateId || undefined,
+                                    })}`,
+                                ),
                             )
                         }
                     />
@@ -109,7 +128,37 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                         className="w-40 min-w-0 sm:w-48"
                         onChange={(e) =>
                             reloadOnSearchClear(e, searchLastName, () =>
-                                router.push(`/manage/users${buildQuery({ page: 1, userName: searchUserName || undefined })}`),
+                                router.push(
+                                    `/manage/users${buildQuery({
+                                        page: 1,
+                                        userName: searchUserName || undefined,
+                                        accountMateId: searchAccountMateId || undefined,
+                                    })}`,
+                                ),
+                            )
+                        }
+                    />
+                </div>
+                <div className="flex flex-col gap-1">
+                    <Label htmlFor="users-accountMateId" className="text-[11px] tracking-[0.2em] text-[#6e4a34]">
+                        AccountMate ID
+                    </Label>
+                    <Input
+                        id="users-accountMateId"
+                        name="accountMateId"
+                        type="search"
+                        placeholder="Search by AccountMate ID"
+                        defaultValue={searchAccountMateId}
+                        className="w-40 min-w-0 sm:w-48"
+                        onChange={(e) =>
+                            reloadOnSearchClear(e, searchAccountMateId, () =>
+                                router.push(
+                                    `/manage/users${buildQuery({
+                                        page: 1,
+                                        userName: searchUserName || undefined,
+                                        lastName: searchLastName || undefined,
+                                    })}`,
+                                ),
                             )
                         }
                     />
@@ -122,7 +171,7 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
             <div className="flex shrink-0 flex-col gap-2 text-xs text-[#6e4a34] sm:flex-row sm:items-center sm:justify-between">
                 <p className="w-64">
                     Showing {data.length} of {pagination.total} users
-                    {(searchUserName || searchLastName) && ' (filtered)'}.
+                    {(searchUserName || searchLastName || searchAccountMateId) && ' (filtered)'}.
                 </p>
 
                 {totalPages > 1 && (
@@ -140,6 +189,7 @@ export function UsersContent({ data, pagination, searchUserName, searchLastName 
                                                 page: n,
                                                 userName: searchUserName || undefined,
                                                 lastName: searchLastName || undefined,
+                                                accountMateId: searchAccountMateId || undefined,
                                             })}`}
                                             isActive={page === n}
                                         >

@@ -7,7 +7,7 @@ import { UsersContent } from './users-content';
 const PER_PAGE = 50;
 
 type Props = {
-    searchParams: Promise<{ page?: string; userName?: string; lastName?: string }>;
+    searchParams: Promise<{ page?: string; userName?: string; lastName?: string; accountMateId?: string }>;
 };
 
 export default async function ManageUsersPage({ searchParams }: Props) {
@@ -15,12 +15,14 @@ export default async function ManageUsersPage({ searchParams }: Props) {
     const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1);
     const userName = params.userName?.trim() ?? '';
     const lastName = params.lastName?.trim() ?? '';
+    const accountMateId = params.accountMateId?.trim() ?? '';
 
     const result = await getPaginatedUsersFromDB({
         page,
         limit: PER_PAGE,
         userName: userName || undefined,
         lastName: lastName || undefined,
+        accountMateId: accountMateId || undefined,
     });
 
     const accountLinksByMateId = await getManageAccountLinksForAccountMateIds(result.data.map((row) => row.accountMateId));
@@ -38,6 +40,7 @@ export default async function ManageUsersPage({ searchParams }: Props) {
                     pagination={result.pagination}
                     searchUserName={userName}
                     searchLastName={lastName}
+                    searchAccountMateId={accountMateId}
                 />
             </div>
         </Suspense>

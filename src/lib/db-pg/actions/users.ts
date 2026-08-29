@@ -209,7 +209,19 @@ export async function getUserWithAccountsById(userId: number) {
     return mapped;
 }
 
-export async function getPaginatedUsersFromDB({ page = 1, limit = 50, userName, lastName }: { page?: number; limit?: number; userName?: string; lastName?: string }) {
+export async function getPaginatedUsersFromDB({
+    page = 1,
+    limit = 50,
+    userName,
+    lastName,
+    accountMateId,
+}: {
+    page?: number;
+    limit?: number;
+    userName?: string;
+    lastName?: string;
+    accountMateId?: string;
+}) {
     const offset = (page - 1) * limit;
 
     const conditions = [];
@@ -218,6 +230,9 @@ export async function getPaginatedUsersFromDB({ page = 1, limit = 50, userName, 
     }
     if (lastName) {
         conditions.push(ilike(user.lastName, `%${lastName}%`));
+    }
+    if (accountMateId) {
+        conditions.push(ilike(user.accountMateId, `%${accountMateId}%`));
     }
 
     const whereClause = conditions.length === 0 ? undefined : conditions.length === 1 ? conditions[0] : and(...conditions);

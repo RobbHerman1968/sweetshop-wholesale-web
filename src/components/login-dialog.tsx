@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { getSession, signIn } from 'next-auth/react';
 import { X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,12 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                 setEmail('');
                 setPassword('');
                 onOpenChange(false);
+                const session = await getSession();
+                if (session?.user?.needsProfileCompletion) {
+                    router.push('/account');
+                    router.refresh();
+                    return;
+                }
                 router.refresh();
             }
         } catch {
