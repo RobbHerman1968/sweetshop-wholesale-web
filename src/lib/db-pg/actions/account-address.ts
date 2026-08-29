@@ -7,11 +7,15 @@ import { db } from '@/lib/db-pg';
 import { canAccessAccountForShop } from '@/lib/db-pg/actions/account';
 import type { CheckoutAccountDefaults, CheckoutBillingForm, CheckoutSavedAddress, CheckoutShippingForm } from '@/lib/checkout-types';
 import {
+    findDefaultBillingAddress,
+    findDefaultSavedAddress,
     getCheckoutBillingEmailAddress,
     normalizeAddressName,
     normalizePhoneDigits,
     resolveCheckoutSaveAddressId,
     selectFirstEmailAddress,
+    shouldPersistCheckoutAddressToAccount,
+    shouldPersistCheckoutBillingAddressToAccount,
 } from '@/lib/checkout-utils';
 import { saveCartCheckoutBilling, saveCartCheckoutShipping } from '@/lib/db-pg/actions/cart-address';
 import { account, accountAddress } from '@/lib/drizzle/schema';
@@ -200,57 +204,6 @@ function mapShippingFormToAccountAddressRow(
     };
 }
 
-function mapShippingFormToBillingAccountAddressRow(
-    form: CheckoutShippingForm,
-    accountId: number,
-    accountMateId: string | null,
-) {
-    const emailAddress = selectFirstEmailAddress(form.emailAddress) || null;
-    const phoneNumber = normalizePhoneDigits(form.phoneNumber) || null;
-
-    return {
-        accountId,
-        accountMateId,
-        name: 'Billing Address',
-        type: 'B',
-        companyName: trim(form.companyName) || null,
-        firstName: trim(form.firstName) || null,
-        lastName: trim(form.lastName) || null,
-        addressLine1: trim(form.addressLine1) || null,
-        addressLine2: trim(form.addressLine2) || null,
-        city: trim(form.city) || null,
-        state: trim(form.state) || null,
-        postalCode: trim(form.zipCode) || null,
-        county: trim(form.country) || null,
-        emailAddress,
-        phoneNumber,
-    };
-}
-
-async function upsertBillingAddressFromShipping(
-    form: CheckoutShippingForm,
-    accountId: number,
-    accountMateId: string | null,
-    savedAddresses: CheckoutSavedAddress[],
-): Promise<void> {
-    if (!form.isBillingAddress) {
-        return;
-    }
-
-    const billingValues = mapShippingFormToBillingAccountAddressRow(form, accountId, accountMateId);
-    const existingBilling = savedAddresses.find((address) => address.isBillingAddress);
-
-    if (existingBilling) {
-        await db
-            .update(accountAddress)
-            .set(billingValues)
-            .where(and(eq(accountAddress.id, existingBilling.id), accountAddressBelongsToAccount(accountId, accountMateId)));
-        return;
-    }
-
-    await db.insert(accountAddress).values(billingValues);
-}
-
 export async function saveCheckoutAccountAddress(
     form: CheckoutShippingForm,
     accountDefaults: CheckoutAccountDefaults,
@@ -265,6 +218,33 @@ export async function saveCheckoutAccountAddress(
     const values = mapShippingFormToAccountAddressRow(form, accountId, accountMateId);
     const billingEmailAddress = getCheckoutBillingEmailAddress(form, accountDefaults, savedAddresses);
     const saveAddressId = resolveCheckoutSaveAddressId(form);
+    const existingDefault = findDefaultSavedAddress(savedAddresses);
+    const selectedIsDefault =
+        existingDefault != null &&
+        (saveAddressId === existingDefault.id ||
+            (form.selectedAddressId !== 'new' && form.selectedAddressId === existingDefault.id));
+
+    if (!shouldPersistCheckoutAddressToAccount(form.addressName)) {
+        await saveCartCheckoutShipping(accountId, form);
+        const addressId = existingDefault?.id ?? (saveAddressId != null && saveAddressId > 0 ? saveAddressId : 0);
+        return { ok: true, addressId, billingEmailAddress };
+    }
+
+    if (selectedIsDefault) {
+        if (await addressNameExistsForAccountMateId(accountId, accountMateId, form.addressName)) {
+            return { ok: false, error: 'An address with this name already exists.' };
+        }
+
+        await syncAccountAddressIdSequence();
+        const [inserted] = await db.insert(accountAddress).values(values).returning({ id: accountAddress.id });
+        if (!inserted) {
+            return { ok: false, error: 'Unable to save address.' };
+        }
+
+        await saveCartCheckoutShipping(accountId, form);
+
+        return { ok: true, addressId: inserted.id, billingEmailAddress };
+    }
 
     if (saveAddressId == null) {
         if (await addressNameExistsForAccountMateId(accountId, accountMateId, form.addressName)) {
@@ -277,7 +257,6 @@ export async function saveCheckoutAccountAddress(
             return { ok: false, error: 'Unable to save address.' };
         }
 
-        await upsertBillingAddressFromShipping(form, accountId, accountMateId, savedAddresses);
         await saveCartCheckoutShipping(accountId, form);
 
         return { ok: true, addressId: inserted.id, billingEmailAddress };
@@ -294,7 +273,6 @@ export async function saveCheckoutAccountAddress(
     }
 
     await db.update(accountAddress).set(values).where(eq(accountAddress.id, saveAddressId));
-    await upsertBillingAddressFromShipping(form, accountId, accountMateId, savedAddresses);
     await saveCartCheckoutShipping(accountId, form);
 
     return { ok: true, addressId: saveAddressId, billingEmailAddress };
@@ -325,6 +303,7 @@ function mapBillingFormToAccountAddressRow(form: CheckoutBillingForm, accountId:
 
 export async function saveCheckoutBillingAddress(
     form: CheckoutBillingForm,
+    savedAddresses: CheckoutSavedAddress[] = [],
 ): Promise<SaveCheckoutAccountAddressResult> {
     const context = await resolveCheckoutAccountContext();
     if (!context.ok) {
@@ -335,6 +314,32 @@ export async function saveCheckoutBillingAddress(
     const values = mapBillingFormToAccountAddressRow(form, accountId, accountMateId);
     const billingEmailAddress = selectFirstEmailAddress(form.emailAddress);
     const saveAddressId = resolveCheckoutSaveAddressId(form);
+    const existingDefault = findDefaultBillingAddress(savedAddresses.filter((address) => address.isBillingAddress));
+    const selectedIsDefault =
+        existingDefault != null &&
+        (saveAddressId === existingDefault.id ||
+            (form.selectedAddressId !== 'new' && form.selectedAddressId === existingDefault.id));
+
+    if (!shouldPersistCheckoutBillingAddressToAccount(form.addressName)) {
+        await saveCartCheckoutBilling(accountId, form);
+        const addressId = existingDefault?.id ?? (saveAddressId != null && saveAddressId > 0 ? saveAddressId : 0);
+        return { ok: true, addressId, billingEmailAddress };
+    }
+
+    if (selectedIsDefault) {
+        if (await addressNameExistsForAccountMateId(accountId, accountMateId, form.addressName)) {
+            return { ok: false, error: 'An address with this name already exists.' };
+        }
+
+        await syncAccountAddressIdSequence();
+        const [inserted] = await db.insert(accountAddress).values(values).returning({ id: accountAddress.id });
+        if (!inserted) {
+            return { ok: false, error: 'Unable to save billing address.' };
+        }
+
+        await saveCartCheckoutBilling(accountId, form);
+        return { ok: true, addressId: inserted.id, billingEmailAddress };
+    }
 
     if (saveAddressId == null) {
         if (await addressNameExistsForAccountMateId(accountId, accountMateId, form.addressName)) {

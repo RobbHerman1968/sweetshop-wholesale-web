@@ -76,17 +76,43 @@ export const CHECKOUT_COUNTRIES = ['United States', 'Canada'] as const;
 export const CHECKOUT_COMMENT_MAX_LENGTH = 180;
 
 export const CHECKOUT_DEFAULT_ADDRESS_NAME = 'DEFAULT';
+export const CHECKOUT_SHIPPING_ADDRESS_NAME = 'Shipping Address';
+export const CHECKOUT_BILLING_ADDRESS_NAME = 'Billing Address';
 
 export function normalizeAddressName(value: string): string {
     return value.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 export function isDefaultAddressName(value: string | null | undefined): boolean {
-    return normalizeAddressName(value ?? '') === normalizeAddressName(CHECKOUT_DEFAULT_ADDRESS_NAME);
+    const normalized = normalizeAddressName(value ?? '');
+    return (
+        normalized === normalizeAddressName(CHECKOUT_DEFAULT_ADDRESS_NAME) ||
+        normalized === normalizeAddressName(CHECKOUT_SHIPPING_ADDRESS_NAME)
+    );
+}
+
+export function isDefaultBillingAddressName(value: string | null | undefined): boolean {
+    const normalized = normalizeAddressName(value ?? '');
+    return (
+        normalized === normalizeAddressName(CHECKOUT_DEFAULT_ADDRESS_NAME) ||
+        normalized === normalizeAddressName(CHECKOUT_BILLING_ADDRESS_NAME)
+    );
 }
 
 export function findDefaultSavedAddress(addresses: CheckoutSavedAddress[]): CheckoutSavedAddress | null {
-    return addresses.find((address) => isDefaultAddressName(address.name)) ?? null;
+    return (
+        addresses.find((address) => normalizeAddressName(address.name) === normalizeAddressName(CHECKOUT_SHIPPING_ADDRESS_NAME)) ??
+        addresses.find((address) => isDefaultAddressName(address.name)) ??
+        null
+    );
+}
+
+export function findDefaultBillingAddress(addresses: CheckoutSavedAddress[]): CheckoutSavedAddress | null {
+    return (
+        addresses.find((address) => isDefaultAddressName(address.name)) ??
+        addresses.find((address) => isDefaultBillingAddressName(address.name)) ??
+        null
+    );
 }
 
 export function findDuplicateAddressName(
@@ -371,11 +397,30 @@ export function mergeCheckoutSavedAddress(
     return [...addresses, saved];
 }
 
-export function savedAddressToShippingForm(address: CheckoutSavedAddress): CheckoutShippingForm {
+export function shouldPersistCheckoutAddressToAccount(addressName: string): boolean {
+    return !isDefaultAddressName(addressName);
+}
+
+export function shouldPersistCheckoutBillingAddressToAccount(addressName: string): boolean {
+    return !isDefaultBillingAddressName(addressName);
+}
+
+export function savedAddressToShippingForm(
+    address: CheckoutSavedAddress,
+    accountDefaults?: CheckoutAccountDefaults,
+): CheckoutShippingForm {
+    if (isDefaultAddressName(address.name) && accountDefaults) {
+        return {
+            ...buildEmptyShippingForm(accountDefaults, ''),
+            selectedAddressId: address.id,
+            updateAddressId: address.id,
+        };
+    }
+
     return {
         selectedAddressId: address.id,
         updateAddressId: address.id,
-        addressName: CHECKOUT_DEFAULT_ADDRESS_NAME,
+        addressName: address.name,
         firstName: address.firstName,
         lastName: address.lastName,
         companyName: address.companyName,
@@ -401,7 +446,7 @@ export function buildEmptyShippingForm(
     return {
         selectedAddressId: 'new',
         updateAddressId: null,
-        addressName: CHECKOUT_DEFAULT_ADDRESS_NAME,
+        addressName: CHECKOUT_SHIPPING_ADDRESS_NAME,
         firstName: defaults.firstName,
         lastName: defaults.lastName,
         companyName: defaults.companyName,
@@ -417,6 +462,19 @@ export function buildEmptyShippingForm(
         comment: '',
         expectedDeliveryDate,
         shippingMethod: CHECKOUT_SHIPPING_METHOD_FEDEX_GROUND,
+    };
+}
+
+export function buildDefaultShippingForm(
+    defaults: CheckoutAccountDefaults,
+    expectedDeliveryDate: string,
+    defaultAddress?: CheckoutSavedAddress | null,
+): CheckoutShippingForm {
+    return {
+        ...buildEmptyShippingForm(defaults, expectedDeliveryDate),
+        selectedAddressId: defaultAddress?.id ?? 'new',
+        updateAddressId: defaultAddress?.id ?? null,
+        addressName: CHECKOUT_SHIPPING_ADDRESS_NAME,
     };
 }
 
@@ -501,11 +559,23 @@ export function shippingFormToBillingForm(shipping: CheckoutShippingForm): Check
     };
 }
 
-export function savedAddressToBillingForm(address: CheckoutSavedAddress): CheckoutBillingForm {
+export function savedAddressToBillingForm(
+    address: CheckoutSavedAddress,
+    accountDefaults?: CheckoutAccountDefaults,
+): CheckoutBillingForm {
+    if (isDefaultBillingAddressName(address.name) && accountDefaults) {
+        return {
+            ...buildEmptyBillingForm(accountDefaults),
+            selectedAddressId: address.id,
+            updateAddressId: address.id,
+            addressName: address.name || CHECKOUT_BILLING_ADDRESS_NAME,
+        };
+    }
+
     return {
         selectedAddressId: address.id,
         updateAddressId: address.id,
-        addressName: CHECKOUT_DEFAULT_ADDRESS_NAME,
+        addressName: address.name,
         firstName: address.firstName,
         lastName: address.lastName,
         companyName: address.companyName,
@@ -524,7 +594,7 @@ export function buildEmptyBillingForm(defaults: CheckoutAccountDefaults): Checko
     return {
         selectedAddressId: 'new',
         updateAddressId: null,
-        addressName: CHECKOUT_DEFAULT_ADDRESS_NAME,
+        addressName: CHECKOUT_BILLING_ADDRESS_NAME,
         firstName: defaults.firstName,
         lastName: defaults.lastName,
         companyName: defaults.companyName,
@@ -536,6 +606,18 @@ export function buildEmptyBillingForm(defaults: CheckoutAccountDefaults): Checko
         country: 'United States',
         emailAddress: defaults.emailAddress,
         phoneNumber: normalizePhoneDigits(defaults.phoneNumber),
+    };
+}
+
+export function buildDefaultBillingForm(
+    defaults: CheckoutAccountDefaults,
+    defaultAddress?: CheckoutSavedAddress | null,
+): CheckoutBillingForm {
+    return {
+        ...buildEmptyBillingForm(defaults),
+        selectedAddressId: defaultAddress?.id ?? 'new',
+        updateAddressId: defaultAddress?.id ?? null,
+        addressName: defaultAddress?.name || CHECKOUT_BILLING_ADDRESS_NAME,
     };
 }
 

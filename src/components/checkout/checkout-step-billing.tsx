@@ -20,12 +20,13 @@ import {
     type CheckoutBillingFieldErrors,
     type CheckoutBillingFieldId,
 } from '@/lib/checkout-utils';
-import type { CheckoutBillingForm, CheckoutSavedAddress } from '@/lib/checkout-types';
+import type { CheckoutAccountDefaults, CheckoutBillingForm, CheckoutSavedAddress } from '@/lib/checkout-types';
 import { cn } from '@/lib/utils';
 
 type CheckoutStepBillingProps = {
     form: CheckoutBillingForm;
     savedBillingAddresses: CheckoutSavedAddress[];
+    accountDefaults: CheckoutAccountDefaults;
     fieldErrors?: CheckoutBillingFieldErrors;
     onChange: (next: CheckoutBillingForm) => void;
 };
@@ -33,6 +34,7 @@ type CheckoutStepBillingProps = {
 export function CheckoutStepBilling({
     form,
     savedBillingAddresses,
+    accountDefaults,
     fieldErrors = {},
     onChange,
 }: CheckoutStepBillingProps) {
@@ -50,7 +52,7 @@ export function CheckoutStepBilling({
         const saved = savedBillingAddresses.find((address) => address.id === addressId);
         if (!saved) return;
 
-        onChange(savedAddressToBillingForm(saved));
+        onChange(savedAddressToBillingForm(saved, accountDefaults));
     };
 
     const invalid = (field: CheckoutBillingFieldId) => Boolean(fieldErrors[field]);

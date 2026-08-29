@@ -78,6 +78,7 @@ export function CheckoutStepReview({
                 <p className={checkoutTextClass}>Confirm your shipping, billing, and payment details before placing the order.</p>
             </section>
 
+            <div className="grid gap-4 sm:grid-cols-2">
             <section className="rounded-sm border border-[#e8dfd4] bg-white p-4 sm:p-5">
                 <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-[#4a2518]">Shipping</h3>
                 <div className="mt-3">
@@ -128,6 +129,7 @@ export function CheckoutStepReview({
                     />
                 </div>
             </section>
+            </div>
 
             <section className="rounded-sm border border-[#e8dfd4] bg-white p-4 sm:p-5">
                 <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-[#4a2518]">Payment</h3>

@@ -29,10 +29,11 @@ import type {
     CheckoutShippingForm,
 } from '@/lib/checkout-types';
 import {
-    buildEmptyBillingForm,
-    buildEmptyShippingForm,
+    buildDefaultBillingForm,
+    buildDefaultShippingForm,
     billingFormToSavedAddress,
     buildPaymentSummary,
+    findDefaultBillingAddress,
     findDefaultSavedAddress,
     getBillingFieldErrors,
     getCheckoutBillingEmailAddress,
@@ -40,8 +41,8 @@ import {
     mergeCheckoutSavedAddress,
     pruneBillingFieldErrors,
     pruneShippingFieldErrors,
-    savedAddressToBillingForm,
-    savedAddressToShippingForm,
+    shouldPersistCheckoutAddressToAccount,
+    shouldPersistCheckoutBillingAddressToAccount,
     shippingFormToBillingForm,
     shippingFormToSavedAddress,
     validatePaymentStep,
@@ -119,29 +120,15 @@ export function CheckoutContent({
 
     const initialShipping = useMemo(() => {
         const defaultShipping = findDefaultSavedAddress(savedShippingAddresses);
-        if (defaultShipping) {
-            return {
-                ...savedAddressToShippingForm(defaultShipping),
-                comment: cart.comment?.trim() ?? '',
-                expectedDeliveryDate: defaultDeliveryDate,
-            };
-        }
-
         return {
-            ...buildEmptyShippingForm(accountDefaults, defaultDeliveryDate),
+            ...buildDefaultShippingForm(accountDefaults, defaultDeliveryDate, defaultShipping),
             comment: cart.comment?.trim() ?? '',
         };
     }, [accountDefaults, cart.comment, defaultDeliveryDate, savedShippingAddresses]);
 
     const initialBilling = useMemo(() => {
-        const defaultBilling = findDefaultSavedAddress(savedBillingAddresses);
-        if (defaultBilling) {
-            return savedAddressToBillingForm(defaultBilling);
-        }
-        if (savedBillingAddresses.length > 0) {
-            return savedAddressToBillingForm(savedBillingAddresses[0]);
-        }
-        return buildEmptyBillingForm(accountDefaults);
+        const defaultBilling = findDefaultBillingAddress(savedBillingAddresses);
+        return buildDefaultBillingForm(accountDefaults, defaultBilling);
     }, [accountDefaults, savedBillingAddresses]);
 
     const [currentStep, setCurrentStep] = useState<CheckoutFlowStepId>('shipping');
@@ -230,35 +217,31 @@ export function CheckoutContent({
                     return;
                 }
 
-                const savedShipping = shippingFormToSavedAddress(shippingForm, result.addressId);
+                const persistAddress = shouldPersistCheckoutAddressToAccount(shippingForm.addressName);
+                const savedShipping = persistAddress
+                    ? shippingFormToSavedAddress(shippingForm, result.addressId)
+                    : null;
                 const nextSavedAddresses = (() => {
-                    let next = mergeCheckoutSavedAddress(checkoutSavedAddresses, savedShipping);
-                    if (shippingForm.isBillingAddress) {
-                        const existingBilling = checkoutSavedAddresses.find((address) => address.isBillingAddress);
-                        next = mergeCheckoutSavedAddress(
-                            next,
-                            billingFormToSavedAddress(
-                                shippingFormToBillingForm({
-                                    ...shippingForm,
-                                    selectedAddressId: result.addressId,
-                                    updateAddressId: existingBilling?.id ?? result.addressId,
-                                }),
-                                existingBilling?.id ?? result.addressId,
-                            ),
-                        );
+                    let next = checkoutSavedAddresses;
+                    if (savedShipping) {
+                        next = mergeCheckoutSavedAddress(next, savedShipping);
                     }
                     return next;
                 })();
 
                 setCheckoutSavedAddresses(nextSavedAddresses);
-                setCheckoutSavedShippingAddresses((current) =>
-                    mergeCheckoutSavedAddress(current, savedShipping),
-                );
-                setShippingForm((current) => ({
-                    ...current,
-                    selectedAddressId: result.addressId,
-                    updateAddressId: result.addressId,
-                }));
+                if (savedShipping) {
+                    setCheckoutSavedShippingAddresses((current) =>
+                        mergeCheckoutSavedAddress(current, savedShipping),
+                    );
+                }
+                if (result.addressId > 0) {
+                    setShippingForm((current) => ({
+                        ...current,
+                        selectedAddressId: result.addressId,
+                        updateAddressId: persistAddress ? result.addressId : current.updateAddressId,
+                    }));
+                }
                 setBillingEmailAddress(
                     getCheckoutBillingEmailAddress(
                         { ...shippingForm, selectedAddressId: result.addressId, updateAddressId: result.addressId },
@@ -293,21 +276,25 @@ export function CheckoutContent({
             setBillingFieldErrors({});
             setSavingAddress(true);
             try {
-                const result = await saveCheckoutBillingAddress(billingForm);
+                const result = await saveCheckoutBillingAddress(billingForm, checkoutSavedAddresses);
                 if (!result.ok) {
                     toast({ variant: 'destructive', title: 'Unable to save billing address', description: result.error });
                     return;
                 }
 
-                setCheckoutSavedAddresses((current) =>
-                    mergeCheckoutSavedAddress(current, billingFormToSavedAddress(billingForm, result.addressId)),
-                );
-
-                setBillingForm((current) => ({
-                    ...current,
-                    selectedAddressId: result.addressId,
-                    updateAddressId: result.addressId,
-                }));
+                const persistAddress = shouldPersistCheckoutBillingAddressToAccount(billingForm.addressName);
+                if (persistAddress) {
+                    setCheckoutSavedAddresses((current) =>
+                        mergeCheckoutSavedAddress(current, billingFormToSavedAddress(billingForm, result.addressId)),
+                    );
+                }
+                if (result.addressId > 0) {
+                    setBillingForm((current) => ({
+                        ...current,
+                        selectedAddressId: result.addressId,
+                        updateAddressId: persistAddress ? result.addressId : current.updateAddressId,
+                    }));
+                }
                 setBillingEmailAddress(result.billingEmailAddress);
 
                 const nextStep = getNextCheckoutStep(flowSteps, 'billing');
@@ -403,6 +390,7 @@ export function CheckoutContent({
                         <CheckoutStepShipping
                             form={shippingForm}
                             savedAddresses={checkoutSavedShippingAddresses}
+                            accountDefaults={accountDefaults}
                             shippingLeadTime={shippingLeadTime}
                             defaultExpectedDeliveryDate={defaultExpectedDeliveryDate}
                             shippingCost={checkoutShipping}
@@ -426,6 +414,7 @@ export function CheckoutContent({
                         <CheckoutStepBilling
                             form={billingForm}
                             savedBillingAddresses={savedBillingAddresses}
+                            accountDefaults={accountDefaults}
                             fieldErrors={billingFieldErrors}
                             onChange={(next) => {
                                 const switchedToNew =

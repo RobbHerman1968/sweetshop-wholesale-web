@@ -21,6 +21,7 @@ import {
 import {
     CHECKOUT_COMMENT_MAX_LENGTH,
     CHECKOUT_COUNTRIES,
+    CHECKOUT_SHIPPING_ADDRESS_NAME,
     CHECKOUT_SHIPPING_METHOD_FEDEX_GROUND,
     CHECKOUT_SHIPPING_METHOD_LABEL,
     US_STATE_OPTIONS,
@@ -29,6 +30,7 @@ import {
     formatDisplayDate,
     formatPhoneDisplay,
     getCheckoutDeliveryWindowStart,
+    isDefaultAddressName,
     isWeekendDate,
     normalizePhoneDigits,
     parseIsoDate,
@@ -37,12 +39,13 @@ import {
     type CheckoutShippingFieldErrors,
     type CheckoutShippingFieldId,
 } from '@/lib/checkout-utils';
-import type { CheckoutSavedAddress, CheckoutShippingForm } from '@/lib/checkout-types';
+import type { CheckoutAccountDefaults, CheckoutSavedAddress, CheckoutShippingForm } from '@/lib/checkout-types';
 import { cn } from '@/lib/utils';
 
 type CheckoutStepShippingProps = {
     form: CheckoutShippingForm;
     savedAddresses: CheckoutSavedAddress[];
+    accountDefaults: CheckoutAccountDefaults;
     shippingLeadTime: number;
     defaultExpectedDeliveryDate: string;
     shippingCost: number;
@@ -53,6 +56,7 @@ type CheckoutStepShippingProps = {
 export function CheckoutStepShipping({
     form,
     savedAddresses,
+    accountDefaults,
     shippingLeadTime,
     defaultExpectedDeliveryDate,
     shippingCost,
@@ -80,7 +84,7 @@ export function CheckoutStepShipping({
         if (!saved) return;
 
         onChange({
-            ...savedAddressToShippingForm(saved),
+            ...savedAddressToShippingForm(saved, accountDefaults),
             comment: form.comment,
             expectedDeliveryDate: form.expectedDeliveryDate,
         });
@@ -118,7 +122,9 @@ export function CheckoutStepShipping({
                                 </SelectItem>
                                 {savedAddresses.map((address) => (
                                     <SelectItem key={address.id} value={String(address.id)} className="normal-case">
-                                        {address.name || `${address.firstName} ${address.lastName}`.trim() || `Address ${address.id}`}
+                                        {isDefaultAddressName(address.name)
+                                            ? CHECKOUT_SHIPPING_ADDRESS_NAME
+                                            : address.name || `${address.firstName} ${address.lastName}`.trim() || `Address ${address.id}`}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
