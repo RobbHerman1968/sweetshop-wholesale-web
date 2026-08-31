@@ -58,7 +58,7 @@ export function CheckoutOrderSummary({ cart, shipping, tax, estimatedTotal }: Ch
                 </div>
                 <div className="flex items-center justify-between gap-3">
                     <dt className="font-bold uppercase tracking-[0.06em]">Tax</dt>
-                    <dd className="font-semibold tabular-nums">{formatCheckoutCurrency(tax)}</dd>
+                    <dd className="font-semibold tabular-nums">{formatCheckoutCurrency(0)}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3 border-t border-[#e8dfd4] pt-3">
                     <dt className="text-base font-bold uppercase tracking-[0.06em]">Estimated Total</dt>

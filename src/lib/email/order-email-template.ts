@@ -1,5 +1,6 @@
 import moment from 'moment-timezone';
 import type { ManageOrderDetail } from '@/lib/db-pg/actions/order';
+import { CHECKOUT_BUSINESS_TIMEZONE } from '@/lib/checkout-utils';
 import { escapeHtml, escapeHtmlOrDash } from '@/lib/email/html-utils';
 
 export type OrderEmailAddress = {
@@ -56,6 +57,7 @@ export type OrderEmailTotals = {
 export type OrderEmailData = {
     orderNumber: string;
     orderDate: string | null;
+    accountMateId: string | null;
     isNewCustomerOrder: boolean;
     comment: string | null;
     customer: OrderEmailCustomer;
@@ -101,14 +103,19 @@ function formatMoney(value: string | number | null | undefined): string {
     return `$${Number(value ?? 0).toFixed(2)}`;
 }
 
+/** DB stores UTC; display in US Central (America/Chicago). */
 function formatOrderDate(orderDate: string | null): string {
     if (!orderDate) return '—';
-    return moment.utc(orderDate).local().format('MM/DD/YYYY hh:mm A');
+    return moment.utc(orderDate).tz(CHECKOUT_BUSINESS_TIMEZONE).format('MM/DD/YYYY hh:mm A z');
 }
 
 function formatExpectedDeliveryDate(value: string | null): string {
     if (!value) return '—';
-    return moment.utc(value).local().format('MM/DD/YYYY');
+    return moment.utc(value).tz(CHECKOUT_BUSINESS_TIMEZONE).format('MM/DD/YYYY');
+}
+
+function formatAccountMateOrderNumber(value: number | null | undefined): string {
+    return value != null ? String(value) : '—';
 }
 
 function formatAddressLabel(type: string): string {
@@ -272,9 +279,13 @@ export function mapManageOrderDetailToOrderEmailData(
         [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || user?.userName?.trim() || `User #${order.userId}`;
     const customerEmail = options.customerEmail?.trim() || user?.userName?.trim() || null;
 
+    const accountMateId =
+        order.accountMateId?.trim() || detail.account?.accountMateId?.trim() || user?.accountMateId?.trim() || null;
+
     return {
         orderNumber: String(order.orderNumber ?? order.id),
         orderDate: order.orderDate,
+        accountMateId,
         isNewCustomerOrder: Boolean(order.isNewCustomerOrder),
         comment: order.comment?.trim() || null,
         customer: {
@@ -348,6 +359,13 @@ export function buildOrderEmail(data: OrderEmailData, options: BuildOrderEmailOp
             <div style="font-size:14px;line-height:1.7;color:${BRAND.brownDark};white-space:pre-wrap;">${escapeHtml(data.comment)}</div>
         </div>`
         : '';
+
+    const accountMateBlock = `<div style="margin-top:24px;padding:16px;background:${BRAND.creamLight};border:1px solid ${BRAND.tan};border-radius:12px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
+                ${renderMetaRow('AM Order Number', escapeHtml(formatAccountMateOrderNumber(data.fulfillment.accountMateOrderNumber)))}
+                ${renderMetaRow('AccountMate ID', escapeHtmlOrDash(data.accountMateId))}
+            </table>
+        </div>`;
 
     const paymentFulfillmentSection =
         showPayment && showFulfillment
@@ -425,6 +443,8 @@ export function buildOrderEmail(data: OrderEmailData, options: BuildOrderEmailOp
                             ${paymentFulfillmentSection ? `<div style="margin-bottom:0;">${paymentFulfillmentSection}</div>` : ''}
 
                             ${commentBlock}
+
+                            ${accountMateBlock}
                         </td>
                     </tr>
                 </table>
@@ -471,6 +491,9 @@ export function buildOrderEmail(data: OrderEmailData, options: BuildOrderEmailOp
               ].join('\n')
             : null,
         data.comment ? `\nComment:\n${data.comment}` : null,
+        '',
+        `AM Order Number: ${formatAccountMateOrderNumber(data.fulfillment.accountMateOrderNumber)}`,
+        `AccountMate ID: ${data.accountMateId?.trim() || '—'}`,
     ].filter(Boolean);
 
     return {

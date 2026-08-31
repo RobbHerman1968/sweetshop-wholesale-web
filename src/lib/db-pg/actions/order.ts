@@ -386,6 +386,8 @@ export type ManageOrderListRow = {
     orderDate: string | null;
     userId: number;
     accountMateOrderNumber: number | null;
+    shipping: string;
+    tax: string;
     total: string;
     shippingCode: string | null;
     isNewCustomerOrder: number;
@@ -568,6 +570,8 @@ export async function getPaginatedOrdersFromDB({
             orderDate: order.orderDate,
             userId: order.userId,
             accountMateOrderNumber: order.accountMateOrderNumber,
+            shipping: order.shipping,
+            tax: order.tax,
             total: order.total,
             shippingCode: order.shippingCode,
             isNewCustomerOrder: order.isNewCustomerOrder,

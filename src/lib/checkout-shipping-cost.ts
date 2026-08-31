@@ -57,19 +57,14 @@ export function calculateCheckoutShippingCost(params: {
     return roundMoney(params.subTotal * rate);
 }
 
-/** Tax is based on the ship-to state rate applied to the subtotal. */
-export function calculateCheckoutTax(params: {
+/** Wholesale orders do not charge sales tax (matches legacy wholesale behavior). */
+export function calculateCheckoutTax(_params: {
     subTotal: number;
     shipToState: string;
     isSkipTax: boolean;
     stateShippingRates: CheckoutStateShippingRate[];
 }): number {
-    if (params.isSkipTax) {
-        return 0;
-    }
-
-    const rate = lookupStateTaxRate(params.shipToState, params.stateShippingRates);
-    return roundMoney(params.subTotal * rate);
+    return 0;
 }
 
 export function calculateCheckoutEstimatedTotal(

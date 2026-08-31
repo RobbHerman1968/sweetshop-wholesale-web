@@ -318,7 +318,7 @@ export function ShopCartContent({ initialCart, minimumOrderAmount = null }: Prop
                             </div>
                             <div className="flex items-center justify-between gap-3">
                                 <dt>Tax</dt>
-                                <dd className="font-semibold uppercase tracking-[0.12em] text-[#6e4a34]">TBD</dd>
+                                <dd className="font-semibold tabular-nums">{formatCurrency(0)}</dd>
                             </div>
                             <div className="flex items-center justify-between gap-3 border-t border-[#d1b79a] pt-3 text-base">
                                 <dt className="font-bold uppercase tracking-[0.12em]">Subtotal</dt>

@@ -52,7 +52,6 @@ import {
 import {
     calculateCheckoutEstimatedTotal,
     calculateCheckoutShippingCost,
-    calculateCheckoutTax,
     type CheckoutShippingOptions,
 } from '@/lib/checkout-shipping-cost';
 import { saveCheckoutAccountAddress, saveCheckoutBillingAddress } from '@/lib/db-pg/actions/account-address';
@@ -179,16 +178,7 @@ export function CheckoutContent({
         [cart.subTotal, shippingForm.state, shippingOptions],
     );
 
-    const checkoutTax = useMemo(
-        () =>
-            calculateCheckoutTax({
-                subTotal: cart.subTotal,
-                shipToState: shippingForm.state,
-                isSkipTax: shippingOptions.isSkipTax,
-                stateShippingRates: shippingOptions.stateShippingRates,
-            }),
-        [cart.subTotal, shippingForm.state, shippingOptions],
-    );
+    const checkoutTax = 0;
 
     const estimatedTotal = useMemo(
         () => calculateCheckoutEstimatedTotal(cart.subTotal, checkoutTax, cart.discounts, checkoutShipping),
