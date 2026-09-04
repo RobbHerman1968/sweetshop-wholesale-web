@@ -89,6 +89,7 @@ export async function sendOrderToCustomer(orderId: number): Promise<SendOrderEma
         logContext: {
             stage: 'email',
             message: `Manual customer order email failed for order #${gate.detail.order.orderNumber ?? orderId}.`,
+            successMessage: `Manual customer order email sent for order #${gate.detail.order.orderNumber ?? orderId}.`,
             orderId: gate.detail.order.id,
             orderNumber: gate.detail.order.orderNumber ?? undefined,
             accountId: gate.detail.account?.id ?? undefined,
@@ -129,6 +130,7 @@ export async function sendOrderToSales(orderId: number): Promise<SendOrderEmailR
         logContext: {
             stage: 'email',
             message: `Manual sales order email failed for order #${gate.detail.order.orderNumber ?? orderId}.`,
+            successMessage: `Manual sales order email sent for order #${gate.detail.order.orderNumber ?? orderId}.`,
             orderId: gate.detail.order.id,
             orderNumber: gate.detail.order.orderNumber ?? undefined,
             accountId: gate.detail.account?.id ?? undefined,
@@ -164,6 +166,7 @@ export async function sendOrderToDeveloper(orderId: number): Promise<SendOrderEm
         logContext: {
             stage: 'email',
             message: `Manual developer order email failed for order #${gate.detail.order.orderNumber ?? orderId}.`,
+            successMessage: `Manual developer order email sent for order #${gate.detail.order.orderNumber ?? orderId}.`,
             orderId: gate.detail.order.id,
             orderNumber: gate.detail.order.orderNumber ?? undefined,
             accountId: gate.detail.account?.id ?? undefined,

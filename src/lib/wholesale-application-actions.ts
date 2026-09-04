@@ -137,6 +137,7 @@ export async function submitWholesaleApplication(formData: FormData): Promise<Su
         logContext: {
             stage: 'email',
             message: `Wholesale application email failed for application #${applicationId}.`,
+            successMessage: `Wholesale application email sent for application #${applicationId}.`,
         },
     });
 

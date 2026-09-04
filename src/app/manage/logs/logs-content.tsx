@@ -1,14 +1,28 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import moment from 'moment-timezone';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis } from '@/components/ui/pagination';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import type { ManageLogRow } from '@/lib/db-pg/actions/log';
 
 type LogsContentProps = {
     data: ManageLogRow[];
     pagination: { total: number; page: number; limit: number; totalPages: number };
+};
+
+type SelectedError = {
+    message: string;
+    error: string;
+    createdAt: string;
 };
 
 function buildQuery(page?: number) {
@@ -39,6 +53,7 @@ function OutcomeBadge({ outcome }: { outcome: ManageLogRow['outcome'] }) {
 }
 
 export function LogsContent({ data, pagination }: LogsContentProps) {
+    const [selectedError, setSelectedError] = useState<SelectedError | null>(null);
     const { page, totalPages, total } = pagination;
 
     const pageNumbers: (number | 'ellipsis')[] = [];
@@ -83,7 +98,10 @@ export function LogsContent({ data, pagination }: LogsContentProps) {
                             </tr>
                         </thead>
                         <tbody>
-                            {data.map((row, idx) => (
+                            {data.map((row, idx) => {
+                                const errorText = row.error?.trim() || null;
+
+                                return (
                                 <tr key={row.id} className={idx % 2 === 0 ? 'bg-[#fdf7ef]' : 'bg-[#f8eddf]'}>
                                     <td className="whitespace-nowrap px-3 py-2 align-top tabular-nums">
                                         {formatLogTimestamp(row.createdAt)}
@@ -113,19 +131,49 @@ export function LogsContent({ data, pagination }: LogsContentProps) {
                                             <div className="text-[10px] text-[#6e4a34]">AM #{row.accountMateOrderNumber}</div>
                                         ) : null}
                                     </td>
-                                    <td className="px-3 py-2 align-top">
-                                        {row.error ? (
-                                            <span className="whitespace-pre-wrap break-words text-[#7a1f1f]">{row.error}</span>
+                                    <td className="max-w-xs px-3 py-2 align-top">
+                                        {errorText ? (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setSelectedError({
+                                                        message: row.message,
+                                                        error: errorText,
+                                                        createdAt: row.createdAt,
+                                                    })
+                                                }
+                                                className="line-clamp-2 w-full whitespace-pre-wrap break-words text-left text-[#7a1f1f] underline-offset-2 hover:underline"
+                                                title="View full error"
+                                            >
+                                                {errorText}
+                                            </button>
                                         ) : (
                                             '—'
                                         )}
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
             )}
+
+            <Dialog open={selectedError != null} onOpenChange={(open) => !open && setSelectedError(null)}>
+                <DialogContent className="max-w-2xl border-[#c49a78] bg-[#f8eddf] text-[#3f1d12]">
+                    <DialogHeader>
+                        <DialogTitle className="text-[#4a2518]">Error detail</DialogTitle>
+                        <DialogDescription className="text-[#6e4a34]">
+                            {selectedError
+                                ? `${formatLogTimestamp(selectedError.createdAt)} — ${selectedError.message}`
+                                : 'Full error message for this log entry.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <pre className="max-h-[min(60dvh,28rem)] overflow-auto whitespace-pre-wrap break-words rounded-md border border-[#c49a78] bg-[#fdf7ef] p-3 text-xs text-[#7a1f1f]">
+                        {selectedError?.error}
+                    </pre>
+                </DialogContent>
+            </Dialog>
 
             {totalPages > 1 ? (
                 <Pagination className="shrink-0">

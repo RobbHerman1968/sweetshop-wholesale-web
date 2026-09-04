@@ -63,6 +63,7 @@ export async function sendOrderConfirmationEmails(input: SendOrderConfirmationEm
                 logContext: {
                     stage: 'email',
                     message: `Customer order confirmation email failed for order #${orderLabel}.`,
+                    successMessage: `Customer order confirmation email sent for order #${orderLabel}.`,
                     orderId: detail.order.id,
                     orderNumber,
                     accountId,
@@ -112,6 +113,7 @@ export async function sendOrderConfirmationEmails(input: SendOrderConfirmationEm
             logContext: {
                 stage: 'email',
                 message: `Internal order copy email failed for order #${orderLabel}.`,
+                successMessage: `Internal order copy email sent for order #${orderLabel}.`,
                 orderId: detail.order.id,
                 orderNumber,
                 accountId,

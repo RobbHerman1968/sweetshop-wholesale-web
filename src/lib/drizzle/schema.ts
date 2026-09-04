@@ -25,6 +25,8 @@ export const user = pgTable("user", {
 	passwordHash: text().notNull(),
 	isActive: boolean().default(false).notNull(),
 	isAdmin: boolean().default(false).notNull(),
+	/** False = legacy retail login account; new-site users default wholesale. */
+	isWholesale: boolean().default(true).notNull(),
 	firstName: text(),
 	lastName: text(),
 	accountMateId: text(),

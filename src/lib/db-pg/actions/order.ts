@@ -674,27 +674,32 @@ export async function syncOrderIdSequences(): Promise<void> {
     `);
 }
 
-// ONLY USED FOR MIGRATING OLD ORDERS FROM SWEETSHOP TO PG
+// ONLY USED FOR MIGRATING OLD ORDERS FROM SWEETSHOP TO PG.
+// Cursor ignores new-site rows (order.id >= 50000, or items/addresses for those orders)
+// so leftover legacy ids below the web floor still sync.
 export async function getMaxOrderId() {
     const maxOrderId = await db
-        .select({ max: sql<number>`max(id)` })
+        .select({ max: sql<number>`coalesce(max(${order.id}), 0)` })
         .from(order)
+        .where(sql`${order.id} < ${WEB_ORDER_ID_START}`)
         .execute();
     return maxOrderId[0].max;
 }
 
 export async function getMaxOrderItemId() {
-    const maxOrderId = await db
-        .select({ max: sql<number>`max(id)` })
+    const maxOrderItemId = await db
+        .select({ max: sql<number>`coalesce(max(${orderItem.id}), 0)` })
         .from(orderItem)
+        .where(sql`${orderItem.orderId} < ${WEB_ORDER_ID_START}`)
         .execute();
-    return maxOrderId[0].max;
+    return maxOrderItemId[0].max;
 }
 
 export async function getMaxOrderAddressId() {
     const maxOrderAddressId = await db
-        .select({ max: sql<number>`max(id)` })
+        .select({ max: sql<number>`coalesce(max(${orderAddress.id}), 0)` })
         .from(orderAddress)
+        .where(sql`${orderAddress.orderId} < ${WEB_ORDER_ID_START}`)
         .execute();
     return maxOrderAddressId[0].max;
 }

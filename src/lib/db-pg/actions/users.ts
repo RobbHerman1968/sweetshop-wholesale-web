@@ -108,6 +108,7 @@ export async function updateUserFromForm(formData: FormData) {
         accountMateId: string | null;
         isAdmin: boolean;
         isActive: boolean;
+        isWholesale: boolean;
         passwordHash?: string;
     } = {
         userName,
@@ -116,6 +117,7 @@ export async function updateUserFromForm(formData: FormData) {
         accountMateId,
         isAdmin,
         isActive,
+        isWholesale: true,
     };
 
     if (newPassword) {
@@ -190,6 +192,7 @@ export async function createUserFromForm(formData: FormData): Promise<CreateUser
         accountMateId,
         isAdmin,
         isActive,
+        isWholesale: true,
     });
 
     revalidatePath('/manage/users');
@@ -317,7 +320,9 @@ export async function getUsersBySearch(emailAddress: string | undefined, lastNam
 }
 
 export async function createUser(id: number, userName: string, passwordHash: string, isAdmin: boolean, isActive: boolean) {
-    return await db.insert(user).values({ id: id, userName: userName, passwordHash: passwordHash, isAdmin: isAdmin, isActive: isActive });
+    return await db
+        .insert(user)
+        .values({ id: id, userName: userName, passwordHash: passwordHash, isAdmin: isAdmin, isActive: isActive, isWholesale: true });
 }
 
 export async function updateUserNameAccount(id: number, firstName: string, lastName: string) {
@@ -341,6 +346,7 @@ export async function updateUserAccountFromAdmin(id: number, userName: string, f
             lastName: lastName,
             isAdmin: isAdmin,
             isActive: isActive,
+            isWholesale: true,
         })
         .where(eq(user.id, id));
 }

@@ -44,12 +44,29 @@ function readLegacyAccountMateId(row: any): string | null {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLegacyIsWholesale(row: any): boolean {
+    const raw = row.IsWholesale ?? row.isWholesale;
+    if (raw == null) {
+        return true;
+    }
+    if (typeof raw === 'boolean') {
+        return raw;
+    }
+    if (typeof raw === 'number') {
+        return raw !== 0;
+    }
+    const normalized = String(raw).trim().toLowerCase();
+    return normalized !== 'false' && normalized !== '0' && normalized !== 'no';
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function syncLegacyLoginAccountsToUsers(rows: any[]): Promise<UserSyncResult> {
     const existingUsers = await db
         .select({
             id: user.id,
             userName: user.userName,
             accountMateId: user.accountMateId,
+            isWholesale: user.isWholesale,
         })
         .from(user);
 
@@ -67,6 +84,7 @@ async function syncLegacyLoginAccountsToUsers(rows: any[]): Promise<UserSyncResu
         const email = readLegacyLoginEmail(row);
         const password = readLegacyLoginPassword(row);
         const accountMateId = readLegacyAccountMateId(row);
+        const isWholesale = readLegacyIsWholesale(row);
 
         if (legacyAccountId == null || !email) {
             skipped += 1;
@@ -78,10 +96,24 @@ async function syncLegacyLoginAccountsToUsers(rows: any[]): Promise<UserSyncResu
         if (existingUserId != null) {
             const existing = existingUsers.find((u) => u.id === existingUserId);
             const nextAccountMateId = accountMateId ?? existing?.accountMateId ?? null;
-            if (nextAccountMateId && existing?.accountMateId !== nextAccountMateId) {
-                await db.update(user).set({ accountMateId: nextAccountMateId }).where(eq(user.id, existingUserId));
+            const accountMateChanged = Boolean(nextAccountMateId && existing?.accountMateId !== nextAccountMateId);
+            const wholesaleChanged = existing?.isWholesale !== isWholesale;
+
+            if (accountMateChanged || wholesaleChanged) {
+                await db
+                    .update(user)
+                    .set({
+                        ...(accountMateChanged ? { accountMateId: nextAccountMateId } : {}),
+                        ...(wholesaleChanged ? { isWholesale } : {}),
+                    })
+                    .where(eq(user.id, existingUserId));
                 if (existing) {
-                    existing.accountMateId = nextAccountMateId;
+                    if (accountMateChanged) {
+                        existing.accountMateId = nextAccountMateId;
+                    }
+                    if (wholesaleChanged) {
+                        existing.isWholesale = isWholesale;
+                    }
                 }
                 updated += 1;
             } else {
@@ -103,10 +135,11 @@ async function syncLegacyLoginAccountsToUsers(rows: any[]): Promise<UserSyncResu
             passwordHash,
             isAdmin: false,
             isActive: true,
+            isWholesale,
             accountMateId,
         });
 
-        existingUsers.push({ id: legacyAccountId, userName: email, accountMateId });
+        existingUsers.push({ id: legacyAccountId, userName: email, accountMateId, isWholesale });
         userIdByEmail.set(email, legacyAccountId);
         userIdByLegacyId.set(legacyAccountId, legacyAccountId);
         inserted += 1;
@@ -152,6 +185,7 @@ export async function createDefaultUser(): Promise<{ ok: true; action: 'inserted
                 passwordHash,
                 isAdmin: true,
                 isActive: true,
+                isWholesale: true,
             })
             .where(eq(user.id, existing.id));
 
@@ -167,6 +201,7 @@ export async function createDefaultUser(): Promise<{ ok: true; action: 'inserted
         passwordHash,
         isAdmin: true,
         isActive: true,
+        isWholesale: true,
     });
 
     return { ok: true, action: 'inserted', id: nextId };

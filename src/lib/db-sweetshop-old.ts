@@ -54,16 +54,31 @@ async function fetchData(query: string): Promise<any[]> {
     }
 }
 
-export async function getOrdersFromSweetshopOld(maxOrderId: number): Promise<any[]> {
-    if (!maxOrderId) {
-        maxOrderId = 0;
-    }
-    try {
-        const query = `SELECT top 10000 * FROM [Order] where id > ${maxOrderId}`;
-        // const query = 'SELECT top 10000 * FROM [Order] where id > 47816';
-        const data = await fetchData(query);
+/** Legacy order ids stay below the new-site floor (50000). */
+const LEGACY_ORDER_ID_CEILING = 50000;
 
-        return data;
+export async function getOrdersFromSweetshopOld(maxOrderId: number): Promise<any[]> {
+    let maxId = Number(maxOrderId) || 0;
+    try {
+        const batchSize = 10000;
+        const allRows: any[] = [];
+
+        while (true) {
+            const query = `SELECT TOP ${batchSize} * FROM [Order] WHERE Id > ${maxId} AND Id < ${LEGACY_ORDER_ID_CEILING} ORDER BY Id`;
+            const batch = await fetchData(query);
+            if (!batch.length) {
+                break;
+            }
+
+            allRows.push(...batch);
+            maxId = Number(batch[batch.length - 1].Id ?? batch[batch.length - 1].id ?? maxId);
+
+            if (batch.length < batchSize) {
+                break;
+            }
+        }
+
+        return allRows;
     } catch (err) {
         console.error('SQL error', err);
         throw err;
@@ -159,14 +174,28 @@ export async function getAccountOldFromSweetshopOld(): Promise<any[]> {
 }
 
 export async function getOrderItemsFromSweetshopOld(maxOrderItemId: number): Promise<any[]> {
-    if (!maxOrderItemId) {
-        maxOrderItemId = 0;
-    }
+    let maxId = Number(maxOrderItemId) || 0;
     try {
-        const query = `SELECT top 10000 * FROM OrderItem where id > ${maxOrderItemId}`;
-        const data = await fetchData(query);
+        const batchSize = 10000;
+        const allRows: any[] = [];
 
-        return data;
+        while (true) {
+            // Only items for legacy orders (OrderId below the new-site order id floor).
+            const query = `SELECT TOP ${batchSize} * FROM OrderItem WHERE Id > ${maxId} AND OrderId < ${LEGACY_ORDER_ID_CEILING} ORDER BY Id`;
+            const batch = await fetchData(query);
+            if (!batch.length) {
+                break;
+            }
+
+            allRows.push(...batch);
+            maxId = Number(batch[batch.length - 1].Id ?? batch[batch.length - 1].id ?? maxId);
+
+            if (batch.length < batchSize) {
+                break;
+            }
+        }
+
+        return allRows;
     } catch (err) {
         console.error('SQL error', err);
         throw err;
@@ -174,14 +203,28 @@ export async function getOrderItemsFromSweetshopOld(maxOrderItemId: number): Pro
 }
 
 export async function getOrderAddressesFromSweetshopOld(maxOrderAddressId: number): Promise<any[]> {
-    if (!maxOrderAddressId) {
-        maxOrderAddressId = 0;
-    }
+    let maxId = Number(maxOrderAddressId) || 0;
     try {
-        const query = `SELECT top 10000 * FROM OrderAddress where id > ${maxOrderAddressId}`;
-        const data = await fetchData(query);
+        const batchSize = 10000;
+        const allRows: any[] = [];
 
-        return data;
+        while (true) {
+            // Only addresses for legacy orders (OrderId below the new-site order id floor).
+            const query = `SELECT TOP ${batchSize} * FROM OrderAddress WHERE Id > ${maxId} AND OrderId < ${LEGACY_ORDER_ID_CEILING} ORDER BY Id`;
+            const batch = await fetchData(query);
+            if (!batch.length) {
+                break;
+            }
+
+            allRows.push(...batch);
+            maxId = Number(batch[batch.length - 1].Id ?? batch[batch.length - 1].id ?? maxId);
+
+            if (batch.length < batchSize) {
+                break;
+            }
+        }
+
+        return allRows;
     } catch (err) {
         console.error('SQL error', err);
         throw err;
