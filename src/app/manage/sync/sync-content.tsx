@@ -2,16 +2,14 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { getOrderAddressesFromSweetshopOld, getOrderItemsFromSweetshopOld, getOrdersFromSweetshopOld } from '@/lib/db-sweetshop-old';
+import { getOrdersFromSweetshopOld } from '@/lib/db-sweetshop-old';
 import { syncAccountsFromLegacy } from '@/lib/db-pg/actions/account';
 import {
-    getMaxOrderAddressId,
     getMaxOrderId,
-    getMaxOrderItemId,
-    processOldOrderAddresses,
-    processOldOrderItems,
     processOldOrders,
     syncExpectedDeliveryDatesFromOldOrders,
+    syncOrderAddressesFromLegacy,
+    syncOrderItemsFromLegacy,
 } from '@/lib/db-pg/actions/order';
 import { loadProductOldImagesFromLegacy } from '@/lib/db-pg/actions/process-product-old-images';
 import { syncProductCategoriesFromLegacy } from '@/lib/db-pg/actions/process-product-categories';
@@ -44,13 +42,20 @@ export function SyncContent() {
         setLoading(true);
         setStatusMessage(null);
         try {
-            const maxOrderItemId = await getMaxOrderItemId();
-            console.log('Max Order Item ID', maxOrderItemId);
-            const orderItems = await getOrderItemsFromSweetshopOld(maxOrderItemId);
-            console.log('Order Items', orderItems.length);
-            const processedOrderItems = await processOldOrderItems(orderItems);
-            console.log('Processed Order Items', processedOrderItems);
-            setStatusMessage(`Fetched ${orderItems.length} order items from legacy DB.`);
+            const result = await syncOrderItemsFromLegacy();
+            console.log('Synced order items from legacy', result);
+            if (result.skipped) {
+                setStatusMessage(
+                    `Order items already in sync (${result.localCount} local = ${result.legacyCount} legacy). Skipped import.`,
+                );
+                return;
+            }
+            setStatusMessage(
+                `Legacy ${result.legacyCount}, local was ${result.localCount}. Fetched ${result.fetched} new item rows, backfilled ${result.backfilled} for ${result.missingOrders} orders missing items${result.processed ? '' : ' (import failed)'}.`,
+            );
+        } catch (error) {
+            console.error('Failed to sync order items', error);
+            setStatusMessage(error instanceof Error ? error.message : 'Failed to sync order items from legacy.');
         } finally {
             setLoading(false);
         }
@@ -60,13 +65,20 @@ export function SyncContent() {
         setLoading(true);
         setStatusMessage(null);
         try {
-            const maxOrderAddressId = await getMaxOrderAddressId();
-            console.log('Max Order Address ID', maxOrderAddressId);
-            const orderAddresses = await getOrderAddressesFromSweetshopOld(maxOrderAddressId);
-            console.log('Order Addresses', orderAddresses.length);
-            const processedOrderAddresses = await processOldOrderAddresses(orderAddresses);
-            console.log('Processed Order Addresses', processedOrderAddresses);
-            setStatusMessage(`Fetched ${orderAddresses.length} order addresses from legacy DB.`);
+            const result = await syncOrderAddressesFromLegacy();
+            console.log('Synced order addresses from legacy', result);
+            if (result.skipped) {
+                setStatusMessage(
+                    `Order addresses already in sync (${result.localCount} local = ${result.legacyCount} legacy). Skipped import.`,
+                );
+                return;
+            }
+            setStatusMessage(
+                `Legacy ${result.legacyCount}, local was ${result.localCount}. Fetched ${result.fetched} new address rows, backfilled ${result.backfilled} for ${result.missingOrders} orders missing addresses${result.processed ? '' : ' (import failed)'}.`,
+            );
+        } catch (error) {
+            console.error('Failed to sync order addresses', error);
+            setStatusMessage(error instanceof Error ? error.message : 'Failed to sync order addresses from legacy.');
         } finally {
             setLoading(false);
         }

@@ -463,7 +463,8 @@ export async function placeCheckoutOrder(input: PlaceCheckoutOrderInput): Promis
         error: accountMateSuccess ? null : accountMateStatus ?? 'Unknown AccountMate status',
     });
 
-    void sendOrderConfirmationEmails({
+    // Await so emails + log rows finish before the server action ends (void can be killed early).
+    await sendOrderConfirmationEmails({
         orderId,
         customerEmail: selectFirstEmailAddress(billingEmail),
         isNewCustomerOrder: !existingAccountMateId,

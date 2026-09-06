@@ -173,6 +173,56 @@ export async function getAccountOldFromSweetshopOld(): Promise<any[]> {
     }
 }
 
+export async function getOrderItemsByOrderIdsFromSweetshopOld(orderIds: number[]): Promise<any[]> {
+    const ids = [...new Set(orderIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+    if (!ids.length) return [];
+
+    try {
+        const chunkSize = 200;
+        const allRows: any[] = [];
+        for (let i = 0; i < ids.length; i += chunkSize) {
+            const chunk = ids.slice(i, i + chunkSize);
+            const rows = await fetchData(`SELECT * FROM OrderItem WHERE OrderId IN (${chunk.join(',')}) ORDER BY Id`);
+            allRows.push(...rows);
+        }
+        return allRows;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
+export async function getOrderAddressesByOrderIdsFromSweetshopOld(orderIds: number[]): Promise<any[]> {
+    const ids = [...new Set(orderIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+    if (!ids.length) return [];
+
+    try {
+        const chunkSize = 200;
+        const allRows: any[] = [];
+        for (let i = 0; i < ids.length; i += chunkSize) {
+            const chunk = ids.slice(i, i + chunkSize);
+            const rows = await fetchData(`SELECT * FROM OrderAddress WHERE OrderId IN (${chunk.join(',')}) ORDER BY Id`);
+            allRows.push(...rows);
+        }
+        return allRows;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
+export async function getOrderItemCountFromSweetshopOld(): Promise<number> {
+    try {
+        const rows = await fetchData(
+            `SELECT COUNT(*) AS cnt FROM OrderItem WHERE OrderId < ${LEGACY_ORDER_ID_CEILING}`,
+        );
+        return Number(rows[0]?.cnt ?? 0);
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
 export async function getOrderItemsFromSweetshopOld(maxOrderItemId: number): Promise<any[]> {
     let maxId = Number(maxOrderItemId) || 0;
     try {
@@ -196,6 +246,18 @@ export async function getOrderItemsFromSweetshopOld(maxOrderItemId: number): Pro
         }
 
         return allRows;
+    } catch (err) {
+        console.error('SQL error', err);
+        throw err;
+    }
+}
+
+export async function getOrderAddressCountFromSweetshopOld(): Promise<number> {
+    try {
+        const rows = await fetchData(
+            `SELECT COUNT(*) AS cnt FROM OrderAddress WHERE OrderId < ${LEGACY_ORDER_ID_CEILING}`,
+        );
+        return Number(rows[0]?.cnt ?? 0);
     } catch (err) {
         console.error('SQL error', err);
         throw err;

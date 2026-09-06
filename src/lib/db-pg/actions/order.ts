@@ -2,8 +2,16 @@
 
 import { db } from '@/lib/db-pg';
 import { getAuthenticatedUserId } from '@/lib/auth-session';
-import { getOrderExpectedDeliveryDatesFromSweetshopOld } from '@/lib/db-sweetshop-old';
-import { and, asc, desc, eq, gte, ilike, isNotNull, lte, or, sql } from 'drizzle-orm';
+import {
+    getOrderAddressCountFromSweetshopOld,
+    getOrderAddressesByOrderIdsFromSweetshopOld,
+    getOrderAddressesFromSweetshopOld,
+    getOrderExpectedDeliveryDatesFromSweetshopOld,
+    getOrderItemCountFromSweetshopOld,
+    getOrderItemsByOrderIdsFromSweetshopOld,
+    getOrderItemsFromSweetshopOld,
+} from '@/lib/db-sweetshop-old';
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { orderMapper } from '../mappers/order-mapper';
 import { Order } from '../entities/order-entity';
 import { account, order, orderAddress, orderItem, log, user } from '@/lib/drizzle/schema';
@@ -695,6 +703,15 @@ export async function getMaxOrderItemId() {
     return maxOrderItemId[0].max;
 }
 
+export async function getLegacyOrderItemCount() {
+    const [{ count }] = await db
+        .select({ count: sql<number>`coalesce(count(*), 0)::int` })
+        .from(orderItem)
+        .where(sql`${orderItem.orderId} < ${WEB_ORDER_ID_START}`)
+        .execute();
+    return count;
+}
+
 export async function getMaxOrderAddressId() {
     const maxOrderAddressId = await db
         .select({ max: sql<number>`coalesce(max(${orderAddress.id}), 0)` })
@@ -702,6 +719,154 @@ export async function getMaxOrderAddressId() {
         .where(sql`${orderAddress.orderId} < ${WEB_ORDER_ID_START}`)
         .execute();
     return maxOrderAddressId[0].max;
+}
+
+export async function getLegacyOrderAddressCount() {
+    const [{ count }] = await db
+        .select({ count: sql<number>`coalesce(count(*), 0)::int` })
+        .from(orderAddress)
+        .where(sql`${orderAddress.orderId} < ${WEB_ORDER_ID_START}`)
+        .execute();
+    return count;
+}
+
+export type LegacyOrderChildSyncResult = {
+    skipped: boolean;
+    legacyCount: number;
+    localCount: number;
+    fetched: number;
+    backfilled: number;
+    missingOrders: number;
+    processed: boolean;
+};
+
+async function getLegacyOrderIdsMissingItems(): Promise<number[]> {
+    const rows = await db.execute(sql`
+        SELECT o.id
+        FROM "order" o
+        LEFT JOIN "orderItem" oi ON oi."orderId" = o.id
+        WHERE o.id < ${WEB_ORDER_ID_START} AND oi.id IS NULL
+        ORDER BY o.id
+    `);
+    return rows.rows.map((row) => Number(row.id)).filter((id) => Number.isFinite(id) && id > 0);
+}
+
+async function getLegacyOrderIdsMissingAddresses(): Promise<number[]> {
+    const rows = await db.execute(sql`
+        SELECT o.id
+        FROM "order" o
+        LEFT JOIN "orderAddress" oa ON oa."orderId" = o.id
+        WHERE o.id < ${WEB_ORDER_ID_START} AND oa.id IS NULL
+        ORDER BY o.id
+    `);
+    return rows.rows.map((row) => Number(row.id)).filter((id) => Number.isFinite(id) && id > 0);
+}
+
+/** Import new rows by max id, and backfill children for legacy orders that have none. */
+export async function syncOrderItemsFromLegacy(): Promise<LegacyOrderChildSyncResult> {
+    const [legacyCount, localCount, missingOrderIds] = await Promise.all([
+        getOrderItemCountFromSweetshopOld(),
+        getLegacyOrderItemCount(),
+        getLegacyOrderIdsMissingItems(),
+    ]);
+
+    if (legacyCount === localCount && missingOrderIds.length === 0) {
+        return {
+            skipped: true,
+            legacyCount,
+            localCount,
+            fetched: 0,
+            backfilled: 0,
+            missingOrders: 0,
+            processed: false,
+        };
+    }
+
+    let fetched = 0;
+    let backfilled = 0;
+    let processed = false;
+
+    if (legacyCount !== localCount) {
+        const maxOrderItemId = await getMaxOrderItemId();
+        const orderItems = await getOrderItemsFromSweetshopOld(maxOrderItemId);
+        fetched = orderItems.length;
+        if (orderItems.length > 0) {
+            processed = Boolean(await processOldOrderItems(orderItems));
+        }
+    }
+
+    // Re-check gaps after incremental import (new max-id rows may have filled some).
+    const stillMissing = await getLegacyOrderIdsMissingItems();
+    if (stillMissing.length > 0) {
+        const gapItems = await getOrderItemsByOrderIdsFromSweetshopOld(stillMissing);
+        backfilled = gapItems.length;
+        if (gapItems.length > 0) {
+            processed = Boolean(await processOldOrderItems(gapItems)) || processed;
+        }
+    }
+
+    return {
+        skipped: false,
+        legacyCount,
+        localCount,
+        fetched,
+        backfilled,
+        missingOrders: missingOrderIds.length,
+        processed,
+    };
+}
+
+/** Import new rows by max id, and backfill addresses for legacy orders that have none. */
+export async function syncOrderAddressesFromLegacy(): Promise<LegacyOrderChildSyncResult> {
+    const [legacyCount, localCount, missingOrderIds] = await Promise.all([
+        getOrderAddressCountFromSweetshopOld(),
+        getLegacyOrderAddressCount(),
+        getLegacyOrderIdsMissingAddresses(),
+    ]);
+
+    if (legacyCount === localCount && missingOrderIds.length === 0) {
+        return {
+            skipped: true,
+            legacyCount,
+            localCount,
+            fetched: 0,
+            backfilled: 0,
+            missingOrders: 0,
+            processed: false,
+        };
+    }
+
+    let fetched = 0;
+    let backfilled = 0;
+    let processed = false;
+
+    if (legacyCount !== localCount) {
+        const maxOrderAddressId = await getMaxOrderAddressId();
+        const orderAddresses = await getOrderAddressesFromSweetshopOld(maxOrderAddressId);
+        fetched = orderAddresses.length;
+        if (orderAddresses.length > 0) {
+            processed = Boolean(await processOldOrderAddresses(orderAddresses));
+        }
+    }
+
+    const stillMissing = await getLegacyOrderIdsMissingAddresses();
+    if (stillMissing.length > 0) {
+        const gapAddresses = await getOrderAddressesByOrderIdsFromSweetshopOld(stillMissing);
+        backfilled = gapAddresses.length;
+        if (gapAddresses.length > 0) {
+            processed = Boolean(await processOldOrderAddresses(gapAddresses)) || processed;
+        }
+    }
+
+    return {
+        skipped: false,
+        legacyCount,
+        localCount,
+        fetched,
+        backfilled,
+        missingOrders: missingOrderIds.length,
+        processed,
+    };
 }
 
 function oldDriverDateToUtcDate(d: Date): Date {
@@ -890,25 +1055,21 @@ export async function processOldOrderItems(orderItems: any[]) {
     try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const rows: any[] = orderItems.map((o: any) => ({
-            id: o.Id,
-            orderId: o.OrderId,
-            itemNumber: o.ItemNumber,
-            productId: o.ProductId,
-            name: o.Name,
-            imagePath: o.Image,
-            price: o.Price ? o.Price.toString() : '0',
-            promotionPrice: o.PromotionPrice ? o.PromotionPrice.toString() : '0',
-            quantity: o.Quantity,
-            lineTotal: o.Total ? o.Total.toString() : '0',
-            weight: o.Weight,
-            variableData: o.VariableData,
-            timeStamp: moment.utc(o.TimeStamp).toISOString(),
+            id: Number(o.Id),
+            orderId: Number(o.OrderId),
+            itemNumber: o.ItemNumber ?? '',
+            productId: Number(o.ProductId) || 0,
+            name: o.Name ?? '',
+            imagePath: o.Image ?? null,
+            price: o.Price != null ? o.Price.toString() : '0',
+            promotionPrice: o.PromotionPrice != null ? o.PromotionPrice.toString() : '0',
+            quantity: Number(o.Quantity) || 0,
+            lineTotal: o.Total != null ? o.Total.toString() : '0',
+            weight: o.Weight != null ? o.Weight.toString() : '0',
+            variableData: o.VariableData ?? null,
+            timeStamp: moment.utc(o.TimeStamp ?? undefined).toISOString(),
         }));
-        const chunkSize = 1000;
-        for (let i = 0; i < rows.length; i += chunkSize) {
-            const chunk = rows.slice(i, i + chunkSize);
-            await db.insert(orderItem).values(chunk);
-        }
+        await insertLegacyChildRows(orderItem, rows);
         await syncOrderIdSequences();
         return true;
     } catch (error) {
@@ -917,35 +1078,74 @@ export async function processOldOrderItems(orderItems: any[]) {
     }
 }
 
+function emptyToFallback(value: unknown, fallback: string): string {
+    if (value == null) return fallback;
+    const trimmed = String(value).trim();
+    return trimmed === '' ? fallback : trimmed;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function processOldOrderAddresses(orderAddresses: any[]) {
     try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const rows: any[] = orderAddresses.map((o: any) => ({
-            id: o.Id,
-            orderId: o.OrderId,
-            type: o.Type,
-            firstName: o.FirstName,
-            lastName: o.LastName,
-            companyName: o.CompanyName,
-            emailAddress: o.EmailAddress,
-            phoneNumber: o.Phone,
-            address1: o.Address1,
-            address2: o.Address2,
-            city: o.City,
-            state: o.State,
-            postalCode: o.ZipCode,
-            country: o.Country,
+            id: Number(o.Id),
+            orderId: Number(o.OrderId),
+            type: emptyToFallback(o.Type, 'S'),
+            firstName: o.FirstName ?? null,
+            lastName: emptyToFallback(o.LastName, ''),
+            companyName: o.CompanyName ?? null,
+            emailAddress: emptyToFallback(o.EmailAddress, ''),
+            phoneNumber: emptyToFallback(o.Phone ?? o.PhoneNumber, ''),
+            address1: emptyToFallback(o.Address1, ''),
+            address2: o.Address2 ?? null,
+            city: emptyToFallback(o.City, ''),
+            state: emptyToFallback(o.State, ''),
+            postalCode: emptyToFallback(o.ZipCode, ''),
+            country: emptyToFallback(o.Country, 'United States'),
         }));
-        const chunkSize = 1000;
-        for (let i = 0; i < rows.length; i += chunkSize) {
-            const chunk = rows.slice(i, i + chunkSize);
-            await db.insert(orderAddress).values(chunk);
-        }
+        await insertLegacyChildRows(orderAddress, rows);
         await syncOrderIdSequences();
         return true;
     } catch (error) {
-        console.error('Error processing old order items:', error);
+        console.error('Error processing old order addresses:', error);
         return false;
+    }
+}
+
+/**
+ * Prefer legacy primary keys. If a key is already taken (e.g. by a new-site serial),
+ * insert without id so Postgres assigns the next key — orderId still links the row.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function insertLegacyChildRows(
+    table: typeof orderItem | typeof orderAddress,
+    rows: Array<Record<string, unknown> & { id: number }>,
+) {
+    if (rows.length === 0) return;
+
+    const chunkSize = 1000;
+    for (let i = 0; i < rows.length; i += chunkSize) {
+        const chunk = rows.slice(i, i + chunkSize);
+        const ids = chunk.map((row) => row.id).filter((id) => Number.isFinite(id) && id > 0);
+        const existingRows =
+            ids.length > 0
+                ? await db.select({ id: table.id }).from(table).where(inArray(table.id, ids))
+                : [];
+        const taken = new Set(existingRows.map((row) => row.id));
+
+        const withLegacyId = chunk.filter((row) => !taken.has(row.id));
+        const withNextId = chunk
+            .filter((row) => taken.has(row.id))
+            .map(({ id: _id, ...rest }) => rest);
+
+        if (withLegacyId.length > 0) {
+            await db.insert(table).values(withLegacyId as never).onConflictDoNothing({ target: table.id });
+        }
+        if (withNextId.length > 0) {
+            // Ensure serials are past any imported/new-site ids before allocating new keys.
+            await syncOrderIdSequences();
+            await db.insert(table).values(withNextId as never);
+        }
     }
 }

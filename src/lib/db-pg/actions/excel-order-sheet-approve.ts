@@ -255,7 +255,8 @@ async function placeValidatedSheetOrder(
         error: accountMateSuccess ? null : accountMateStatus ?? 'Unknown AccountMate status',
     });
 
-    void sendOrderConfirmationEmails({
+    // Await so emails + log rows finish before the server action ends (void can be killed early).
+    await sendOrderConfirmationEmails({
         orderId: insertedOrder.id,
         customerEmail: selectFirstEmailAddress(accountRow.contactEmail) ?? '',
         isNewCustomerOrder: false,

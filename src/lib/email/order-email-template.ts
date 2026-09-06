@@ -242,9 +242,60 @@ function renderTotalsBox(data: OrderEmailData): string {
     </table>`;
 }
 
+function looksLikeStoredCardLastFour(value: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    if (trimmed.includes('*')) return true;
+    return /^\d{4}$/.test(trimmed);
+}
+
+/** Terms orders store the terms label in ccLastFour with no card type. */
+function isTermsStoredPayment(payment: OrderEmailPayment): boolean {
+    const lastFour = payment.lastFour?.trim() || '';
+    const cardType = payment.cardType?.trim() || '';
+    if (cardType) return false;
+    if (!lastFour) return false;
+    return !looksLikeStoredCardLastFour(lastFour);
+}
+
+function formatCardLastFourDisplay(value: string | null | undefined): string {
+    const trimmed = value?.trim() || '';
+    if (!trimmed) return '—';
+    if (trimmed.includes('*')) {
+        const digits = trimmed.replace(/\D/g, '').slice(-4);
+        return digits ? `•••• ${digits}` : trimmed;
+    }
+    if (/^\d{4}$/.test(trimmed)) return `•••• ${trimmed}`;
+    return trimmed;
+}
+
+function formatPaymentPlainLines(payment: OrderEmailPayment): string[] {
+    if (isTermsStoredPayment(payment)) {
+        return ['Payment:', 'Method: Terms', `Terms: ${payment.lastFour?.trim() || '—'}`];
+    }
+
+    return [
+        'Payment:',
+        'Method: Credit card',
+        `Card type: ${payment.cardType?.trim() || '—'}`,
+        `Last four: ${formatCardLastFourDisplay(payment.lastFour)}`,
+        `Expiration: ${payment.expiration?.trim() || '—'}`,
+    ];
+}
+
 function renderPaymentSummary(payment: OrderEmailPayment): string {
+    if (isTermsStoredPayment(payment)) {
+        return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
+        ${renderMetaRow('Method', 'Terms')}
+        ${renderMetaRow('Terms', escapeHtmlOrDash(payment.lastFour))}
+    </table>`;
+    }
+
     return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
+        ${renderMetaRow('Method', 'Credit card')}
         ${renderMetaRow('Card type', escapeHtmlOrDash(payment.cardType))}
+        ${renderMetaRow('Last four', escapeHtml(formatCardLastFourDisplay(payment.lastFour)))}
+        ${renderMetaRow('Expiration', escapeHtmlOrDash(payment.expiration))}
     </table>`;
 }
 
@@ -476,11 +527,7 @@ export function buildOrderEmail(data: OrderEmailData, options: BuildOrderEmailOp
             : null,
         `Total: ${formatMoney(data.totals.total)}`,
         showPayment
-            ? [
-                  '',
-                  'Payment:',
-                  `Card type: ${data.payment.cardType?.trim() || '—'}`,
-              ].join('\n')
+            ? ['', ...formatPaymentPlainLines(data.payment)].join('\n')
             : null,
         showFulfillment
             ? [
