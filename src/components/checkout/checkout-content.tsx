@@ -170,7 +170,8 @@ export function CheckoutContent({
             calculateCheckoutShippingCost({
                 subTotal: cart.subTotal,
                 shipToState: shippingForm.state,
-                freeShippingThreshold: shippingOptions.freeShippingThreshold,
+                fixedShippingAmount: shippingOptions.fixedShippingAmount,
+                fixedShippingPercent: shippingOptions.fixedShippingPercent,
                 isSkipShipping: shippingOptions.isSkipShipping,
                 isFreeGroundShipping: shippingOptions.isFreeGroundShipping,
                 stateShippingRates: shippingOptions.stateShippingRates,

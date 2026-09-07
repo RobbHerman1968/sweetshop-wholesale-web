@@ -35,6 +35,7 @@ type SiteSettingDbRow = {
     name: string | null;
     value: string | null;
     textValue: string | null;
+    orderIndex: number;
 };
 
 const TEXT_VALUE_MIGRATION_HINT =
@@ -87,9 +88,10 @@ async function selectSiteSettingsRows(): Promise<SiteSettingDbRow[]> {
                 name: siteSetting.name,
                 value: siteSetting.value,
                 textValue: siteSetting.textValue,
+                orderIndex: siteSetting.orderIndex,
             })
             .from(siteSetting)
-            .orderBy(asc(siteSetting.id));
+            .orderBy(asc(siteSetting.orderIndex), asc(siteSetting.id));
     } catch (err) {
         if (!isMissingTextValueColumnError(err)) {
             throw err;
@@ -100,9 +102,10 @@ async function selectSiteSettingsRows(): Promise<SiteSettingDbRow[]> {
                 id: siteSetting.id,
                 name: siteSetting.name,
                 value: siteSetting.value,
+                orderIndex: siteSetting.orderIndex,
             })
             .from(siteSetting)
-            .orderBy(asc(siteSetting.id));
+            .orderBy(asc(siteSetting.orderIndex), asc(siteSetting.id));
 
         return rows.map((row) => ({ ...row, textValue: null }));
     }
@@ -116,6 +119,7 @@ async function selectSiteSettingRowById(id: number): Promise<SiteSettingDbRow | 
                 name: siteSetting.name,
                 value: siteSetting.value,
                 textValue: siteSetting.textValue,
+                orderIndex: siteSetting.orderIndex,
             })
             .from(siteSetting)
             .where(eq(siteSetting.id, id))
@@ -132,6 +136,7 @@ async function selectSiteSettingRowById(id: number): Promise<SiteSettingDbRow | 
                 id: siteSetting.id,
                 name: siteSetting.name,
                 value: siteSetting.value,
+                orderIndex: siteSetting.orderIndex,
             })
             .from(siteSetting)
             .where(eq(siteSetting.id, id))

@@ -1,5 +1,8 @@
-/** Site setting id for the order subtotal above which ground shipping is free. */
-export const FREE_SHIPPING_THRESHOLD_SETTING_ID = 1;
+/** Site setting id for Fixed Shipping Amount. */
+export const FIXED_SHIPPING_AMOUNT_SETTING_ID = 1;
+
+/** Site setting id for Fixed Shipping Percent. */
+export const FIXED_SHIPPING_PERCENT_SETTING_ID = 8;
 
 /** Site setting id for the minimum order amount. */
 export const MINIMUM_ORDER_SETTING_ID = 2;
@@ -51,6 +54,14 @@ export function siteSettingKind(id: number): SiteSettingKind {
 export function getSiteSettingHelperText(id: number, kind: SiteSettingKind): string | null {
     if (kind === 'emailList') {
         return 'One email address per line.';
+    }
+
+    if (id === FIXED_SHIPPING_AMOUNT_SETTING_ID) {
+        return 'Orders under this subtotal use Fixed Shipping Percent. Orders at or above use the state shipping rate.';
+    }
+
+    if (id === FIXED_SHIPPING_PERCENT_SETTING_ID) {
+        return 'Shipping rate for orders under Fixed Shipping Amount, same format as state rates (e.g. 0.18 for 18%).';
     }
 
     if (id === SEND_EMAIL_FROM_SETTING_ID) {

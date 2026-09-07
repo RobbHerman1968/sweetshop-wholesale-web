@@ -4,7 +4,6 @@ import { authOptions } from '@/auth';
 import { CheckoutContent } from '@/components/checkout/checkout-content';
 import { PublicSiteShell } from '@/components/public-site-shell';
 import { getShippingLeadTimeForAccount } from '@/lib/account-shipping-lead-time';
-import { FREE_SHIPPING_THRESHOLD_SETTING_ID } from '@/lib/checkout-shipping-cost';
 import type { CheckoutAccountDefaults } from '@/lib/checkout-types';
 import { getAccountByIdForManage } from '@/lib/db-pg/actions/account';
 import {
@@ -14,13 +13,16 @@ import {
 import { getSiteSettingByIdForManage } from '@/lib/db-pg/actions/site-setting';
 import { getStateShippingTaxRatesFromDB } from '@/lib/db-pg/actions/state-shipping-tax-rate';
 import { getShopCart } from '@/lib/shop-cart-actions';
+import {
+    FIXED_SHIPPING_AMOUNT_SETTING_ID,
+    FIXED_SHIPPING_PERCENT_SETTING_ID,
+    MINIMUM_ORDER_SETTING_ID,
+} from '@/lib/site-setting-constants';
 import { getEffectiveWholesaleAccountIdForShopCatalog } from '@/lib/wholesale-account-switcher-actions';
 import { SITE_MAIN_FOCUS_CLASS, SITE_MAIN_ID } from '@/lib/site-main';
 import { parseUserId } from '@/lib/user-id';
 import { cn } from '@/lib/utils';
 import { selectFirstEmailAddress, getDefaultExpectedDeliveryDate } from '@/lib/checkout-utils';
-
-const MINIMUM_ORDER_SETTING_ID = 2;
 
 function isBelowMinimumOrder(subTotal: number, itemCount: number, minimumOrderAmount: number | null): boolean {
     return minimumOrderAmount != null && itemCount > 0 && subTotal < minimumOrderAmount;
@@ -49,7 +51,8 @@ export default async function CheckoutPage() {
     const [
         cartResult,
         minimumOrderSetting,
-        freeShippingSetting,
+        fixedShippingAmountSetting,
+        fixedShippingPercentSetting,
         stateRates,
         savedAddresses,
         savedShippingAddresses,
@@ -58,7 +61,8 @@ export default async function CheckoutPage() {
     ] = await Promise.all([
         getShopCart(),
         getSiteSettingByIdForManage(MINIMUM_ORDER_SETTING_ID),
-        getSiteSettingByIdForManage(FREE_SHIPPING_THRESHOLD_SETTING_ID),
+        getSiteSettingByIdForManage(FIXED_SHIPPING_AMOUNT_SETTING_ID),
+        getSiteSettingByIdForManage(FIXED_SHIPPING_PERCENT_SETTING_ID),
         getStateShippingTaxRatesFromDB(),
         getAccountAddressesForCheckout(accountId),
         getAccountShippingAddressesForCheckout(accountId),
@@ -111,7 +115,8 @@ export default async function CheckoutPage() {
                     shippingLeadTime={shippingLeadTime}
                     defaultExpectedDeliveryDate={defaultExpectedDeliveryDate}
                     shippingOptions={{
-                        freeShippingThreshold: freeShippingSetting?.value ?? null,
+                        fixedShippingAmount: fixedShippingAmountSetting?.value ?? null,
+                        fixedShippingPercent: fixedShippingPercentSetting?.value ?? null,
                         isSkipShipping: account?.isSkipShipping ?? false,
                         isFreeGroundShipping: account?.isFreeGroundShipping ?? false,
                         isSkipTax: account?.isSkipTax ?? false,

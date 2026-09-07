@@ -343,6 +343,7 @@ export const siteSetting = pgTable("siteSetting", {
 	name: text().notNull(),
 	value: numeric({ precision: 10, scale:  2 }).notNull(),
 	textValue: text(),
+	orderIndex: integer().default(1).notNull(),
 });
 
 /** Singleton row for HomePage Setup JSON (not a site setting). */

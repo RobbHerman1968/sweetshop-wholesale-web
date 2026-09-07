@@ -1,5 +1,9 @@
-/** Site setting id for the order subtotal above which ground shipping is free. */
-export const FREE_SHIPPING_THRESHOLD_SETTING_ID = 1;
+import {
+    FIXED_SHIPPING_AMOUNT_SETTING_ID,
+    FIXED_SHIPPING_PERCENT_SETTING_ID,
+} from '@/lib/site-setting-constants';
+
+export { FIXED_SHIPPING_AMOUNT_SETTING_ID, FIXED_SHIPPING_PERCENT_SETTING_ID };
 
 export type CheckoutStateShippingRate = {
     stateAbbr: string;
@@ -8,7 +12,8 @@ export type CheckoutStateShippingRate = {
 };
 
 export type CheckoutShippingOptions = {
-    freeShippingThreshold: number | null;
+    fixedShippingAmount: number | null;
+    fixedShippingPercent: number | null;
     isSkipShipping: boolean;
     isFreeGroundShipping: boolean;
     isSkipTax: boolean;
@@ -36,11 +41,17 @@ export function lookupStateTaxRate(stateAbbr: string, rates: CheckoutStateShippi
     return findStateRate(stateAbbr, rates)?.taxRate ?? 0;
 }
 
-/** Shipping is a percent of the subtotal. It is $0 when the account skips shipping, has free ground, or subtotal exceeds the threshold. */
+/**
+ * Shipping is always a percent of the subtotal (never free from these thresholds).
+ * Under Fixed Shipping Amount → Fixed Shipping Percent.
+ * At/above Fixed Shipping Amount → state shippingRate.
+ * Account skip-shipping / free-ground flags still force $0.
+ */
 export function calculateCheckoutShippingCost(params: {
     subTotal: number;
     shipToState: string;
-    freeShippingThreshold: number | null;
+    fixedShippingAmount: number | null;
+    fixedShippingPercent: number | null;
     isSkipShipping: boolean;
     isFreeGroundShipping: boolean;
     stateShippingRates: CheckoutStateShippingRate[];
@@ -49,8 +60,12 @@ export function calculateCheckoutShippingCost(params: {
         return 0;
     }
 
-    if (params.freeShippingThreshold != null && params.subTotal > params.freeShippingThreshold) {
-        return 0;
+    const amount = params.fixedShippingAmount;
+    const useFixedPercent = amount != null && params.subTotal < amount;
+
+    if (useFixedPercent) {
+        const rate = params.fixedShippingPercent ?? 0;
+        return roundMoney(params.subTotal * rate);
     }
 
     const rate = lookupStateShippingRate(params.shipToState, params.stateShippingRates);
