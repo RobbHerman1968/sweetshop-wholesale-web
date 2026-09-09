@@ -29,7 +29,12 @@ import { parseUserId } from '@/lib/user-id';
 import { insertOrderLog, isAccountMateSuccessStatus } from '@/lib/db-pg/actions/order-log';
 import { syncOrderIdSequences } from '@/lib/db-pg/actions/order';
 import { sendOrderConfirmationEmails } from '@/lib/db-pg/actions/send-order-confirmation-emails';
-import { placeWholesaleOrder, parseAccountMateId, parseAccountMateOrderNumber } from '@/lib/wholesale-api';
+import {
+    formatAccountMateIssue,
+    placeWholesaleOrder,
+    parseAccountMateId,
+    parseAccountMateOrderNumber,
+} from '@/lib/wholesale-api';
 import { normalizeCardDigits } from '@/lib/checkout-payment-validation';
 
 export type PlaceCheckoutOrderInput = {
@@ -179,12 +184,13 @@ async function failCheckoutOrder(
     message: string,
     context: OrderLogContext = {},
     stage = 'validation',
+    issue = message,
 ): Promise<PlaceCheckoutOrderResult> {
     await insertOrderLog({
         outcome: 'failure',
         message,
         stage,
-        error: message,
+        error: issue,
         userId: context.userId ?? null,
         accountId: context.accountId ?? null,
         cartId: context.cartId ?? null,
@@ -300,28 +306,33 @@ export async function placeCheckoutOrder(input: PlaceCheckoutOrderInput): Promis
     } catch (error) {
         console.error('[placeCheckoutOrder] wholesale API failed', error);
         const message = error instanceof Error ? error.message : 'Unable to submit the order to AccountMate.';
+        const logContext = {
+            userId,
+            accountId,
+            cartId: cartData.id,
+            accountMateId: existingAccountMateId,
+        };
         return failCheckoutOrder(
             message,
-            {
-                userId,
-                accountId,
-                cartId: cartData.id,
-                accountMateId: existingAccountMateId,
-            },
+            logContext,
             'accountmate',
+            formatAccountMateIssue(message, logContext),
         );
     }
 
     if (!apiResponse.ok) {
+        const logContext = {
+            userId,
+            accountId,
+            cartId: cartData.id,
+            accountMateId: apiResponse.accountMateId ?? existingAccountMateId,
+            accountMateTransactionId: apiResponse.accountMateTransactionId ?? null,
+        };
         return failCheckoutOrder(
             apiResponse.message,
-            {
-                userId,
-                accountId,
-                cartId: cartData.id,
-                accountMateId: existingAccountMateId,
-            },
+            logContext,
             'accountmate',
+            formatAccountMateIssue(apiResponse.error || apiResponse.message, logContext, apiResponse.details),
         );
     }
 
@@ -338,7 +349,17 @@ export async function placeCheckoutOrder(input: PlaceCheckoutOrderInput): Promis
         accountMateOrderNumber: apiResult.accountMateOrderNumber ?? null,
         accountMateTransactionId: apiResult.accountMateOrderTransactionId ?? null,
         accountMateStatus: apiResponse.accountMateStatus,
-        error: apiResponse.accountMateSuccess ? null : apiResponse.accountMateStatus ?? apiResponse.message,
+        error: apiResponse.accountMateSuccess
+            ? null
+            : formatAccountMateIssue(
+                `non-success status: ${apiResponse.accountMateStatus ?? apiResponse.message}`,
+                {
+                    accountId,
+                    cartId: cartData.id,
+                    accountMateId: apiResult.account.accountMateId ?? existingAccountMateId,
+                    accountMateTransactionId: apiResult.accountMateOrderTransactionId ?? null,
+                },
+            ),
     });
 
     const resolvedAccountMateId = trimOrNull(apiResult.account.accountMateId) ?? existingAccountMateId;

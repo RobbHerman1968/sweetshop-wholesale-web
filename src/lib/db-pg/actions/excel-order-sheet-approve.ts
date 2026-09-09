@@ -19,7 +19,12 @@ import type {
 } from '@/lib/excel-order-sheet/types';
 import { selectFirstEmailAddress } from '@/lib/checkout-utils';
 import { parseUserId } from '@/lib/user-id';
-import { parseAccountMateId, parseAccountMateOrderNumber, placeWholesaleOrder } from '@/lib/wholesale-api';
+import {
+    formatAccountMateIssue,
+    parseAccountMateId,
+    parseAccountMateOrderNumber,
+    placeWholesaleOrder,
+} from '@/lib/wholesale-api';
 
 function trim(value: string | null | undefined): string {
     return value?.trim() ?? '';
@@ -130,11 +135,16 @@ async function placeValidatedSheetOrder(
         apiResponse = await placeWholesaleOrder(placeOrderPayload);
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to submit the order to AccountMate.';
+        const logContext = {
+            accountId: sheetOrder.accountId,
+            cartId: `sheet-${sheetOrder.lineNumber}`,
+            accountMateId: sheetOrder.accountMateId,
+        };
         await insertOrderLog({
             outcome: 'failure',
             message,
             stage: 'excel-order-sheet',
-            error: message,
+            error: formatAccountMateIssue(message, logContext),
             userId: adminUserId,
             accountId: sheetOrder.accountId,
             accountMateId: sheetOrder.accountMateId,
@@ -143,14 +153,25 @@ async function placeValidatedSheetOrder(
     }
 
     if (!apiResponse.ok) {
+        const logContext = {
+            accountId: sheetOrder.accountId,
+            cartId: `sheet-${sheetOrder.lineNumber}`,
+            accountMateId: apiResponse.accountMateId ?? sheetOrder.accountMateId,
+            accountMateTransactionId: apiResponse.accountMateTransactionId ?? null,
+        };
         await insertOrderLog({
             outcome: 'failure',
             message: apiResponse.message,
             stage: 'excel-order-sheet',
-            error: apiResponse.message,
+            error: formatAccountMateIssue(
+                apiResponse.error || apiResponse.message,
+                logContext,
+                apiResponse.details,
+            ),
             userId: adminUserId,
             accountId: sheetOrder.accountId,
-            accountMateId: sheetOrder.accountMateId,
+            accountMateId: logContext.accountMateId,
+            accountMateTransactionId: logContext.accountMateTransactionId,
         });
         return { ok: false, error: apiResponse.message };
     }
@@ -252,7 +273,17 @@ async function placeValidatedSheetOrder(
         accountMateOrderNumber: apiResult.accountMateOrderNumber ?? null,
         accountMateTransactionId: apiResult.accountMateOrderTransactionId ?? null,
         accountMateStatus,
-        error: accountMateSuccess ? null : accountMateStatus ?? 'Unknown AccountMate status',
+        error: accountMateSuccess
+            ? null
+            : formatAccountMateIssue(
+                `non-success status: ${accountMateStatus || 'unknown status'}`,
+                {
+                    accountId: sheetOrder.accountId,
+                    cartId: `sheet-${sheetOrder.lineNumber}`,
+                    accountMateId: sheetOrder.accountMateId,
+                    accountMateTransactionId: apiResult.accountMateOrderTransactionId ?? null,
+                },
+            ),
     });
 
     // Await so emails + log rows finish before the server action ends (void can be killed early).

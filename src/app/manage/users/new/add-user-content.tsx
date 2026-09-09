@@ -16,6 +16,8 @@ type Props = {
 export function AddUserContent({ backHref }: Props) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [accountMateId, setAccountMateId] = useState('');
+    const requiresAdmin = accountMateId.trim() === '';
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -33,8 +35,8 @@ export function AddUserContent({ backHref }: Props) {
             <header className="space-y-1">
                 <h1 className="text-[14px] font-semibold uppercase tracking-[0.3em] text-[#6e4a34]">Add User</h1>
                 <p className="text-xs text-[#6e4a34]">
-                    Create a new wholesale login. If an AccountMate ID is entered, the account must exist locally or in
-                    AccountMate before the user is created.
+                    Create a new wholesale login. To create an admin user without an AccountMate ID, leave the
+                    AccountMate ID blank and check Admin.
                 </p>
             </header>
 
@@ -56,9 +58,35 @@ export function AddUserContent({ backHref }: Props) {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="add-user-accountMateId" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                            AccountMate ID
+                            AccountMate ID (optional)
                         </Label>
-                        <Input id="add-user-accountMateId" name="accountMateId" autoComplete="off" className="w-full" />
+                        <Input
+                            id="add-user-accountMateId"
+                            name="accountMateId"
+                            autoComplete="off"
+                            className="w-full"
+                            value={accountMateId}
+                            onChange={(event) => setAccountMateId(event.target.value)}
+                        />
+                    </div>
+                </div>
+            </section>
+
+            <section className="space-y-4 rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 sm:p-6">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Access</h2>
+
+                <div className="flex flex-wrap items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <Checkbox id="add-user-isActive" name="isActive" defaultChecked />
+                        <Label htmlFor="add-user-isActive" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                            Active
+                        </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Checkbox id="add-user-isAdmin" name="isAdmin" required={requiresAdmin} />
+                        <Label htmlFor="add-user-isAdmin" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
+                            Admin
+                        </Label>
                     </div>
                 </div>
             </section>
@@ -78,25 +106,6 @@ export function AddUserContent({ backHref }: Props) {
                             Last name
                         </Label>
                         <Input id="add-user-lastName" name="lastName" autoComplete="off" className="w-full" required />
-                    </div>
-                </div>
-            </section>
-
-            <section className="space-y-4 rounded-2xl border border-[#c49a78] bg-[#f8eddf] p-4 sm:p-6">
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">Access</h2>
-
-                <div className="flex flex-wrap items-center gap-6">
-                    <div className="flex items-center gap-2">
-                        <Checkbox id="add-user-isActive" name="isActive" defaultChecked />
-                        <Label htmlFor="add-user-isActive" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                            Active
-                        </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Checkbox id="add-user-isAdmin" name="isAdmin" />
-                        <Label htmlFor="add-user-isAdmin" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6e4a34]">
-                            Admin
-                        </Label>
                     </div>
                 </div>
             </section>

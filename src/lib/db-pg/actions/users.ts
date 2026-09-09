@@ -138,7 +138,7 @@ export async function createUserFromForm(formData: FormData): Promise<CreateUser
     const lastName = trimOrNull(formData.get('lastName'));
     const rawAccountMateId = trimOrNull(formData.get('accountMateId'));
     const password = trimOrNull(formData.get('password'));
-    const isAdmin = parseCheckbox(formData, 'isAdmin');
+    const requestedIsAdmin = parseCheckbox(formData, 'isAdmin');
     const isActive = parseCheckbox(formData, 'isActive');
 
     if (!userName) {
@@ -157,6 +157,9 @@ export async function createUserFromForm(formData: FormData): Promise<CreateUser
     const accountMateId = rawAccountMateId ? parseAccountMateId(rawAccountMateId) : null;
     if (rawAccountMateId && !accountMateId) {
         return { ok: false, error: 'Invalid AccountMate ID.' };
+    }
+    if (!accountMateId && !requestedIsAdmin) {
+        return { ok: false, error: 'Admin must be checked when no AccountMate ID is provided.' };
     }
 
     const [conflict] = await db
@@ -190,7 +193,7 @@ export async function createUserFromForm(formData: FormData): Promise<CreateUser
         firstName,
         lastName,
         accountMateId,
-        isAdmin,
+        isAdmin: requestedIsAdmin,
         isActive,
         isWholesale: true,
     });

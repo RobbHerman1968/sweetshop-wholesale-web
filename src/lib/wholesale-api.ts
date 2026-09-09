@@ -58,10 +58,37 @@ export type PlaceWholesaleOrderErrorResponse = {
     accountId?: number;
     cartId?: number | string;
     accountMateId?: string | null;
+    accountMateTransactionId?: string | null;
     itemCount?: number;
 };
 
 export type PlaceWholesaleOrderResponse = PlaceWholesaleOrderSuccessResponse | PlaceWholesaleOrderErrorResponse;
+
+export function formatAccountMateIssue(
+    reason: string,
+    context: {
+        accountId?: number | null;
+        cartId?: number | string | null;
+        accountMateId?: string | null;
+        accountMateTransactionId?: string | null;
+    },
+    details?: string,
+): string {
+    const parts = [
+        `AccountMate transaction failed: ${reason}`,
+        context.accountId != null ? `accountId=${context.accountId}` : null,
+        context.cartId != null ? `cartId=${context.cartId}` : null,
+        context.accountMateId ? `accountMateId=${context.accountMateId}` : null,
+        context.accountMateTransactionId
+            ? `transactionId=${context.accountMateTransactionId}`
+            : null,
+    ];
+    const trimmedDetails = details?.trim();
+    if (trimmedDetails && trimmedDetails !== reason.trim()) {
+        parts.push(`details=${trimmedDetails}`);
+    }
+    return parts.filter((part): part is string => Boolean(part)).join(' | ');
+}
 
 async function readWholesaleApiError(res: Response, body: unknown): Promise<string> {
     if (body && typeof body === 'object') {
