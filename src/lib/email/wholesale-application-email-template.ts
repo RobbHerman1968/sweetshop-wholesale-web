@@ -94,7 +94,7 @@ export function buildWholesaleApplicationEmailContent(
           <tr>
             <td style="padding:24px 28px;background:${BRAND.brown};border-radius:16px 16px 0 0;">
               <div style="font-size:11px;font-weight:700;letter-spacing:0.28em;text-transform:uppercase;color:#f8eddf;">Sweet Shop USA Wholesale</div>
-              <div style="margin-top:10px;font-size:28px;line-height:1.2;font-weight:700;color:#ffffff;">Apply Now submission</div>
+              <div style="margin-top:10px;font-size:28px;line-height:1.2;font-weight:700;color:#ffffff;">Wholesale Application</div>
             </td>
           </tr>
           <tr>
