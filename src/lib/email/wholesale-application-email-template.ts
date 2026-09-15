@@ -3,12 +3,13 @@ import { formatPhoneDisplay } from '@/lib/checkout-utils';
 import type { WholesaleApplicationInput } from '@/lib/validations/wholesale-application';
 
 const BRAND = {
-    cream: '#fdf7ef',
-    creamLight: '#f8eddf',
-    tan: '#d1b79a',
-    brown: '#5c4032',
-    brownDark: '#3c251a',
-    accent: '#f5d9b8',
+    brown: '#6e4a34',
+    brownDark: '#4a2518',
+    tan: '#c49a78',
+    cream: '#f8eddf',
+    creamLight: '#fdf7ef',
+    page: '#f2dfcc',
+    muted: '#8a7264',
 };
 
 export type WholesaleApplicationEmailContent = {
@@ -19,8 +20,8 @@ export type WholesaleApplicationEmailContent = {
 
 function row(label: string, value: string): string {
     return `<tr>
-      <td style="padding:8px 0;color:${BRAND.brown};font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;width:160px;vertical-align:top;">${escapeHtml(label)}</td>
-      <td style="padding:8px 0;color:${BRAND.brownDark};font-size:14px;vertical-align:top;">${value}</td>
+      <td style="padding:6px 0;color:${BRAND.muted};font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;width:160px;vertical-align:top;">${escapeHtml(label)}</td>
+      <td style="padding:6px 0;color:${BRAND.brownDark};font-size:14px;vertical-align:top;">${value}</td>
     </tr>`;
 }
 
@@ -41,24 +42,24 @@ export function buildWholesaleApplicationEmailContent(
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(subject)}</title>
 </head>
-<body style="margin:0;padding:0;background:${BRAND.cream};color:${BRAND.brownDark};font-family:Georgia,'Times New Roman',serif;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;background:${BRAND.cream};">
+<body style="margin:0;padding:0;background:${BRAND.page};">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;background:${BRAND.page};">
     <tr>
-      <td align="center" style="padding:32px 16px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;border-collapse:collapse;background:#ffffff;border:1px solid ${BRAND.tan};border-radius:16px;overflow:hidden;">
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:680px;border-collapse:collapse;">
           <tr>
-            <td style="padding:28px 28px 20px;background:linear-gradient(90deg,#3d2518,#5c3820,#3d2518);color:${BRAND.accent};">
-              <p style="margin:0;font-size:11px;letter-spacing:0.28em;text-transform:uppercase;">Sweet Shop USA Wholesale</p>
-              <h1 style="margin:10px 0 0;font-size:22px;font-weight:600;letter-spacing:0.04em;">Apply Now submission</h1>
+            <td style="padding:24px 28px;background:${BRAND.brown};border-radius:16px 16px 0 0;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.28em;text-transform:uppercase;color:#f8eddf;">Sweet Shop USA Wholesale</div>
+              <div style="margin-top:10px;font-size:28px;line-height:1.2;font-weight:700;color:#ffffff;">Apply Now submission</div>
             </td>
           </tr>
           <tr>
-            <td style="padding:28px;">
-              <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:${BRAND.brown};">
+            <td style="padding:28px;background:${BRAND.cream};border:1px solid ${BRAND.tan};border-top:none;border-radius:0 0 16px 16px;">
+              <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:${BRAND.brownDark};">
                 A new wholesale account request was submitted from the Apply Now form.
               </p>
               <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
@@ -73,11 +74,9 @@ export function buildWholesaleApplicationEmailContent(
                     ? row('Attachment', escapeHtml(options.attachmentName))
                     : ''}
               </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:16px 28px 24px;border-top:1px solid ${BRAND.tan};font-size:12px;line-height:1.5;color:#8b6b4a;">
-              Sweet Shop USA · Wholesale Support · 1-800-222-2269
+              <div style="margin-top:24px;padding-top:16px;border-top:1px solid ${BRAND.tan};font-size:12px;line-height:1.5;color:${BRAND.muted};">
+                Sweet Shop USA · Wholesale Support · 1-800-222-2269
+              </div>
             </td>
           </tr>
         </table>
