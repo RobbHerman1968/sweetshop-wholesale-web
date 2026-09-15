@@ -1,6 +1,10 @@
 import { escapeHtml } from '@/lib/email/html-utils';
 import { formatPhoneDisplay } from '@/lib/checkout-utils';
-import type { WholesaleApplicationInput } from '@/lib/validations/wholesale-application';
+import {
+    formatOpenSchedule,
+    formatYesNo,
+    type WholesaleApplicationInput,
+} from '@/lib/validations/wholesale-application';
 
 const BRAND = {
     brown: '#6e4a34',
@@ -9,7 +13,32 @@ const BRAND = {
     cream: '#f8eddf',
     creamLight: '#fdf7ef',
     page: '#f2dfcc',
-    muted: '#8a7264',
+    muted: '#7a6254',
+};
+
+export type WholesaleApplicationEmailData = {
+    businessName: string;
+    taxId: string;
+    contactFirstName: string;
+    contactLastName: string;
+    billingAddress1: string;
+    billingAddress2?: string | null;
+    city: string;
+    state: string;
+    zipCode: string;
+    phone: string;
+    fax?: string | null;
+    email: string;
+    currentlySells?: boolean | null;
+    soldInPast?: boolean | null;
+    howDidYouFindOut?: string | null;
+    referredByBroker?: boolean | null;
+    brokerName?: string | null;
+    hasBrickAndMortar?: boolean | null;
+    businessType?: string | null;
+    openSeasonallyOrYearRound?: string | null;
+    hoursOfOperation?: string | null;
+    socialMediaHandles?: string | null;
 };
 
 export type WholesaleApplicationEmailContent = {
@@ -20,13 +49,24 @@ export type WholesaleApplicationEmailContent = {
 
 function row(label: string, value: string): string {
     return `<tr>
-      <td style="padding:6px 0;color:${BRAND.muted};font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;width:160px;vertical-align:top;">${escapeHtml(label)}</td>
-      <td style="padding:6px 0;color:${BRAND.brownDark};font-size:14px;vertical-align:top;">${value}</td>
+      <td style="padding:8px 24px 8px 0;color:${BRAND.muted};font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;width:200px;vertical-align:top;">${escapeHtml(label)}</td>
+      <td style="padding:8px 0;color:${BRAND.brownDark};font-size:14px;vertical-align:top;">${value}</td>
     </tr>`;
 }
 
+function textOrDash(value: string | null | undefined): string {
+    const trimmed = value?.trim();
+    return trimmed ? escapeHtml(trimmed) : '—';
+}
+
+function multilineOrDash(value: string | null | undefined): string {
+    const trimmed = value?.trim();
+    if (!trimmed) return '—';
+    return escapeHtml(trimmed).replaceAll('\n', '<br />');
+}
+
 export function buildWholesaleApplicationEmailContent(
-    data: WholesaleApplicationInput,
+    data: WholesaleApplicationEmailData | WholesaleApplicationInput,
     options?: { attachmentName?: string | null },
 ): WholesaleApplicationEmailContent {
     const businessName = data.businessName.trim();
@@ -58,7 +98,7 @@ export function buildWholesaleApplicationEmailContent(
             </td>
           </tr>
           <tr>
-            <td style="padding:28px;background:${BRAND.cream};border:1px solid ${BRAND.tan};border-top:none;border-radius:0 0 16px 16px;">
+            <td style="padding:28px;background:${BRAND.creamLight};border:1px solid ${BRAND.tan};border-top:none;border-radius:0 0 16px 16px;">
               <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:${BRAND.brownDark};">
                 A new wholesale account request was submitted from the Apply Now form.
               </p>
@@ -70,6 +110,16 @@ export function buildWholesaleApplicationEmailContent(
                 ${row('Phone', escapeHtml(formatPhoneDisplay(data.phone)))}
                 ${row('Fax', data.fax ? escapeHtml(formatPhoneDisplay(data.fax)) : '—')}
                 ${row('Billing address', escapeHtml(addressLines.join('\n')).replaceAll('\n', '<br />'))}
+                ${row('Currently sells SS', escapeHtml(formatYesNo(data.currentlySells)))}
+                ${row('Sold SS in past', escapeHtml(formatYesNo(data.soldInPast)))}
+                ${row('How did you find us', multilineOrDash(data.howDidYouFindOut))}
+                ${row('Referred by broker', escapeHtml(formatYesNo(data.referredByBroker)))}
+                ${row('Broker name', textOrDash(data.brokerName))}
+                ${row('Brick-and-mortar', escapeHtml(formatYesNo(data.hasBrickAndMortar)))}
+                ${row('Business type', textOrDash(data.businessType))}
+                ${row('Open schedule', escapeHtml(formatOpenSchedule(data.openSeasonallyOrYearRound)))}
+                ${row('Hours of operation', multilineOrDash(data.hoursOfOperation))}
+                ${row('Social media', multilineOrDash(data.socialMediaHandles))}
                 ${options?.attachmentName
                     ? row('Attachment', escapeHtml(options.attachmentName))
                     : ''}
@@ -97,6 +147,17 @@ export function buildWholesaleApplicationEmailContent(
         `Fax: ${data.fax ? formatPhoneDisplay(data.fax) : '—'}`,
         'Billing address:',
         ...addressLines.map((line) => `  ${line}`),
+        '',
+        `Currently sells Sweet Shop USA products: ${formatYesNo(data.currentlySells)}`,
+        `Sold Sweet Shop USA products in the past: ${formatYesNo(data.soldInPast)}`,
+        `How did you find out about Sweet Shop USA: ${data.howDidYouFindOut?.trim() || '—'}`,
+        `Referred by a broker: ${formatYesNo(data.referredByBroker)}`,
+        `Broker name: ${data.brokerName?.trim() || '—'}`,
+        `Brick-and-mortar storefront: ${formatYesNo(data.hasBrickAndMortar)}`,
+        `Business type: ${data.businessType?.trim() || '—'}`,
+        `Open schedule: ${formatOpenSchedule(data.openSeasonallyOrYearRound)}`,
+        `Hours of operation: ${data.hoursOfOperation?.trim() || '—'}`,
+        `Social media handles: ${data.socialMediaHandles?.trim() || '—'}`,
         ...(options?.attachmentName ? ['', `Attachment: ${options.attachmentName}`] : []),
     ].join('\n');
 

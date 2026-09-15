@@ -96,7 +96,7 @@ const BRAND = {
     cream: '#f8eddf',
     creamLight: '#fdf7ef',
     page: '#f2dfcc',
-    muted: '#8a7264',
+    muted: '#7a6254',
 };
 
 function formatMoney(value: string | number | null | undefined): string {

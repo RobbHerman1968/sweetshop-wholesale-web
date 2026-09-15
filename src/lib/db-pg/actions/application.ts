@@ -5,7 +5,11 @@ import { getServerSession } from 'next-auth';
 import { count, desc, eq, ilike, or } from 'drizzle-orm';
 import { authOptions } from '@/auth';
 import { db } from '@/lib/db-pg';
-import { getApplyNowEmailAddress, getSendEmailFromAddress } from '@/lib/db-pg/actions/site-setting';
+import {
+    getApplyNowEmailAddress,
+    getDeveloperEmailAddress,
+    getSendEmailFromAddress,
+} from '@/lib/db-pg/actions/site-setting';
 import { application } from '@/lib/drizzle/schema';
 import { buildWholesaleApplicationEmailContent } from '@/lib/email/wholesale-application-email-template';
 import { sendEmailViaResend } from '@/lib/resend-email';
@@ -37,10 +41,47 @@ export type ManageApplicationDetail = {
     phone: string;
     fax: string | null;
     email: string;
+    currentlySells: boolean | null;
+    soldInPast: boolean | null;
+    howDidYouFindOut: string | null;
+    referredByBroker: boolean | null;
+    brokerName: string | null;
+    hasBrickAndMortar: boolean | null;
+    businessType: string | null;
+    openSeasonallyOrYearRound: string | null;
+    hoursOfOperation: string | null;
+    socialMediaHandles: string | null;
     emailSent: boolean;
 };
 
 type FormResult = { ok: true } | { ok: false; error: string };
+
+function toWholesaleApplicationInput(detail: ManageApplicationDetail) {
+    return {
+        businessName: detail.businessName,
+        taxId: detail.taxId,
+        contactFirstName: detail.contactFirstName,
+        contactLastName: detail.contactLastName,
+        billingAddress1: detail.billingAddress1,
+        billingAddress2: detail.billingAddress2 ?? undefined,
+        city: detail.city,
+        state: detail.state,
+        zipCode: detail.zipCode,
+        phone: detail.phone,
+        fax: detail.fax ?? undefined,
+        email: detail.email,
+        currentlySells: detail.currentlySells,
+        soldInPast: detail.soldInPast,
+        howDidYouFindOut: detail.howDidYouFindOut,
+        referredByBroker: detail.referredByBroker,
+        brokerName: detail.brokerName,
+        hasBrickAndMortar: detail.hasBrickAndMortar,
+        businessType: detail.businessType,
+        openSeasonallyOrYearRound: detail.openSeasonallyOrYearRound,
+        hoursOfOperation: detail.hoursOfOperation,
+        socialMediaHandles: detail.socialMediaHandles,
+    };
+}
 
 export async function getPaginatedApplicationsFromDB({
     page = 1,
@@ -121,6 +162,16 @@ export async function getApplicationByIdForManage(applicationId: number): Promis
             phone: application.phone,
             fax: application.fax,
             email: application.email,
+            currentlySells: application.currentlySells,
+            soldInPast: application.soldInPast,
+            howDidYouFindOut: application.howDidYouFindOut,
+            referredByBroker: application.referredByBroker,
+            brokerName: application.brokerName,
+            hasBrickAndMortar: application.hasBrickAndMortar,
+            businessType: application.businessType,
+            openSeasonallyOrYearRound: application.openSeasonallyOrYearRound,
+            hoursOfOperation: application.hoursOfOperation,
+            socialMediaHandles: application.socialMediaHandles,
             emailSent: application.emailSent,
         })
         .from(application)
@@ -149,20 +200,7 @@ export async function resendApplicationEmail(applicationId: number): Promise<For
         return { ok: false, error: 'Configure Apply Now Email Address in Site Settings before sending.' };
     }
 
-    const { subject, html, text } = buildWholesaleApplicationEmailContent({
-        businessName: detail.businessName,
-        taxId: detail.taxId,
-        contactFirstName: detail.contactFirstName,
-        contactLastName: detail.contactLastName,
-        billingAddress1: detail.billingAddress1,
-        billingAddress2: detail.billingAddress2 ?? undefined,
-        city: detail.city,
-        state: detail.state,
-        zipCode: detail.zipCode,
-        phone: detail.phone,
-        fax: detail.fax ?? undefined,
-        email: detail.email,
-    });
+    const { subject, html, text } = buildWholesaleApplicationEmailContent(toWholesaleApplicationInput(detail));
 
     const result = await sendEmailViaResend({
         from: fromEmail,
@@ -184,6 +222,46 @@ export async function resendApplicationEmail(applicationId: number): Promise<For
     await db.update(application).set({ emailSent: true }).where(eq(application.id, applicationId));
     revalidatePath(`/manage/applications/${applicationId}`);
     revalidatePath('/manage/applications');
+
+    return { ok: true };
+}
+
+export async function sendApplicationToDeveloper(applicationId: number): Promise<FormResult> {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
+        return { ok: false, error: 'Unauthorized.' };
+    }
+
+    const detail = await getApplicationByIdForManage(applicationId);
+    if (!detail) {
+        return { ok: false, error: 'Application not found.' };
+    }
+
+    const [fromEmail, developerEmail] = await Promise.all([getSendEmailFromAddress(), getDeveloperEmailAddress()]);
+    if (!fromEmail) {
+        return { ok: false, error: 'Configure Send Email From in Site Settings before sending.' };
+    }
+    if (!developerEmail) {
+        return { ok: false, error: 'Configure Developer Email Address in Site Settings before sending.' };
+    }
+
+    const { subject, html, text } = buildWholesaleApplicationEmailContent(toWholesaleApplicationInput(detail));
+    const result = await sendEmailViaResend({
+        from: fromEmail,
+        to: developerEmail,
+        subject,
+        html,
+        text,
+        logContext: {
+            stage: 'email',
+            message: `Manual developer application email failed for application #${applicationId}.`,
+            successMessage: `Manual developer application email sent for application #${applicationId}.`,
+        },
+    });
+
+    if (!result.ok) {
+        return result;
+    }
 
     return { ok: true };
 }

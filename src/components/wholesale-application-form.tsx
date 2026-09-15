@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { formatPhoneDisplay, normalizePhoneDigits, US_STATE_OPTIONS } from '@/lib/checkout-utils';
 import { submitWholesaleApplication } from '@/lib/wholesale-application-actions';
 import {
@@ -16,13 +17,14 @@ import {
     validateApplicationAttachment,
 } from '@/lib/wholesale-application-attachment';
 import {
+    OPEN_SCHEDULE_OPTIONS,
     wholesaleApplicationSchema,
     type WholesaleApplicationField,
-    type WholesaleApplicationInput,
+    type WholesaleApplicationFormValues,
 } from '@/lib/validations/wholesale-application';
 import { cn } from '@/lib/utils';
 
-const EMPTY_FORM: WholesaleApplicationInput = {
+const EMPTY_FORM: WholesaleApplicationFormValues = {
     businessName: '',
     taxId: '',
     contactFirstName: '',
@@ -35,6 +37,16 @@ const EMPTY_FORM: WholesaleApplicationInput = {
     phone: '',
     fax: '',
     email: '',
+    currentlySells: null,
+    soldInPast: null,
+    howDidYouFindOut: '',
+    referredByBroker: null,
+    brokerName: '',
+    hasBrickAndMortar: null,
+    businessType: '',
+    openSeasonallyOrYearRound: '',
+    hoursOfOperation: '',
+    socialMediaHandles: '',
 };
 
 type WholesaleApplicationFormProps = {
@@ -43,6 +55,7 @@ type WholesaleApplicationFormProps = {
 };
 
 const sectionTitleClass = 'text-[11px] font-semibold uppercase tracking-[0.3em] text-[#5c4032]';
+const choiceClass = 'inline-flex items-center gap-2 text-sm font-normal normal-case tracking-normal text-[#4a2b1f]';
 
 function FormSection({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
     return (
@@ -86,10 +99,53 @@ function FormField({
     );
 }
 
+function YesNoField({
+    id,
+    name,
+    label,
+    value,
+    required,
+    error,
+    onChange,
+}: {
+    id: string;
+    name: string;
+    label: string;
+    value: boolean | null;
+    required?: boolean;
+    error?: string;
+    onChange: (value: boolean) => void;
+}) {
+    return (
+        <FormField id={id} label={label} required={required} error={error}>
+            <div className="flex items-center gap-6 pt-1" role="radiogroup" aria-labelledby={id}>
+                <label className={choiceClass}>
+                    <input
+                        type="radio"
+                        name={name}
+                        checked={value === true}
+                        onChange={() => onChange(true)}
+                    />
+                    Yes
+                </label>
+                <label className={choiceClass}>
+                    <input
+                        type="radio"
+                        name={name}
+                        checked={value === false}
+                        onChange={() => onChange(false)}
+                    />
+                    No
+                </label>
+            </div>
+        </FormField>
+    );
+}
+
 export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleApplicationFormProps) {
     const formId = useId();
     const attachmentInputRef = useRef<HTMLInputElement>(null);
-    const [form, setForm] = useState<WholesaleApplicationInput>(EMPTY_FORM);
+    const [form, setForm] = useState<WholesaleApplicationFormValues>(EMPTY_FORM);
     const [attachment, setAttachment] = useState<File | null>(null);
     const [attachmentError, setAttachmentError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Partial<Record<WholesaleApplicationField, string>>>({});
@@ -97,12 +153,12 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    function updateField<K extends WholesaleApplicationField>(key: K, value: WholesaleApplicationInput[K]) {
+    function updateField<K extends keyof WholesaleApplicationFormValues>(key: K, value: WholesaleApplicationFormValues[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
         setFieldErrors((prev) => {
-            if (!prev[key]) return prev;
+            if (!(key in prev)) return prev;
             const next = { ...prev };
-            delete next[key];
+            delete next[key as WholesaleApplicationField];
             return next;
         });
     }
@@ -145,6 +201,16 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
             formData.set('phone', parsed.data.phone);
             formData.set('fax', parsed.data.fax ?? '');
             formData.set('email', parsed.data.email);
+            formData.set('currentlySells', parsed.data.currentlySells ? 'yes' : 'no');
+            formData.set('soldInPast', parsed.data.soldInPast ? 'yes' : 'no');
+            formData.set('howDidYouFindOut', parsed.data.howDidYouFindOut);
+            formData.set('referredByBroker', parsed.data.referredByBroker ? 'yes' : 'no');
+            formData.set('brokerName', parsed.data.brokerName ?? '');
+            formData.set('hasBrickAndMortar', parsed.data.hasBrickAndMortar ? 'yes' : 'no');
+            formData.set('businessType', parsed.data.businessType ?? '');
+            formData.set('openSeasonallyOrYearRound', parsed.data.openSeasonallyOrYearRound);
+            formData.set('hoursOfOperation', parsed.data.hoursOfOperation);
+            formData.set('socialMediaHandles', parsed.data.socialMediaHandles ?? '');
             if (attachment) {
                 formData.set('attachment', attachment);
             }
@@ -206,6 +272,16 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
     const faxId = `${formId}-fax`;
     const emailId = `${formId}-email`;
     const attachmentId = `${formId}-attachment`;
+    const currentlySellsId = `${formId}-currently-sells`;
+    const soldInPastId = `${formId}-sold-in-past`;
+    const howDidYouFindOutId = `${formId}-how-did-you-find-out`;
+    const referredByBrokerId = `${formId}-referred-by-broker`;
+    const brokerNameId = `${formId}-broker-name`;
+    const hasBrickAndMortarId = `${formId}-brick-and-mortar`;
+    const businessTypeId = `${formId}-business-type`;
+    const openScheduleId = `${formId}-open-schedule`;
+    const hoursOfOperationId = `${formId}-hours`;
+    const socialMediaId = `${formId}-social-media`;
 
     function handleAttachmentChange(file: File | null) {
         if (!file) {
@@ -445,6 +521,143 @@ export function WholesaleApplicationForm({ className, onSubmitted }: WholesaleAp
                                 className={inputClass('email')}
                                 aria-invalid={fieldErrors.email ? true : undefined}
                                 autoComplete="email"
+                            />
+                        </FormField>
+                    </div>
+                </FormSection>
+
+                <FormSection title="About your business">
+                    <div className="space-y-4">
+                        <YesNoField
+                            id={currentlySellsId}
+                            name={`${formId}-currently-sells`}
+                            label="Do you currently sell Sweet Shop USA products?"
+                            value={form.currentlySells}
+                            required
+                            error={fieldErrors.currentlySells}
+                            onChange={(value) => updateField('currentlySells', value)}
+                        />
+                        <YesNoField
+                            id={soldInPastId}
+                            name={`${formId}-sold-in-past`}
+                            label="Have you sold Sweet Shop USA products in the past?"
+                            value={form.soldInPast}
+                            required
+                            error={fieldErrors.soldInPast}
+                            onChange={(value) => updateField('soldInPast', value)}
+                        />
+                        <FormField
+                            id={howDidYouFindOutId}
+                            label="How did you find out about Sweet Shop USA?"
+                            required
+                            error={fieldErrors.howDidYouFindOut}
+                        >
+                            <Textarea
+                                id={howDidYouFindOutId}
+                                value={form.howDidYouFindOut}
+                                onChange={(e) => updateField('howDidYouFindOut', e.target.value)}
+                                className={cn('min-h-24 resize-y', inputClass('howDidYouFindOut'))}
+                                aria-invalid={fieldErrors.howDidYouFindOut ? true : undefined}
+                            />
+                        </FormField>
+                        <YesNoField
+                            id={referredByBrokerId}
+                            name={`${formId}-referred-by-broker`}
+                            label="Were you referred to Sweet Shop USA by a broker?"
+                            value={form.referredByBroker}
+                            required
+                            error={fieldErrors.referredByBroker}
+                            onChange={(value) => {
+                                updateField('referredByBroker', value);
+                                if (!value) updateField('brokerName', '');
+                            }}
+                        />
+                        {form.referredByBroker ? (
+                            <FormField id={brokerNameId} label="If yes, which one?" required error={fieldErrors.brokerName}>
+                                <Input
+                                    id={brokerNameId}
+                                    value={form.brokerName}
+                                    onChange={(e) => updateField('brokerName', e.target.value)}
+                                    className={inputClass('brokerName')}
+                                    aria-invalid={fieldErrors.brokerName ? true : undefined}
+                                />
+                            </FormField>
+                        ) : null}
+                        <YesNoField
+                            id={hasBrickAndMortarId}
+                            name={`${formId}-brick-and-mortar`}
+                            label="Do you have a brick-and-mortar storefront?"
+                            value={form.hasBrickAndMortar}
+                            required
+                            error={fieldErrors.hasBrickAndMortar}
+                            onChange={(value) => {
+                                updateField('hasBrickAndMortar', value);
+                                if (value) updateField('businessType', '');
+                            }}
+                        />
+                        {form.hasBrickAndMortar === false ? (
+                            <FormField
+                                id={businessTypeId}
+                                label="If not, what type of business do you operate?"
+                                required
+                                error={fieldErrors.businessType}
+                            >
+                                <Input
+                                    id={businessTypeId}
+                                    value={form.businessType}
+                                    onChange={(e) => updateField('businessType', e.target.value)}
+                                    className={inputClass('businessType')}
+                                    aria-invalid={fieldErrors.businessType ? true : undefined}
+                                    placeholder="Online only, pop-up, distributor, etc."
+                                />
+                            </FormField>
+                        ) : null}
+                        <FormField
+                            id={openScheduleId}
+                            label="Are you open seasonally or year-round?"
+                            required
+                            error={fieldErrors.openSeasonallyOrYearRound}
+                        >
+                            <div className="flex flex-wrap items-center gap-6 pt-1" role="radiogroup" aria-labelledby={openScheduleId}>
+                                {OPEN_SCHEDULE_OPTIONS.map((option) => (
+                                    <label key={option.value} className={choiceClass}>
+                                        <input
+                                            type="radio"
+                                            name={`${formId}-open-schedule`}
+                                            checked={form.openSeasonallyOrYearRound === option.value}
+                                            onChange={() => updateField('openSeasonallyOrYearRound', option.value)}
+                                        />
+                                        {option.label}
+                                    </label>
+                                ))}
+                            </div>
+                        </FormField>
+                        <FormField
+                            id={hoursOfOperationId}
+                            label="What are your current hours of operation?"
+                            required
+                            error={fieldErrors.hoursOfOperation}
+                        >
+                            <Textarea
+                                id={hoursOfOperationId}
+                                value={form.hoursOfOperation}
+                                onChange={(e) => updateField('hoursOfOperation', e.target.value)}
+                                className={cn('min-h-24 resize-y', inputClass('hoursOfOperation'))}
+                                aria-invalid={fieldErrors.hoursOfOperation ? true : undefined}
+                                placeholder="e.g. Mon–Fri 9am–5pm, Sat 10am–2pm"
+                            />
+                        </FormField>
+                        <FormField
+                            id={socialMediaId}
+                            label="What are your social media handles?"
+                            error={fieldErrors.socialMediaHandles}
+                        >
+                            <Textarea
+                                id={socialMediaId}
+                                value={form.socialMediaHandles}
+                                onChange={(e) => updateField('socialMediaHandles', e.target.value)}
+                                className={cn('min-h-24 resize-y', inputClass('socialMediaHandles'))}
+                                placeholder="Instagram, Facebook, TikTok, etc. (optional)"
                             />
                         </FormField>
                     </div>

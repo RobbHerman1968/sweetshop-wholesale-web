@@ -2,8 +2,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import moment from 'moment-timezone';
 import { getApplicationByIdForManage } from '@/lib/db-pg/actions/application';
-import { getApplyNowEmailAddress, getSendEmailFromAddress } from '@/lib/db-pg/actions/site-setting';
+import {
+    getApplyNowEmailAddress,
+    getDeveloperEmailAddress,
+    getSendEmailFromAddress,
+} from '@/lib/db-pg/actions/site-setting';
 import { formatPhoneDisplay } from '@/lib/checkout-utils';
+import { formatOpenSchedule, formatYesNo } from '@/lib/validations/wholesale-application';
 import { ApplicationEmailActions } from './application-email-actions';
 
 type Props = {
@@ -38,10 +43,11 @@ export default async function ManageApplicationDetailPage({ params, searchParams
         notFound();
     }
 
-    const [detail, sendEmailFrom, applyNowEmail] = await Promise.all([
+    const [detail, sendEmailFrom, applyNowEmail, developerEmail] = await Promise.all([
         getApplicationByIdForManage(applicationId),
         getSendEmailFromAddress(),
         getApplyNowEmailAddress(),
+        getDeveloperEmailAddress(),
     ]);
     if (!detail) {
         notFound();
@@ -65,7 +71,9 @@ export default async function ManageApplicationDetailPage({ params, searchParams
                     applicationId={detail.id}
                     emailSent={detail.emailSent}
                     applyNowEmail={applyNowEmail}
+                    developerEmail={developerEmail}
                     sendEmailFrom={sendEmailFrom}
+                    actions={['applyNow']}
                 />
             </div>
 
@@ -111,6 +119,60 @@ export default async function ManageApplicationDetailPage({ params, searchParams
                     <DetailRow label="Zip" value={detail.zipCode} />
                 </dl>
             </section>
+
+            <section className="space-y-5 rounded-2xl border border-[#c49a78] bg-[#fdf7ef] p-6">
+                <h2 className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[#4a2518]">About your business</h2>
+                <dl className="space-y-4">
+                    <DetailRow label="Currently sells SS" value={formatYesNo(detail.currentlySells)} />
+                    <DetailRow label="Sold SS in past" value={formatYesNo(detail.soldInPast)} />
+                    <DetailRow
+                        label="How did you find us"
+                        value={
+                            detail.howDidYouFindOut?.trim() ? (
+                                <span className="whitespace-pre-wrap">{detail.howDidYouFindOut.trim()}</span>
+                            ) : (
+                                '—'
+                            )
+                        }
+                    />
+                    <DetailRow label="Referred by broker" value={formatYesNo(detail.referredByBroker)} />
+                    <DetailRow label="Broker name" value={detail.brokerName?.trim() || '—'} />
+                    <DetailRow label="Brick-and-mortar" value={formatYesNo(detail.hasBrickAndMortar)} />
+                    <DetailRow label="Business type" value={detail.businessType?.trim() || '—'} />
+                    <DetailRow label="Open schedule" value={formatOpenSchedule(detail.openSeasonallyOrYearRound)} />
+                    <DetailRow
+                        label="Hours of operation"
+                        value={
+                            detail.hoursOfOperation?.trim() ? (
+                                <span className="whitespace-pre-wrap">{detail.hoursOfOperation.trim()}</span>
+                            ) : (
+                                '—'
+                            )
+                        }
+                    />
+                    <DetailRow
+                        label="Social media"
+                        value={
+                            detail.socialMediaHandles?.trim() ? (
+                                <span className="whitespace-pre-wrap">{detail.socialMediaHandles.trim()}</span>
+                            ) : (
+                                '—'
+                            )
+                        }
+                    />
+                </dl>
+            </section>
+
+            <div className="flex justify-end border-t border-[#d4c4b0] pt-4 pb-8">
+                <ApplicationEmailActions
+                    applicationId={detail.id}
+                    emailSent={detail.emailSent}
+                    applyNowEmail={applyNowEmail}
+                    developerEmail={developerEmail}
+                    sendEmailFrom={sendEmailFrom}
+                    actions={['developer']}
+                />
+            </div>
         </div>
     );
 }

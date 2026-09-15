@@ -369,6 +369,16 @@ export const application = pgTable("application", {
 	phone: text().notNull(),
 	fax: text(),
 	email: text().notNull(),
+	currentlySells: boolean(),
+	soldInPast: boolean(),
+	howDidYouFindOut: text(),
+	referredByBroker: boolean(),
+	brokerName: text(),
+	hasBrickAndMortar: boolean(),
+	businessType: text(),
+	openSeasonallyOrYearRound: text(),
+	hoursOfOperation: text(),
+	socialMediaHandles: text(),
 	emailSent: boolean().default(false).notNull(),
 });
 

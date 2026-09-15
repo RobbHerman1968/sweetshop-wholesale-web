@@ -13,13 +13,27 @@ import {
 } from '@/lib/wholesale-application-attachment';
 import {
     wholesaleApplicationSchema,
+    type OpenScheduleValue,
     type WholesaleApplicationField,
     type WholesaleApplicationInput,
 } from '@/lib/validations/wholesale-application';
 
-function readFormString(formData: FormData, key: keyof WholesaleApplicationInput): string {
+function readFormString(formData: FormData, key: string): string {
     const value = formData.get(key);
     return typeof value === 'string' ? value : '';
+}
+
+function readFormYesNo(formData: FormData, key: string): boolean | undefined {
+    const value = readFormString(formData, key);
+    if (value === 'yes') return true;
+    if (value === 'no') return false;
+    return undefined;
+}
+
+function readFormOpenSchedule(formData: FormData): OpenScheduleValue | undefined {
+    const value = readFormString(formData, 'openSeasonallyOrYearRound');
+    if (value === 'seasonal' || value === 'year-round') return value;
+    return undefined;
 }
 
 export type SubmitWholesaleApplicationResult =
@@ -40,6 +54,16 @@ export async function submitWholesaleApplication(formData: FormData): Promise<Su
         phone: readFormString(formData, 'phone'),
         fax: readFormString(formData, 'fax') || undefined,
         email: readFormString(formData, 'email'),
+        currentlySells: readFormYesNo(formData, 'currentlySells') as WholesaleApplicationInput['currentlySells'],
+        soldInPast: readFormYesNo(formData, 'soldInPast') as WholesaleApplicationInput['soldInPast'],
+        howDidYouFindOut: readFormString(formData, 'howDidYouFindOut'),
+        referredByBroker: readFormYesNo(formData, 'referredByBroker') as WholesaleApplicationInput['referredByBroker'],
+        brokerName: readFormString(formData, 'brokerName') || undefined,
+        hasBrickAndMortar: readFormYesNo(formData, 'hasBrickAndMortar') as WholesaleApplicationInput['hasBrickAndMortar'],
+        businessType: readFormString(formData, 'businessType') || undefined,
+        openSeasonallyOrYearRound: readFormOpenSchedule(formData) as WholesaleApplicationInput['openSeasonallyOrYearRound'],
+        hoursOfOperation: readFormString(formData, 'hoursOfOperation'),
+        socialMediaHandles: readFormString(formData, 'socialMediaHandles') || undefined,
     };
     const parsed = wholesaleApplicationSchema.safeParse(input);
     if (!parsed.success) {
@@ -78,6 +102,16 @@ export async function submitWholesaleApplication(formData: FormData): Promise<Su
                 phone: data.phone.trim(),
                 fax: data.fax?.trim() || null,
                 email: data.email.trim(),
+                currentlySells: data.currentlySells,
+                soldInPast: data.soldInPast,
+                howDidYouFindOut: data.howDidYouFindOut.trim(),
+                referredByBroker: data.referredByBroker,
+                brokerName: data.brokerName?.trim() || null,
+                hasBrickAndMortar: data.hasBrickAndMortar,
+                businessType: data.businessType?.trim() || null,
+                openSeasonallyOrYearRound: data.openSeasonallyOrYearRound,
+                hoursOfOperation: data.hoursOfOperation.trim(),
+                socialMediaHandles: data.socialMediaHandles?.trim() || null,
                 emailSent: false,
             })
             .returning({ id: application.id });
