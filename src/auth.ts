@@ -4,6 +4,7 @@ import * as argon2 from 'argon2';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db-pg';
 import { user } from '@/lib/drizzle/schema';
+import { insertLog } from '@/lib/db-pg/actions/log';
 import { loginSchema } from '@/lib/validations/auth';
 import { parseUserId } from '@/lib/user-id';
 import { syncUserAccountFromAccountMate } from '@/lib/db-pg/actions/account';
@@ -11,10 +12,50 @@ import { isHebAccountMateId } from '@/lib/shop-shopping-menu';
 
 export { loginSchema } from '@/lib/validations/auth';
 
-async function findUserForLogin(loginId: string) {
+type SignInBlockReason =
+    | 'invalid_credentials_format'
+    | 'user_not_found'
+    | 'ambiguous_accountmate_id'
+    | 'user_inactive'
+    | 'invalid_password';
+
+type FindUserForLoginResult =
+    | { status: 'found'; user: typeof user.$inferSelect }
+    | { status: 'not_found' }
+    | { status: 'ambiguous_accountmate_id' };
+
+/** Never log plaintext passwords — length only is enough for support debugging. */
+async function logBlockedSignIn(input: {
+    loginId: string;
+    reason: SignInBlockReason;
+    passwordLength: number;
+    userId?: number | null;
+    accountMateId?: string | null;
+}) {
+    const detail = {
+        loginId: input.loginId,
+        reason: input.reason,
+        passwordLength: input.passwordLength,
+        userId: input.userId ?? null,
+        accountMateId: input.accountMateId ?? null,
+    };
+
+    console.warn('[sign-in blocked]', detail);
+
+    await insertLog({
+        outcome: 'failure',
+        stage: 'sign-in',
+        message: `Sign-in blocked for "${input.loginId}"`,
+        userId: input.userId ?? null,
+        accountMateId: input.accountMateId ?? null,
+        error: `${input.reason} (passwordLength=${input.passwordLength})`,
+    });
+}
+
+async function findUserForLogin(loginId: string): Promise<FindUserForLoginResult> {
     const normalized = loginId.trim().toLowerCase();
     if (!normalized) {
-        return null;
+        return { status: 'not_found' };
     }
 
     const [byUserName] = await db
@@ -24,7 +65,7 @@ async function findUserForLogin(loginId: string) {
         .limit(1);
 
     if (byUserName) {
-        return byUserName;
+        return { status: 'found', user: byUserName };
     }
 
     const byAccountMateId = await db
@@ -40,10 +81,14 @@ async function findUserForLogin(loginId: string) {
 
     // Ambiguous AccountMate IDs should not authenticate.
     if (byAccountMateId.length === 1) {
-        return byAccountMateId[0];
+        return { status: 'found', user: byAccountMateId[0] };
     }
 
-    return null;
+    if (byAccountMateId.length > 1) {
+        return { status: 'ambiguous_accountmate_id' };
+    }
+
+    return { status: 'not_found' };
 }
 
 const authOptions: NextAuthOptions = {
@@ -55,15 +100,51 @@ const authOptions: NextAuthOptions = {
                 password: { label: 'Password', type: 'password' },
             },
             async authorize(raw) {
+                const rawLoginId = typeof raw?.email === 'string' ? raw.email : '';
+                const rawPassword = typeof raw?.password === 'string' ? raw.password : '';
+
                 const parsed = loginSchema.safeParse(raw);
                 if (!parsed.success) {
+                    await logBlockedSignIn({
+                        loginId: rawLoginId.trim() || '(empty)',
+                        reason: 'invalid_credentials_format',
+                        passwordLength: rawPassword.length,
+                    });
                     return null;
                 }
 
                 const { email: loginId, password } = parsed.data;
-                const found = await findUserForLogin(loginId);
+                const lookup = await findUserForLogin(loginId);
 
-                if (!found || !found.isActive) {
+                if (lookup.status === 'not_found') {
+                    await logBlockedSignIn({
+                        loginId,
+                        reason: 'user_not_found',
+                        passwordLength: password.length,
+                    });
+                    return null;
+                }
+
+                if (lookup.status === 'ambiguous_accountmate_id') {
+                    await logBlockedSignIn({
+                        loginId,
+                        reason: 'ambiguous_accountmate_id',
+                        passwordLength: password.length,
+                        accountMateId: loginId,
+                    });
+                    return null;
+                }
+
+                const found = lookup.user;
+
+                if (!found.isActive) {
+                    await logBlockedSignIn({
+                        loginId,
+                        reason: 'user_inactive',
+                        passwordLength: password.length,
+                        userId: found.id,
+                        accountMateId: found.accountMateId,
+                    });
                     return null;
                 }
 
@@ -74,6 +155,13 @@ const authOptions: NextAuthOptions = {
                     valid = false;
                 }
                 if (!valid) {
+                    await logBlockedSignIn({
+                        loginId,
+                        reason: 'invalid_password',
+                        passwordLength: password.length,
+                        userId: found.id,
+                        accountMateId: found.accountMateId,
+                    });
                     return null;
                 }
 
