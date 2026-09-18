@@ -533,11 +533,13 @@ export const getBrandBarNavCategories = cache(async (menuId = WHOLESALE_BRAND_BA
                 id: category.id,
                 navName: category.navName,
                 name: category.name,
+                isActive: category.isActive,
             })
             .from(category)
             .where(inArray(category.id, categoryIds));
 
         for (const row of categories) {
+            if (!row.isActive) continue;
             categoryNavNames.set(row.id, row.navName?.trim() || row.name?.trim() || '');
         }
     }
@@ -560,9 +562,10 @@ export const getBrandBarNavCategories = cache(async (menuId = WHOLESALE_BRAND_BA
     }
 
     const activePageIds = new Set(pageNavNames.keys());
+    const activeCategoryIds = new Set(categoryNavNames.keys());
     const categories = buildBrandBarNavCategories(rows, categoryNavNames, pageNavNames);
 
-    return filterBrandBarNavCategoriesByActivePages(categories, activePageIds);
+    return filterBrandBarNavCategoriesByActiveLinks(categories, activePageIds, activeCategoryIds);
 });
 
 function filterShopNavCategoriesByActiveProducts(
@@ -585,9 +588,10 @@ function filterShopNavCategoriesByActiveProducts(
         .filter((group) => group.sections.length > 0);
 }
 
-function filterBrandBarNavCategoriesByActivePages(
+function filterBrandBarNavCategoriesByActiveLinks(
     categories: BrandBarNavCategory[],
     activePageIds: Set<number>,
+    activeCategoryIds: Set<number>,
 ): BrandBarNavCategory[] {
     return categories
         .map((group) => ({
@@ -596,8 +600,13 @@ function filterBrandBarNavCategoriesByActivePages(
                 .map((section) => ({
                     ...section,
                     links: section.links.filter((link) => {
-                        if (link.pageId == null || link.pageId <= 0) return true;
-                        return activePageIds.has(link.pageId);
+                        if (link.pageId != null && link.pageId > 0 && !activePageIds.has(link.pageId)) {
+                            return false;
+                        }
+                        if (link.categoryId != null && link.categoryId > 0 && !activeCategoryIds.has(link.categoryId)) {
+                            return false;
+                        }
+                        return true;
                     }),
                 }))
                 .filter((section) => section.links.length > 0),
