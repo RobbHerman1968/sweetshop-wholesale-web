@@ -258,22 +258,6 @@ export function EditAccountContent({ account, menus, backHref }: Props) {
                         </Label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Checkbox id="edit-account-isSkipShipping" name="isSkipShipping" defaultChecked={accountFields.isSkipShipping} />
-                        <Label htmlFor="edit-account-isSkipShipping" className={fieldLabelClass}>
-                            Skip shipping
-                        </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Checkbox
-                            id="edit-account-isFreeGroundShipping"
-                            name="isFreeGroundShipping"
-                            defaultChecked={accountFields.isFreeGroundShipping}
-                        />
-                        <Label htmlFor="edit-account-isFreeGroundShipping" className={fieldLabelClass}>
-                            Free ground shipping
-                        </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
                         <Checkbox id="edit-account-isTerms" name="isTerms" defaultChecked={accountFields.isTerms} />
                         <Label htmlFor="edit-account-isTerms" className={fieldLabelClass}>
                             Terms account
