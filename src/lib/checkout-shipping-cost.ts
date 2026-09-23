@@ -14,8 +14,6 @@ export type CheckoutStateShippingRate = {
 export type CheckoutShippingOptions = {
     fixedShippingAmount: number | null;
     fixedShippingPercent: number | null;
-    isSkipShipping: boolean;
-    isFreeGroundShipping: boolean;
     isSkipTax: boolean;
     stateShippingRates: CheckoutStateShippingRate[];
 };
@@ -42,24 +40,17 @@ export function lookupStateTaxRate(stateAbbr: string, rates: CheckoutStateShippi
 }
 
 /**
- * Shipping is always a percent of the subtotal (never free from these thresholds).
+ * Shipping is always a percent of the subtotal.
  * Under Fixed Shipping Amount → Fixed Shipping Percent.
  * At/above Fixed Shipping Amount → state shippingRate.
- * Account skip-shipping / free-ground flags still force $0.
  */
 export function calculateCheckoutShippingCost(params: {
     subTotal: number;
     shipToState: string;
     fixedShippingAmount: number | null;
     fixedShippingPercent: number | null;
-    isSkipShipping: boolean;
-    isFreeGroundShipping: boolean;
     stateShippingRates: CheckoutStateShippingRate[];
 }): number {
-    if (params.isSkipShipping || params.isFreeGroundShipping) {
-        return 0;
-    }
-
     const amount = params.fixedShippingAmount;
     const useFixedPercent = amount != null && params.subTotal < amount;
 

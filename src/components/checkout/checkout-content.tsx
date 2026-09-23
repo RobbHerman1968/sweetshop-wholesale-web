@@ -172,8 +172,6 @@ export function CheckoutContent({
                 shipToState: shippingForm.state,
                 fixedShippingAmount: shippingOptions.fixedShippingAmount,
                 fixedShippingPercent: shippingOptions.fixedShippingPercent,
-                isSkipShipping: shippingOptions.isSkipShipping,
-                isFreeGroundShipping: shippingOptions.isFreeGroundShipping,
                 stateShippingRates: shippingOptions.stateShippingRates,
             }),
         [cart.subTotal, shippingForm.state, shippingOptions],

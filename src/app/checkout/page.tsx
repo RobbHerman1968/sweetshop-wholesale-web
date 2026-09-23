@@ -117,8 +117,6 @@ export default async function CheckoutPage() {
                     shippingOptions={{
                         fixedShippingAmount: fixedShippingAmountSetting?.value ?? null,
                         fixedShippingPercent: fixedShippingPercentSetting?.value ?? null,
-                        isSkipShipping: account?.isSkipShipping ?? false,
-                        isFreeGroundShipping: account?.isFreeGroundShipping ?? false,
                         isSkipTax: account?.isSkipTax ?? false,
                         stateShippingRates: stateRates.map((rate) => ({
                             stateAbbr: rate.stateAbbr,
