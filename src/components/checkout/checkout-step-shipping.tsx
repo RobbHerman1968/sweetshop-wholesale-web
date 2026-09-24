@@ -21,15 +21,19 @@ import {
 import {
     CHECKOUT_COMMENT_MAX_LENGTH,
     CHECKOUT_COUNTRIES,
+    CHECKOUT_NON_CONTIGUOUS_SHIPPING_MESSAGE,
     CHECKOUT_SHIPPING_ADDRESS_NAME,
     CHECKOUT_SHIPPING_METHOD_FEDEX_GROUND,
     CHECKOUT_SHIPPING_METHOD_LABEL,
+    CHECKOUT_WHOLESALE_PHONE_DISPLAY,
+    CHECKOUT_WHOLESALE_PHONE_TEL,
     US_STATE_OPTIONS,
     formatCheckoutCurrency,
     formatCheckoutLongDate,
     formatDisplayDate,
     formatPhoneDisplay,
     getCheckoutDeliveryWindowStart,
+    isCheckoutNonContiguousShippingState,
     isDefaultAddressName,
     isWeekendDate,
     normalizePhoneDigits,
@@ -68,6 +72,8 @@ export function CheckoutStepShipping({
         () => parseIsoDate(defaultExpectedDeliveryDate) ?? new Date(),
         [defaultExpectedDeliveryDate],
     );
+
+    const isNonContiguousShipTo = isCheckoutNonContiguousShippingState(form.state);
 
     const patch = (partial: Partial<CheckoutShippingForm>) => {
         onChange({ ...form, ...partial });
@@ -199,8 +205,11 @@ export function CheckoutStepShipping({
                                 onValueChange={(value) => patch({ state: value })}
                             >
                                 <SelectTrigger
-                                    className={fieldClass('state', checkoutSelectTriggerClass)}
-                                    aria-invalid={invalid('state') || undefined}
+                                    className={cn(
+                                        fieldClass('state', checkoutSelectTriggerClass),
+                                        isNonContiguousShipTo && checkoutFieldInvalidClass,
+                                    )}
+                                    aria-invalid={invalid('state') || isNonContiguousShipTo || undefined}
                                 >
                                     <SelectValue placeholder="Please Select" />
                                 </SelectTrigger>
@@ -221,6 +230,26 @@ export function CheckoutStepShipping({
                                 aria-invalid={invalid('zipCode') || undefined}
                             />
                         </div>
+                        {isNonContiguousShipTo ? (
+                            <p
+                                className="mt-2 text-sm leading-relaxed text-red-700"
+                                role="alert"
+                            >
+                                Orders outside the 48 contiguous states must be placed by phone to receive a custom
+                                freight quote. Call{' '}
+                                <a
+                                    href={`tel:${CHECKOUT_WHOLESALE_PHONE_TEL}`}
+                                    className="font-semibold underline underline-offset-2"
+                                >
+                                    {CHECKOUT_WHOLESALE_PHONE_DISPLAY}
+                                </a>
+                                .
+                            </p>
+                        ) : fieldErrors.state && fieldErrors.state !== CHECKOUT_NON_CONTIGUOUS_SHIPPING_MESSAGE ? (
+                            <p className="mt-2 text-sm text-red-600" role="alert">
+                                {fieldErrors.state}
+                            </p>
+                        ) : null}
                     </CheckoutFormRow>
 
                     <CheckoutFormRow label="Country" required>

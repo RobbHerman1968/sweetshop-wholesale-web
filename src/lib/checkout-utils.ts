@@ -17,6 +17,20 @@ import {
 import { SUPPORTED_CHECKOUT_CARD_LABELS } from '@/lib/checkout-types';
 import { z } from 'zod';
 
+/** Wholesale phone for custom freight quotes (AK / HI). */
+export const CHECKOUT_WHOLESALE_PHONE_DISPLAY = '1-800-222-2269';
+export const CHECKOUT_WHOLESALE_PHONE_TEL = '+18002222269';
+
+export const CHECKOUT_NON_CONTIGUOUS_SHIPPING_MESSAGE =
+    `Orders outside the 48 contiguous states must be placed by phone to receive a custom freight quote. Call ${CHECKOUT_WHOLESALE_PHONE_DISPLAY}.`;
+
+const NON_CONTIGUOUS_US_STATE_ABBRS = new Set(['AK', 'HI']);
+
+/** True when ship-to state is Alaska or Hawaii (custom freight only). */
+export function isCheckoutNonContiguousShippingState(stateAbbr: string): boolean {
+    return NON_CONTIGUOUS_US_STATE_ABBRS.has(stateAbbr.trim().toUpperCase());
+}
+
 export const US_STATE_OPTIONS = [
     { abbr: 'AL', name: 'Alabama' },
     { abbr: 'AK', name: 'Alaska' },
@@ -761,7 +775,11 @@ export function getShippingFieldErrors(
     if (!form.lastName.trim()) errors.lastName = 'Last name is required.';
     if (!form.addressLine1.trim()) errors.addressLine1 = 'Address is required.';
     if (!form.city.trim()) errors.city = 'City is required.';
-    if (!form.state.trim()) errors.state = 'State is required.';
+    if (!form.state.trim()) {
+        errors.state = 'State is required.';
+    } else if (isCheckoutNonContiguousShippingState(form.state)) {
+        errors.state = CHECKOUT_NON_CONTIGUOUS_SHIPPING_MESSAGE;
+    }
     if (!form.zipCode.trim()) errors.zipCode = 'Zip code is required.';
     if (!form.country.trim()) errors.country = 'Country is required.';
 

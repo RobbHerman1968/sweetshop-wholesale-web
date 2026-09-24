@@ -29,6 +29,9 @@ import type {
     CheckoutShippingForm,
 } from '@/lib/checkout-types';
 import {
+    CHECKOUT_NON_CONTIGUOUS_SHIPPING_MESSAGE,
+    CHECKOUT_WHOLESALE_PHONE_DISPLAY,
+    CHECKOUT_WHOLESALE_PHONE_TEL,
     buildDefaultBillingForm,
     buildDefaultShippingForm,
     billingFormToSavedAddress,
@@ -38,6 +41,7 @@ import {
     getBillingFieldErrors,
     getCheckoutBillingEmailAddress,
     getShippingFieldErrors,
+    isCheckoutNonContiguousShippingState,
     mergeCheckoutSavedAddress,
     pruneBillingFieldErrors,
     pruneShippingFieldErrors,
@@ -186,6 +190,16 @@ export function CheckoutContent({
 
     const goToNextStep = async () => {
         if (currentStep === 'shipping') {
+            if (isCheckoutNonContiguousShippingState(shippingForm.state)) {
+                setShippingFieldErrors({ state: CHECKOUT_NON_CONTIGUOUS_SHIPPING_MESSAGE });
+                toast({
+                    variant: 'destructive',
+                    title: 'Custom freight required',
+                    description: CHECKOUT_NON_CONTIGUOUS_SHIPPING_MESSAGE,
+                });
+                return;
+            }
+
             const fieldErrors = getShippingFieldErrors(shippingForm, checkoutSavedAddresses);
             if (Object.keys(fieldErrors).length > 0) {
                 setShippingFieldErrors(fieldErrors);
@@ -359,6 +373,8 @@ export function CheckoutContent({
 
     const currentStepIndex = getCheckoutStepIndex(flowSteps, currentStep);
     const isReviewStep = isCheckoutReviewStep(currentStep);
+    const isNonContiguousShipTo =
+        currentStep === 'shipping' && isCheckoutNonContiguousShippingState(shippingForm.state);
 
     return (
         <div className="min-w-0 space-y-8 overflow-x-clip">
@@ -468,18 +484,33 @@ export function CheckoutContent({
                         )}
 
                         {!isReviewStep ? (
-                            <button
-                                type="button"
-                                disabled={savingAddress}
-                                onClick={() => void goToNextStep()}
-                                className={cn(
-                                    'inline-flex items-center justify-center rounded-md bg-[#4a2518] px-5 py-2.5',
-                                    'text-[11px] font-semibold uppercase tracking-[0.18em] text-[#fdf7ef] transition-colors hover:bg-[#3a1b11]',
-                                    savingAddress && 'cursor-not-allowed opacity-60',
-                                )}
-                            >
-                                {savingAddress ? 'Saving…' : 'Continue'}
-                            </button>
+                            <>
+                                <button
+                                    type="button"
+                                    disabled={savingAddress || isNonContiguousShipTo}
+                                    onClick={() => void goToNextStep()}
+                                    className={cn(
+                                        'inline-flex items-center justify-center rounded-md bg-[#4a2518] px-5 py-2.5',
+                                        'text-[11px] font-semibold uppercase tracking-[0.18em] text-[#fdf7ef] transition-colors hover:bg-[#3a1b11]',
+                                        (savingAddress || isNonContiguousShipTo) && 'cursor-not-allowed opacity-60',
+                                    )}
+                                >
+                                    {savingAddress ? 'Saving…' : 'Continue'}
+                                </button>
+                                {isNonContiguousShipTo ? (
+                                    <p className="max-w-md text-sm leading-snug text-red-700" role="alert">
+                                        Orders outside the 48 contiguous states must be placed by phone to receive a
+                                        custom freight quote. Call{' '}
+                                        <a
+                                            href={`tel:${CHECKOUT_WHOLESALE_PHONE_TEL}`}
+                                            className="font-semibold underline underline-offset-2"
+                                        >
+                                            {CHECKOUT_WHOLESALE_PHONE_DISPLAY}
+                                        </a>
+                                        .
+                                    </p>
+                                ) : null}
+                            </>
                         ) : (
                             <button
                                 type="button"
